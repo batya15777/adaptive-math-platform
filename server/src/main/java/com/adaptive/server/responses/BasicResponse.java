@@ -25,9 +25,9 @@ public class BasicResponse<T> {
     }
 
     // Constructor for ERROR responses
-    public BasicResponse(boolean success, String errorMessage) {
+    public BasicResponse(boolean success, Error error) {
         this.success = success;
-        this.errorMessage = errorMessage;
+        this.errorMessage = error.getMessage();
         this.timestamp = LocalDateTime.now();
     }
 
