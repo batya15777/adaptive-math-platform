@@ -1,5 +1,6 @@
 package com.adaptive.server.responses;
 
+import com.adaptive.server.utils.Errors;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDateTime;
 
@@ -25,7 +26,7 @@ public class BasicResponse<T> {
     }
 
     // Constructor for ERROR responses
-    public BasicResponse(boolean success, Error error) {
+    public BasicResponse(boolean success, Errors error) {
         this.success = success;
         this.errorMessage = error.getMessage();
         this.timestamp = LocalDateTime.now();
