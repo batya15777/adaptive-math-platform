@@ -1,10 +1,11 @@
 package com.adaptive.server.service;
 
 import org.hibernate.Session;
-import org.hibernate.SessionFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.List;
 
 @Transactional
@@ -12,28 +13,25 @@ import java.util.List;
 @SuppressWarnings("unchecked")
 public class Persist {
 
-    private final SessionFactory sessionFactory;
-
-    public Persist(SessionFactory sessionFactory) {
-        this.sessionFactory = sessionFactory;
-    }
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public <T> void saveAll(List<T> objects) {
         for (T object : objects) {
-            sessionFactory.getCurrentSession().saveOrUpdate(object);
+            getQuerySession().saveOrUpdate(object);
         }
     }
 
     public void remove(Object o) {
-        sessionFactory.getCurrentSession().remove(o);
+        entityManager.remove(entityManager.contains(o) ? o : entityManager.merge(o));
     }
 
     public Session getQuerySession() {
-        return sessionFactory.getCurrentSession();
+        return entityManager.unwrap(Session.class);
     }
 
     public void save(Object object) {
-        sessionFactory.getCurrentSession().saveOrUpdate(object);
+        getQuerySession().saveOrUpdate(object);
     }
 
     public <T> T loadObject(Class<T> clazz, long oid) {
@@ -41,7 +39,7 @@ public class Persist {
     }
 
     public <T> List<T> loadList(Class<T> clazz) {
-        return sessionFactory.getCurrentSession()
+        return getQuerySession()
                 .createQuery("FROM " + clazz.getSimpleName()).list();
     }
 
