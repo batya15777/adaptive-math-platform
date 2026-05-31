@@ -9,13 +9,17 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 @Profile("production")
 public class AppConfig {
-
+//עשיתי פה שינוי חשוב בגלל שהוספתי עוגיות מאובטחות אז אסור יותר להשתמש עם כוכביות בנוסף צריך אישור עוגיות
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**").allowedOrigins("*");
+                registry.addMapping("/**")
+                        //צריך כתובת צד לקוח מדויקת
+                        .allowedOrigins("http://localhost:5173", "http://localhost:3000")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowCredentials(true); // זה החלק שמאפשר לדפדפן לקבל ולשלוח את העוגיות!
             }
         };
     }
