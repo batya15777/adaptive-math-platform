@@ -1,7 +1,5 @@
 package com.adaptive.server.DTOs;
 
-import javax.persistence.Column;
-
 public class RegisterRequest {
 
 
