@@ -120,21 +120,26 @@ function RegisterForm(){
                  onChange={(e) => setEmail(e.target.value)}
              />
 
-             <input
-                 type="radio"
-                 name="gender"
-                 value="male"
-                 checked={gender === "male"}
-                 onChange={(e) => setGender(e.target.value)}
-             />
-
-             <input
-                 type="radio"
-                 name="gender"
-                 value="female"
-                 checked={gender === "female"}
-                 onChange={(e) => setGender(e.target.value)}
-             />
+             <div>
+                 <label>
+                     <input
+                         type="radio"
+                         name="gender"
+                         value="male"
+                         checked={gender === "male"}
+                         onChange={(e) => setGender(e.target.value)}
+                     /> Male
+                 </label>
+                 <label>
+                     <input
+                         type="radio"
+                         name="gender"
+                         value="female"
+                         checked={gender === "female"}
+                         onChange={(e) => setGender(e.target.value)}
+                     /> Female
+                 </label>
+             </div>
              <button
                  disabled={validation()}
                  type="submit">
