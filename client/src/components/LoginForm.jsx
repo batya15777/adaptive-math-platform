@@ -35,7 +35,7 @@ function LoginForm() {
         login(data)
             .then(response => {
                 if (response.data.success) {
-                    console.log("Logged in!", response.data.data);
+                    console.log("Logged in!", response.data.data.user);
 
                     loginUser(response.data.data.user);
                 } else {

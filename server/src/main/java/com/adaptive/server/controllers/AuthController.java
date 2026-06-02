@@ -2,7 +2,9 @@ package com.adaptive.server.controllers;
 
 import com.adaptive.server.DTOs.LoginRequest;
 import com.adaptive.server.DTOs.LoginSuccessData;
+import com.adaptive.server.DTOs.RegisterRequest;
 import com.adaptive.server.responses.BasicResponse;
+import com.adaptive.server.responses.LoginResponse;
 import com.adaptive.server.service.AuthService;
 import com.adaptive.server.utils.CookieUtils;
 import org.springframework.web.bind.annotation.*;
@@ -18,19 +20,15 @@ public class AuthController {
         this.authService = authService;
     }
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
     @PostMapping("/login")
-    public BasicResponse<LoginSuccessData> login(@RequestBody LoginRequest loginRequest
+    public LoginResponse login(@RequestBody LoginRequest loginRequest
             , HttpServletResponse response){
 
-        BasicResponse<LoginSuccessData> responseData = authService.login(loginRequest);
-        if (responseData.isSuccess() && responseData.getData() != null) {
-            CookieUtils.setSessionCookie(response , responseData.getData().getToken());
+        LoginResponse responseData = authService.login(loginRequest);
+        if (responseData.isSuccess() && responseData.getLoginData() != null) {
+            CookieUtils.setSessionCookie(response , responseData.getLoginData().getToken());
             //אם התחברתי בהצלחה מגידירם את HTTP ONLY וסידור עוגייה
-            stripTokensFormatBody(responseData.getData());
+            stripTokensFormatBody(responseData.getLoginData());
         }
         return responseData;
     }
@@ -41,12 +39,12 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public BasicResponse<String> logout(@CookieValue(value = "session_token" , required = false)
+    public BasicResponse logout(@CookieValue(value = "session_token" , required = false)
              String token , HttpServletResponse response){
 
         authService.logout(token);//מחיקת טוקן מDB
         CookieUtils.clearSessionCookie(response);
-        return new BasicResponse<>("Logged out successfully");
+        return new BasicResponse(true , "Logged out successfully");
     }
 
 
@@ -55,7 +53,6 @@ public class AuthController {
         return authService.register(registerRequest);
     }
 
-//    @PostMapping("/login")
 
 
 }

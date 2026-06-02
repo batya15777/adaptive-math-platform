@@ -11,6 +11,7 @@ import com.adaptive.server.repository.EmailVerificationRepository;
 import com.adaptive.server.repository.SessionTokenRepository;
 import com.adaptive.server.repository.UserRepository;
 import com.adaptive.server.responses.BasicResponse;
+import com.adaptive.server.responses.LoginResponse;
 import com.adaptive.server.utils.Errors;
 import com.adaptive.server.utils.GenerateHash;
 import org.springframework.stereotype.Service;
@@ -40,22 +41,22 @@ public class AuthService {
     }
 
 
-    public BasicResponse<LoginSuccessData> login(LoginRequest loginRequest) {
+    public LoginResponse login(LoginRequest loginRequest) {
         //בדיקת תקינות פלט עם VALIDATION
-        if (!validationService.emailRegex(loginRequest.getEmail()) ||
-        !validationService.passwordRegex(loginRequest.getPassword())) {
-            return new BasicResponse<>(false , Errors.INVALID_CREDENTIALS);
+        if (!validationService.isValidEmail(loginRequest.getEmail()) ||
+        !validationService.isValidPassword(loginRequest.getPassword())) {
+            return new LoginResponse(false , Errors.INVALID_CREDENTIALS.getMessage() , null);
         }
 
         Optional<User> optionalUser = userRepository.findByEmail(loginRequest.getEmail());
         if (!optionalUser.isPresent()) {
-            return new BasicResponse<>(false , Errors.INVALID_CREDENTIALS);
+            return new LoginResponse(false , Errors.INVALID_CREDENTIALS.getMessage() , null);
         }//אם אימייל שלקוח הקליד לא קיים נחזיר שגיאה כללית
         User user = optionalUser.get();
 
         String hashedPassword = GenerateHash.hashMd5(user.getUsername() , loginRequest.getPassword());
-        if (!hashedPassword.equals(user.getPassword())) {
-            return new BasicResponse<>(false , Errors.INVALID_CREDENTIALS);
+        if (!hashedPassword.equals(user.getPasswordHash())) {
+            return new LoginResponse(false , Errors.INVALID_CREDENTIALS.getMessage() , null);
         }//לוקחים סיסמא שלקוח הקליד נכניס לפונקציית HASH שלנו ונבדוק אם תוצאה שווה למה שיש בDB
 
         //יצרתי ככה סשן שיהיה תקף בינתיים ליום ואז שומרת אותו
@@ -67,26 +68,28 @@ public class AuthService {
 
         //מצנזרת נתונים רגישים אני לא רוצה להציג את הסיסמא
         UserResponseDTO userResponseDTO = new UserResponseDTO(user);
-
         LoginSuccessData loginSuccessData = new LoginSuccessData(userResponseDTO , tokenString);
-        return new BasicResponse<>(loginSuccessData);
+
+        return new LoginResponse(true , "Login successfully" , loginSuccessData);
     }
 
 
-    public BasicResponse<String> logout(String tokenString) {
+    public BasicResponse logout(String tokenString) {
         if (tokenString == null || tokenString.isEmpty()) {//אם אין טוקן בכלל הוא מנותק
-            return new BasicResponse<>(true,null);
+            return new BasicResponse(true, "Already logged out");
         }
         Optional<SessionToken> sessionTokenOptional = sessionTokenRepository.findByToken(tokenString);
         if (sessionTokenOptional.isPresent()) {
             sessionTokenRepository.delete(sessionTokenOptional.get());
             //מחפשים סשן בDB אם מצאתי מחקתי
         }
-        return new BasicResponse<>("Logged out successfully");
+        return new BasicResponse(true , "Logged out successfully");
     }
 
 //אני יוסיף שגיאות של מייל וממגדר
-    public BasicResponse<String> validationRegex(
+//    public BasicResponse<String> validationRegex(){
+//        return null;
+//    }
 
     @Transactional
     public BasicResponse register(RegisterRequest registerRequest) {
