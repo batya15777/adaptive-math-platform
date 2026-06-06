@@ -5,198 +5,184 @@ from dataclasses import dataclass
 
 from openai import OpenAI
 
-from .i18n import ARITHMETIC_ROUTE_HINTS, GEOMETRY_ROUTE_HINTS, QUESTION_TEMPLATES, STEP_TEMPLATES
-from .models import EvaluationResult, GenerationRequest, MathProblem, MathRoute, RouterDecision
-from .tools import calculate_expression, extract_math_expression
+from .i18n import LANGUAGE_NAMES
+from .models import EvaluationResult, GenerationRequest, MathProblem
 
-ROUTER_SYSTEM_PROMPT = (
-    "You are a routing agent for a math question generator. "
-    "Route arithmetic topics to 'arithmetic' and geometry topics to 'geometry'. "
-    "Return only structured JSON."
-)
 
-GENERATOR_SYSTEM_PROMPT = (
-    "You are a math tutor for children. Always output the required JSON format. "
-    "Do not include violence, alcohol, weapons, or adult themes in word problems. "
-    "Use concise, age-appropriate language and provide a clear step-by-step solution."
-)
+# ---------------------------------------------------------------------------
+# System prompts
+# ---------------------------------------------------------------------------
 
-import json
+GENERATOR_SYSTEM_PROMPT = """\
+You are a world-class educational question designer for children and students of all ages.
 
-FEW_SHOT_EXAMPLES = [
-    # Example 1: Basic Addition (Level 1) - Kindergarten/Early Elementary
-    {
-        "role": "user",
-        "content": "Topic: Addition, Difficulty: 1, Context: ''",
-    },
-    {
-        "role": "assistant",
-        "content": json.dumps(
-            {
-                "question_text": "מה זה 2 + 3?",
-                "correct_answer": "5",
-                "step_by_step_solution": [
-                    "נתחיל מהמספר 2.",
-                    "נספור עוד 3 צעדים קדימה: 3, 4, 5.",
-                    "הגענו למספר 5, וזו התשובה!"
-                ],
-                "difficulty_level": 1,
-            },
-            ensure_ascii=False
-        ),
-    },
+Your task is to create ONE engaging, imaginative, and curriculum-aligned question.
 
-    # Example 2: Subtraction with Decimal Transition (Level 2) - Elementary School
-    {
-        "role": "user",
-        "content": "Topic: Subtraction, Difficulty: 2, Context: ''",
-    },
-    {
-        "role": "assistant",
-        "content": json.dumps(
-            {
-                "question_text": "כמה זה 72 - 29?",
-                "correct_answer": "43",
-                "step_by_step_solution": [
-                    "נכתוב את התרגיל במאונך או נפרק אותו לעשרות ויחידות.",
-                    "נפחית תחילה את העשרות: 72 פחות 20 שווה 52.",
-                    "עכשיו נשאר להפחית את 9 היחידות: 52 פחות 9.",
-                    "נרד 2 צעדים אל ה-50, ואז עוד 7 צעדים אל ה-43.",
-                    "התשובה הסופית היא 43."
-                ],
-                "difficulty_level": 2,
-            },
-            ensure_ascii=False
-        ),
-    },
+RULES:
+1. TOPIC — The question must genuinely test the given subject.
+   Examples: "fractions" → student must work with fractions; "history" → question involves real facts or reasoning.
+   The topic defines WHAT the student is learning — never skip it.
 
-    # Example 3: Dynamic Word Problem (Level 3) - Context Driven
-    {
-        "role": "user",
-        "content": "Topic: Word Problem, Difficulty: 3, Context: 'מדף וספרים'",
-    },
-    {
-        "role": "assistant",
-        "content": json.dumps(
-            {
-                "question_text": "על המדף היו 40 ספרים. המורה אספה 18 ספרים מהמדף. כמה ספרים נשארו על המדף כעת?",
-                "correct_answer": "22",
-                "step_by_step_solution": [
-                    "נבין את הסיפור: התחלנו עם 40 ספרים, והורידו מהם 18 ספרים.",
-                    "זוהי פעולת חיסור: 18 - 40.",
-                    "נחסר תחילה 10: 30 = 10 - 40.",
-                    "כעת נחסר את 8 היחידות הנותרות: 22 = 8 - 30.",
-                    "על המדף נשארו 22 ספרים."
-                ],
-                "difficulty_level": 3,
-            },
-            ensure_ascii=False
-        ),
-    },
+2. THEME — Weave the creative theme naturally into the narrative/story of the question.
+   The theme is the world/setting, not the subject itself.
+   Make it vivid and fun — names, places, objects should all fit the theme.
 
-    # Example 4: Number Completion (Level 4) - Missing Variable
-    {
-        "role": "user",
-        "content": "Topic: Number Completion, Difficulty: 4, Context: ''",
-    },
-    {
-        "role": "assistant",
-        "content": json.dumps(
-            {
-                "question_text": "מצאו את המספר החסר: 45 = ? + 20",
-                "correct_answer": "25",
-                "step_by_step_solution": [
-                    "נתון לנו שסכום שני מספרים הוא 45, ואחד מהם הוא 20.",
-                    "כדי למצוא את המספר השני (הנעלם), נבצע פעולה הפוכה - חיסור.",
-                    "נחסר את המספר הידוע מהסכום הכולל: 20 - 45.",
-                    "45 פחות 20 שווה ל-25.",
-                    "המספר החסר הוא 25."
-                ],
-                "difficulty_level": 4,
-            },
-            ensure_ascii=False
-        ),
-    },
+3. DIFFICULTY (1–10) — Scale complexity accordingly:
+   1–2  → kindergarten/early primary (counting, basic shapes, simple facts)
+   3–4  → primary school (double-digit arithmetic, introductory concepts)
+   5–6  → middle school (fractions, percentages, multi-step reasoning)
+   7–8  → late middle / early high school (algebra, ratios, deeper analysis)
+   9–10 → advanced high school (complex equations, proofs, advanced topics)
+   Use the student's AGE as a secondary guide, but DIFFICULTY takes priority.
 
-    # Example 5: High-Level Math (Level 5) - Statistics/Algebra for Academic/High-School
-    {
-        "role": "user",
-        "content": "Topic: Statistics, Difficulty: 5, Context: ''",
-    },
-    {
-        "role": "assistant",
-        "content": json.dumps(
-            {
-                "question_text": "נתון מדגם של 5 ציונים: 70, 80, 85, 90, 100. מהו הממוצע (Mean) של ציונים אלו?",
-                "correct_answer": "85",
-                "step_by_step_solution": [
-                    "כדי למצוא ממוצע של קבוצת נתונים, עלינו לחבר את כל הערכים יחד ולחלק במספר האיברים.",
-                    "שלב 1: נחשב את סכום הציונים: 425 = 100 + 90 + 85 + 80 + 70.",
-                    "שלב 2: נספור כמה ציונים יש במדגם. ישנם 5 ציונים.",
-                    "שלב 3: נחלק את הסכום במספר האיברים: 425 חלקי 5.",
-                    "425 / 5 = 85. הממוצע של המדגם הוא 85."
-                ],
-                "difficulty_level": 5,
-            },
-            ensure_ascii=False
-        ),
-    }
-]
+4. PERSONALISATION — Mention the student by NAME somewhere in the question to make it feel personal.
+
+5. ACCURACY — The correct_answer MUST be exactly right. \
+Double-check all arithmetic, logic, and facts before responding. \
+Never guess.
+
+6. SOLUTION — step_by_step_solution must walk the student through the reasoning clearly. \
+Each step = one sentence. Minimum 2 steps, maximum 6 steps. \
+Steps must be logically ordered and lead to the correct answer.
+
+7. LANGUAGE — Write ENTIRELY in the requested output language. Do not mix languages under any circumstances.
+
+8. SAFETY — Never include violence, weapons, drugs, alcohol, adult content, or anything \
+inappropriate for children.
+
+OUTPUT — Return ONLY a valid JSON object with exactly these three keys, nothing else:
+{
+  "question_text": "...",
+  "correct_answer": "...",
+  "step_by_step_solution": ["Step 1 ...", "Step 2 ...", "Step 3 ..."]
+}
+"""
+
+EVALUATOR_SYSTEM_PROMPT = """\
+You are a precise answer-verification agent for an educational platform.
+
+Given a question, its proposed correct answer, and a step-by-step solution, \
+determine whether the answer is correct and the solution is sound.
+
+Verification approach:
+- MATH questions: verify every arithmetic/algebraic step; confirm the final answer matches.
+- NON-MATH questions (history, science, geography, etc.): check factual accuracy and logical soundness.
+- Scrutinise every step of the provided solution for errors or logical jumps.
+- If an answer is approximately correct but has a minor rounding difference, mark it correct \
+  and note it in the explanation.
+
+Return ONLY a valid JSON object:
+{
+  "is_correct": true,
+  "explanation": "One-sentence verdict explaining your reasoning."
+}
+"""
+
+
+# ---------------------------------------------------------------------------
+# Agent
+# ---------------------------------------------------------------------------
 
 
 @dataclass(slots=True)
-class MathAgents:
+class QuestionAgent:
+    """
+    LLM-powered agent that:
+    1. Generates a themed, personalised educational question (``generate``).
+    2. Independently verifies the answer correctness (``evaluate``).
+    """
+
     client: OpenAI
     model: str
 
-    def route(self, req: GenerationRequest) -> RouterDecision:
-        topic_lower = req.topic.lower()
-        route = MathRoute.geometry if any(word in topic_lower for word in ["geometry", "shape", "area", "perimeter"]) else MathRoute.arithmetic
-        rationale = GEOMETRY_ROUTE_HINTS[req.language] if route == MathRoute.geometry else ARITHMETIC_ROUTE_HINTS[req.language]
-        return RouterDecision(route=route, rationale=rationale)
+    # ------------------------------------------------------------------
+    # Public interface
+    # ------------------------------------------------------------------
 
-    def generate(self, req: GenerationRequest, route: MathRoute) -> MathProblem:
-        math_expression = extract_math_expression(req.topic, req.context, req.difficulty)
-        calculated = calculate_expression(math_expression)
-        correct_answer = str(int(calculated)) if calculated.is_integer() else str(calculated)
+    def generate(self, req: GenerationRequest) -> MathProblem:
+        """Call the LLM to produce a rich, themed question from the request."""
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
+                {"role": "user", "content": self._build_generation_prompt(req)},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.85,  # creative but not chaotic
+        )
 
-        if route == MathRoute.geometry:
-            side = math_expression.split(" * ")[0]
-            question_text = QUESTION_TEMPLATES[req.language]["geometry"].format(side=side)
-            steps = [step.format(expression=math_expression, answer=correct_answer, first_number=side) for step in STEP_TEMPLATES[req.language]["geometry"]]
-        else:
-            question_text = QUESTION_TEMPLATES[req.language]["arithmetic"].format(expression=math_expression)
-            first_number = math_expression.split(" ")[0]
-            steps = [step.format(expression=math_expression, answer=correct_answer, first_number=first_number) for step in STEP_TEMPLATES[req.language]["arithmetic"]]
+        raw: dict = json.loads(response.choices[0].message.content)
 
-        response = MathProblem(
-            question_text=question_text,
-            correct_answer=correct_answer,
-            step_by_step_solution=steps,
+        return MathProblem(
+            question_text=raw["question_text"],
+            correct_answer=str(raw["correct_answer"]),
+            step_by_step_solution=raw["step_by_step_solution"],
             difficulty_level=req.difficulty,
             language=req.language,
-            math_expression=math_expression,
-            route=route,
         )
-        return response
 
     def evaluate(self, problem: MathProblem) -> EvaluationResult:
-        if not problem.math_expression:
-            answer_str = str(problem.correct_answer)  # type: ignore
-            return EvaluationResult(
-                is_valid=False,
-                calculated_answer="",
-                generated_answer=answer_str,
-                feedback="evaluation skipped: no math_expression provided",
-            )
+        """
+        Run a separate LLM call to verify the generated answer is correct.
 
-        calculated = calculate_expression(problem.math_expression)
-        generated = float(problem.correct_answer)
-        is_valid = abs(calculated - generated) < 1e-9
-        return EvaluationResult(
-            is_valid=is_valid,
-            calculated_answer=str(int(calculated)) if calculated.is_integer() else str(calculated),
-            generated_answer=str(problem.correct_answer),
-            feedback="Answer verified successfully." if is_valid else "Generated answer did not match calculator verification.",
+        Using a second, zero-temperature call rather than asking the model to
+        self-verify in the same turn — this catches hallucinations the generator
+        may have made while being creative.
+        """
+        steps_text = "\n".join(
+            f"  {i + 1}. {step}" for i, step in enumerate(problem.step_by_step_solution)
+        )
+        user_prompt = (
+            f"Question: {problem.question_text}\n\n"
+            f"Proposed correct answer: {problem.correct_answer}\n\n"
+            f"Step-by-step solution:\n{steps_text}"
         )
 
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": EVALUATOR_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.0,  # deterministic: we want the same verdict every time
+        )
+
+        raw: dict = json.loads(response.choices[0].message.content)
+        is_valid = bool(raw.get("is_correct", False))
+        explanation = str(raw.get("explanation", "No explanation provided."))
+
+        return EvaluationResult(
+            is_valid=is_valid,
+            calculated_answer=problem.correct_answer,
+            generated_answer=problem.correct_answer,
+            feedback=explanation,
+        )
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_generation_prompt(req: GenerationRequest) -> str:
+        """
+        Construct the user-turn prompt that feeds all request fields to the
+        generator.  Extra ``user_info`` fields (beyond name/age) are appended
+        automatically so the model can use them for personalisation.
+        """
+        lines = [
+            f"Topic: {req.topic}",
+            f"Theme: {req.theme}",
+            f"Difficulty: {req.difficulty}/10",
+            f"Student name: {req.user_info.name}",
+            f"Student age: {req.user_info.age} years old",
+            f"Output language: {LANGUAGE_NAMES.get(req.language, req.language)}",
+        ]
+
+        # Forward any extra student fields (e.g. grade, learning_style) to the LLM
+        extra = req.user_info.model_extra or {}
+        if extra:
+            extra_parts = ", ".join(f"{k}: {v}" for k, v in extra.items())
+            lines.append(f"Additional student context: {extra_parts}")
+
+        return "\n".join(lines)

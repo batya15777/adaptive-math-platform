@@ -1,11 +1,8 @@
+from __future__ import annotations
+
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
-
-
-class MathRoute(str, Enum):
-    arithmetic = "arithmetic"
-    geometry = "geometry"
 
 
 class LanguageCode(str, Enum):
@@ -14,20 +11,41 @@ class LanguageCode(str, Enum):
     ru = "ru"
 
 
+class UserInfo(BaseModel):
+    """
+    Student information.
+    ``extra = "allow"`` means callers can pass any additional fields (e.g. grade,
+    learning_style, preferred_examples) and they will be forwarded to the LLM
+    as extra personalisation context.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    name: str = Field(min_length=1, description="Student's first name")
+    age: int = Field(ge=4, le=18, description="Student's age in years")
+
+
 class GenerationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    topic: str = Field(min_length=1, description="Topic requested by the caller")
-    difficulty: int = Field(ge=1, le=5, description="Difficulty scale from 1 to 5")
-    context: str = Field(default="", description="Optional word-problem context")
-    language: LanguageCode = Field(default=LanguageCode.en, description="Output language for the generated question")
-
-
-class RouterDecision(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    route: MathRoute
-    rationale: str
+    topic: str = Field(
+        min_length=1,
+        description="Subject topic (e.g. fractions, history, geometry, algebra, biology)",
+    )
+    theme: str = Field(
+        min_length=1,
+        description="Creative narrative theme to wrap the question in (e.g. pirates, space, dinosaurs, wizards)",
+    )
+    difficulty: int = Field(
+        ge=1,
+        le=10,
+        description="Difficulty level from 1 (kindergarten-easy) to 10 (advanced/high-school)",
+    )
+    user_info: UserInfo = Field(description="Information about the student")
+    language: LanguageCode = Field(
+        default=LanguageCode.en,
+        description="Output language for the generated question",
+    )
 
 
 class MathProblem(BaseModel):
@@ -36,10 +54,8 @@ class MathProblem(BaseModel):
     question_text: str
     correct_answer: str
     step_by_step_solution: list[str]
-    difficulty_level: int = Field(ge=1, le=5)
+    difficulty_level: int = Field(ge=1, le=10)
     language: LanguageCode = Field(default=LanguageCode.en, description="Output language")
-    math_expression: str | None = Field(default=None, exclude=True, description="Internal expression used for verification")
-    route: MathRoute | None = Field(default=None, exclude=True)
 
 
 class EvaluationResult(BaseModel):
@@ -49,4 +65,3 @@ class EvaluationResult(BaseModel):
     calculated_answer: str
     generated_answer: str
     feedback: str
-
