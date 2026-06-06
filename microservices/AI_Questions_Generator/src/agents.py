@@ -19,41 +19,59 @@ You are a world-class educational question designer for children and students of
 Your task is to create ONE engaging, imaginative, and curriculum-aligned question.
 
 RULES:
+
 1. TOPIC — The question must genuinely test the given subject.
-   Examples: "fractions" → student must work with fractions; "history" → question involves real facts or reasoning.
+   Examples: "fractions" → student must work with fractions; "history" → question involves real facts.
    The topic defines WHAT the student is learning — never skip it.
 
 2. THEME — Weave the creative theme naturally into the narrative/story of the question.
-   The theme is the world/setting, not the subject itself.
-   Make it vivid and fun — names, places, objects should all fit the theme.
+   The theme is the world/setting, not the subject itself. Make it vivid and fun.
 
 3. DIFFICULTY (1–10) — Scale complexity accordingly:
-   1–2  → kindergarten/early primary (counting, basic shapes, simple facts)
+   1–2  → kindergarten / early primary (counting, basic shapes, simple facts)
    3–4  → primary school (double-digit arithmetic, introductory concepts)
    5–6  → middle school (fractions, percentages, multi-step reasoning)
    7–8  → late middle / early high school (algebra, ratios, deeper analysis)
    9–10 → advanced high school (complex equations, proofs, advanced topics)
    Use the student's AGE as a secondary guide, but DIFFICULTY takes priority.
 
-4. PERSONALISATION — Mention the student by NAME somewhere in the question to make it feel personal.
+4. PERSONALISATION — Mention the student by NAME somewhere in the question.
 
-5. ACCURACY — The correct_answer MUST be exactly right. \
-Double-check all arithmetic, logic, and facts before responding. \
-Never guess.
+5. CORRECT ANSWER — Must be a minimal, directly-comparable value:
+   • Numbers: digits only — write "26" not "26 apples"; fractions as "3/4"; decimals as "3.5"
+   • Text answers: shortest definitive phrase — "1066", "Julius Caesar", "photosynthesis"
+   • No prose, no explanation, no leading/trailing spaces, no units unless the unit IS the full answer use European Union's standard system of measurement
+   The frontend compares user input directly against this string — keep it clean and predictable.
 
-6. SOLUTION — step_by_step_solution must walk the student through the reasoning clearly. \
-Each step = one sentence. Minimum 2 steps, maximum 6 steps. \
-Steps must be logically ordered and lead to the correct answer.
+6. MULTIPLE CHOICE (only when the mode field says "multiple_choice"):
+   • Add an "options" array of exactly 4 strings
+   • Exactly ONE option must be identical (character-for-character) to correct_answer
+   • The other 3 must be plausible but wrong distractors in the same format
+   • Shuffle so the correct option is not always in the same position
+   • All 4 options must be the same type (all numbers, all names, all short phrases, etc.)
 
-7. LANGUAGE — Write ENTIRELY in the requested output language. Do not mix languages under any circumstances.
+7. SOLUTION — step_by_step_solution walks the student through the reasoning.
+   Each step = one sentence. Minimum 2, maximum 6 steps. Logically ordered. Leads to correct_answer.
 
-8. SAFETY — Never include violence, weapons, drugs, alcohol, adult content, or anything \
-inappropriate for children.
+8. LANGUAGE — Write ENTIRELY in the requested output language. Do not mix languages.
 
-OUTPUT — Return ONLY a valid JSON object with exactly these three keys, nothing else:
+9. SAFETY — Never include violence, weapons, drugs, alcohol, adult content, or anything
+   inappropriate for children.
+
+OUTPUT — Return ONLY a valid JSON object.
+
+Open-answer mode:
 {
   "question_text": "...",
   "correct_answer": "...",
+  "step_by_step_solution": ["Step 1 ...", "Step 2 ...", "Step 3 ..."]
+}
+
+Multiple-choice mode (add the "options" key):
+{
+  "question_text": "...",
+  "correct_answer": "...",
+  "options": ["choice A", "choice B", "choice C", "choice D"],
   "step_by_step_solution": ["Step 1 ...", "Step 2 ...", "Step 3 ..."]
 }
 """
@@ -61,15 +79,14 @@ OUTPUT — Return ONLY a valid JSON object with exactly these three keys, nothin
 EVALUATOR_SYSTEM_PROMPT = """\
 You are a precise answer-verification agent for an educational platform.
 
-Given a question, its proposed correct answer, and a step-by-step solution, \
-determine whether the answer is correct and the solution is sound.
+Given a question, its proposed correct answer, and a step-by-step solution, determine whether
+the answer is correct and the solution is sound.
 
 Verification approach:
-- MATH questions: verify every arithmetic/algebraic step; confirm the final answer matches.
-- NON-MATH questions (history, science, geography, etc.): check factual accuracy and logical soundness.
-- Scrutinise every step of the provided solution for errors or logical jumps.
-- If an answer is approximately correct but has a minor rounding difference, mark it correct \
-  and note it in the explanation.
+- MATH: verify every arithmetic/algebraic step; confirm the final answer matches.
+- NON-MATH (history, science, geography, …): check factual accuracy and logical soundness.
+- Scrutinise every solution step for errors or unjustified leaps.
+- If the answer is approximately correct with only a minor rounding difference, mark it correct and note it.
 
 Return ONLY a valid JSON object:
 {
@@ -108,14 +125,31 @@ class QuestionAgent:
                 {"role": "user", "content": self._build_generation_prompt(req)},
             ],
             response_format={"type": "json_object"},
-            temperature=0.85,  # creative but not chaotic
+            temperature=0.85,
         )
 
         raw: dict = json.loads(response.choices[0].message.content)
 
+        # --- Parse and validate multiple-choice options if requested ---
+        options: list[str] | None = None
+        if req.multiple_choice:
+            options = raw.get("options")
+            if not isinstance(options, list) or len(options) != 4:
+                raise ValueError(
+                    "Model did not return exactly 4 options for a multiple-choice question. "
+                    "Will retry."
+                )
+            correct = str(raw.get("correct_answer", ""))
+            if correct not in options:
+                raise ValueError(
+                    f"correct_answer '{correct}' is not present in the options list. "
+                    "Will retry."
+                )
+
         return MathProblem(
             question_text=raw["question_text"],
-            correct_answer=str(raw["correct_answer"]),
+            correct_answer=str(raw["correct_answer"]).strip(),
+            options=options,
             step_by_step_solution=raw["step_by_step_solution"],
             difficulty_level=req.difficulty,
             language=req.language,
@@ -123,11 +157,10 @@ class QuestionAgent:
 
     def evaluate(self, problem: MathProblem) -> EvaluationResult:
         """
-        Run a separate LLM call to verify the generated answer is correct.
+        Run a separate zero-temperature LLM call to verify the generated answer.
 
-        Using a second, zero-temperature call rather than asking the model to
-        self-verify in the same turn — this catches hallucinations the generator
-        may have made while being creative.
+        Using a second, independent call rather than self-verification in the same
+        turn — this catches hallucinations the creative generator may have introduced.
         """
         steps_text = "\n".join(
             f"  {i + 1}. {step}" for i, step in enumerate(problem.step_by_step_solution)
@@ -145,7 +178,7 @@ class QuestionAgent:
                 {"role": "user", "content": user_prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.0,  # deterministic: we want the same verdict every time
+            temperature=0.0,
         )
 
         raw: dict = json.loads(response.choices[0].message.content)
@@ -166,10 +199,11 @@ class QuestionAgent:
     @staticmethod
     def _build_generation_prompt(req: GenerationRequest) -> str:
         """
-        Construct the user-turn prompt that feeds all request fields to the
-        generator.  Extra ``user_info`` fields (beyond name/age) are appended
-        automatically so the model can use them for personalisation.
+        Build the user-turn prompt that feeds all request fields to the generator.
+        Extra ``user_info`` fields (beyond name/age) are forwarded automatically.
         """
+        mode = "multiple_choice" if req.multiple_choice else "open_answer"
+
         lines = [
             f"Topic: {req.topic}",
             f"Theme: {req.theme}",
@@ -177,9 +211,9 @@ class QuestionAgent:
             f"Student name: {req.user_info.name}",
             f"Student age: {req.user_info.age} years old",
             f"Output language: {LANGUAGE_NAMES.get(req.language, req.language)}",
+            f"Mode: {mode}",
         ]
 
-        # Forward any extra student fields (e.g. grade, learning_style) to the LLM
         extra = req.user_info.model_extra or {}
         if extra:
             extra_parts = ", ".join(f"{k}: {v}" for k, v in extra.items())

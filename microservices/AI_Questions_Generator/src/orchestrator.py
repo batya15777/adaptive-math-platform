@@ -63,24 +63,35 @@ class QuestionGenerationOrchestrator:
     def _generate_and_verify(self, req: GenerationRequest) -> MathProblem:
         """
         Generate a question and verify its answer.
-        Retries once automatically if the evaluator flags the first attempt,
-        then raises if the second attempt also fails.
+        Retries once automatically if:
+        - generate() raises ValueError (e.g. malformed multiple-choice options), or
+        - evaluate() rejects the answer.
+        Raises ValueError to the caller if both attempts fail.
         """
+        last_error: str = ""
         for attempt in range(2):
-            problem = self._agent.generate(req)
-            evaluation = self._agent.evaluate(problem)
+            try:
+                problem = self._agent.generate(req)
+            except ValueError as exc:
+                # Malformed generation (e.g. wrong option count) — retry once
+                last_error = str(exc)
+                if attempt == 0:
+                    continue
+                raise ValueError(
+                    f"Question generation failed after 2 attempts. Last error: {last_error}"
+                ) from exc
 
+            evaluation = self._agent.evaluate(problem)
             if evaluation.is_valid:
                 return problem
 
+            last_error = evaluation.feedback
             if attempt == 0:
-                # Give the model a second chance with a fresh generation
                 continue
 
-            # Both attempts failed — surface the evaluator's feedback
             raise ValueError(
                 f"Answer verification failed after 2 attempts. "
-                f"Last evaluator feedback: {evaluation.feedback}"
+                f"Last evaluator feedback: {last_error}"
             )
 
         # Unreachable, but satisfies type checkers

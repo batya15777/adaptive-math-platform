@@ -46,13 +46,31 @@ class GenerationRequest(BaseModel):
         default=LanguageCode.en,
         description="Output language for the generated question",
     )
+    multiple_choice: bool = Field(
+        default=False,
+        description="When true, the response includes 4 answer options; the student picks one.",
+    )
 
 
 class MathProblem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     question_text: str
-    correct_answer: str
+    correct_answer: str = Field(
+        description=(
+            "Minimal, directly-comparable value — digits only for numbers (e.g. '26', '3.5', '3/4'), "
+            "shortest definitive phrase for text (e.g. '1066', 'Julius Caesar'). "
+            "No prose, no units, no explanation. "
+            "For multiple-choice this value matches one of the options exactly."
+        )
+    )
+    options: list[str] | None = Field(
+        default=None,
+        description=(
+            "Present only when multiple_choice=true. "
+            "Exactly 4 answer options; correct_answer matches one of them character-for-character."
+        ),
+    )
     step_by_step_solution: list[str]
     difficulty_level: int = Field(ge=1, le=10)
     language: LanguageCode = Field(default=LanguageCode.en, description="Output language")

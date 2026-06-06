@@ -127,7 +127,7 @@ def _contains_forbidden(text: str) -> bool:
 def check_input_guardrails(user_input: str, language: LanguageCode = LanguageCode.en) -> str | None:
     """
     Validate input before it reaches the LLM.
-    Returns a localised error message string if blocked, or ``None`` if safe.
+    Returns a localized error message string if blocked, or ``None`` if safe.
     """
     if not user_input or not user_input.strip():
         return EMPTY_INPUT_MESSAGES[language]
@@ -158,23 +158,19 @@ def check_output_guardrails(final_output: str) -> str:
 
 class ModerationGuardrail:
     """
-    Two-stage input guardrail:
-    1. Local keyword check (fast, offline).
-    2. OpenAI Moderation API (catches things the keyword list misses).
+    Input guardrail — local keyword check only (fast, free, no API call).
+    OpenAI Moderation API is intentionally disabled to minimize token spend.
+    Re-enable Stage 2 below if you need the extra coverage in production.
     """
 
     def __init__(self, client: OpenAI) -> None:
-        self._client = client
+        self._client = client  # kept for future use
 
     def check(self, text: str, language: LanguageCode = LanguageCode.en) -> str | None:
-        # Stage 1 — local keyword filter
-        local_block = check_input_guardrails(text, language)
-        if local_block:
-            return local_block
+        # Stage 1 — local keyword filter (no tokens consumed)
+        return check_input_guardrails(text, language)
 
-        # Stage 2 — OpenAI moderation
-        response = self._client.moderations.create(input=text)
-        if response.results and response.results[0].flagged:
-            return SAFETY_MESSAGES[language]
-
-        return None
+        # Stage 2 (disabled) — uncomment to re-enable OpenAI Moderation API:
+        # response = self._client.moderations.create(input=text)
+        # if response.results and response.results[0].flagged:
+        #     return SAFETY_MESSAGES[language]
