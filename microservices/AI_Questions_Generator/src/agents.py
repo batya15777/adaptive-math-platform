@@ -40,7 +40,7 @@ RULES:
 5. CORRECT ANSWER — Must be a minimal, directly-comparable value:
    • Numbers: digits only — write "26" not "26 apples"; fractions as "3/4"; decimals as "3.5"
    • Text answers: shortest definitive phrase — "1066", "Julius Caesar", "photosynthesis"
-   • No prose, no explanation, no leading/trailing spaces, no units unless the unit IS the full answer
+   • No prose, no explanation, no leading/trailing spaces, no units unless the unit IS the full answer use European Union's standard system of measurement
    The frontend compares user input directly against this string — keep it clean and predictable.
 
 6. MULTIPLE CHOICE (only when the mode field says "multiple_choice"):
