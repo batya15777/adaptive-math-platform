@@ -5,11 +5,18 @@ from typing import Any
 
 from openai import OpenAI
 
-from .agents import MathAgents
+from .agents import QuestionAgent
 from .guardrails import ModerationGuardrail, check_output_guardrails
 from .i18n import EMPTY_RESPONSE_MESSAGES
-from .models import GenerationRequest, MathProblem, RouterDecision
+from .models import GenerationRequest, MathProblem
 from .settings import Settings
+
+_SAFETY_SENTINELS = frozenset(
+    {
+        "System Error",
+        "I cannot process this request due to safety protocols",
+    }
+)
 
 
 @dataclass(slots=True)
@@ -17,35 +24,64 @@ class QuestionGenerationOrchestrator:
     settings: Settings
     client: OpenAI | None
     _guardrail: Any = None
-    _agents: Any = None
+    _agent: Any = None
 
     def __post_init__(self) -> None:
         if self.client is None:
             return
         self._guardrail = ModerationGuardrail(self.client)
-        self._agents = MathAgents(client=self.client, model=self.settings.openai_model)
+        self._agent = QuestionAgent(client=self.client, model=self.settings.openai_model)
 
     def generate(self, req: GenerationRequest) -> MathProblem:
-        if self.client is None or self._guardrail is None or self._agents is None:
-            raise RuntimeError("OPENAI_API_KEY not found. Set it in the container environment or pass --env-file .env when running Docker.")
+        if self.client is None or self._guardrail is None or self._agent is None:
+            raise RuntimeError(
+                "OPENAI_API_KEY not found. "
+                "Set it in the container environment or pass --env-file .env when running Docker."
+            )
 
-        blocked = self._guardrail.check(req.context or req.topic, req.language)
+        # --- Input guardrails: check topic + theme + student name ---
+        guard_text = f"{req.topic} {req.theme} {req.user_info.name}"
+        blocked = self._guardrail.check(guard_text, req.language)
         if blocked:
             raise ValueError(blocked)
 
-        router_decision: RouterDecision = self._agents.route(req)
-        problem = self._agents.generate(req, router_decision.route)
-        evaluation = self._agents.evaluate(problem)
+        # --- Generate + verify (with one automatic retry) ---
+        problem = self._generate_and_verify(req)
 
-        if not evaluation.is_valid:
-            raise ValueError(evaluation.feedback)
-
-        final_question = MathProblem.model_validate(problem.model_dump())
-        final_question.language = req.language
-        final_question.question_text = check_output_guardrails(final_question.question_text)
-        if final_question.question_text.startswith("System Error") or final_question.question_text == "I cannot process this request due to safety protocols":
+        # --- Output guardrails: final safety pass on the question text ---
+        safe_text = check_output_guardrails(problem.question_text)
+        if any(safe_text.startswith(sentinel) for sentinel in _SAFETY_SENTINELS):
             raise ValueError(EMPTY_RESPONSE_MESSAGES[req.language])
+        problem.question_text = safe_text
 
-        return final_question
+        return problem
 
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
+    def _generate_and_verify(self, req: GenerationRequest) -> MathProblem:
+        """
+        Generate a question and verify its answer.
+        Retries once automatically if the evaluator flags the first attempt,
+        then raises if the second attempt also fails.
+        """
+        for attempt in range(2):
+            problem = self._agent.generate(req)
+            evaluation = self._agent.evaluate(problem)
+
+            if evaluation.is_valid:
+                return problem
+
+            if attempt == 0:
+                # Give the model a second chance with a fresh generation
+                continue
+
+            # Both attempts failed — surface the evaluator's feedback
+            raise ValueError(
+                f"Answer verification failed after 2 attempts. "
+                f"Last evaluator feedback: {evaluation.feedback}"
+            )
+
+        # Unreachable, but satisfies type checkers
+        raise RuntimeError("Unexpected state in _generate_and_verify")

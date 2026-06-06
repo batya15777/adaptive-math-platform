@@ -1,41 +1,55 @@
 ## AI Questions Generator
 
-FastAPI microservice for generating math questions with a modular agent-style architecture.
+FastAPI microservice for generating creative, themed educational questions powered by OpenAI.
 
-**Multilingual Support**: English, Hebrew, and Russian
-**Safety Features**: Comprehensive guardrails with child-safe content filtering
+**Subjects**: Any topic — fractions, history, geometry, algebra, biology, and more  
+**Themes**: Any narrative setting — pirates, space, dinosaurs, wizards, sports, and more  
+**Multilingual**: English, Hebrew, Russian  
+**Safety**: Layered guardrails (local keyword filter + OpenAI Moderation API)
+
+---
 
 ### Architecture
 
-- `main.py` — thin FastAPI entrypoint
-- `src/settings.py` — environment/config loading
-- `src/guardrails.py` — keyword and moderation guardrails
-- `src/i18n.py` — internationalization and localization strings
-- `src/models.py` — request/response schemas
-- `src/tools.py` — safe math calculator utilities
-- `src/agents.py` — router, generator, and evaluator logic
-- `src/orchestrator.py` — coordinates the full request flow
+```
+main.py                  — Thin FastAPI entrypoint
+src/settings.py          — Environment / config loading
+src/models.py            — Request & response Pydantic schemas
+src/guardrails.py        — Input + output safety guardrails
+src/i18n.py              — Localised error messages & language names
+src/agents.py            — QuestionAgent: LLM generator + LLM evaluator
+src/orchestrator.py      — Coordinates the full request pipeline
+src/tools.py             — Safe AST-based math expression evaluator (utility)
+```
 
-### Features
+---
 
-- Topic routing between arithmetic and geometry
-- Multilingual output (English, Hebrew, Russian)
-- Expanded safety guardrails with 5+ keyword categories:
-  - Violence, Weapons & Crime
-  - Substances (alcohol, drugs, tobacco)
-  - Gambling & Financial Fraud
-  - Dark Themes & Self-Harm
-  - Adult Content & Profanity
-  - Political / Malicious Code
-- Word-boundary regex matching (prevents false positives like "rob" in "addition")
-- Input guardrails with local keyword checks and OpenAI moderation
-- Output guardrails for safe text
-- Structured Pydantic responses
-- Calculator-backed evaluation of generated answers
+### How It Works
+
+```
+Request
+  │
+  ▼
+[Input Guardrails]  — keyword blocklist + OpenAI Moderation API
+  │
+  ▼
+[QuestionAgent.generate()]  — GPT call: themed, personalised question
+  │
+  ▼
+[QuestionAgent.evaluate()]  — second GPT call (temp=0): independent answer verification
+  │   (auto-retries once if answer is wrong)
+  ▼
+[Output Guardrails]  — final safety pass on question text
+  │
+  ▼
+Response
+```
+
+---
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the `microservices/AI_Questions_Generator/` directory:
 
 ```env
 OPENAI_API_KEY=your_key_here
@@ -43,103 +57,144 @@ OPENAI_MODEL=gpt-4o-mini
 OPENAI_MODERATION_MODEL=omni-moderation-latest
 ```
 
+---
+
 ### Run Locally
 
 ```powershell
 uv run uvicorn main:app --reload
 ```
 
-### Example Requests
+---
 
-#### English (Default)
+### API
 
-POST `http://127.0.0.1:8000/generate-question`
+#### `POST /generate-question`
+
+**Request body**:
 
 ```json
 {
   "topic": "fractions",
-  "difficulty": 2,
-  "context": "pizza slices",
+  "theme": "pirates",
+  "difficulty": 5,
+  "user_info": {
+    "name": "Gabi",
+    "age": 9
+  },
   "language": "en"
 }
 ```
 
-Expected response (English):
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `topic` | string | ✅ | Subject being tested (fractions, history, geometry, …) |
+| `theme` | string | ✅ | Narrative theme / creative setting (pirates, space, …) |
+| `difficulty` | int 1–10 | ✅ | 1 = kindergarten-easy, 10 = advanced high-school |
+| `user_info.name` | string | ✅ | Student's first name (used for personalisation) |
+| `user_info.age` | int 4–18 | ✅ | Student's age in years |
+| `user_info.*` | any | ➕ | Any extra fields (grade, learning_style, …) are forwarded to the LLM |
+| `language` | `en`/`he`/`ru` | ✅ | Output language |
+
+**Response** (`200 OK`):
+
 ```json
 {
-  "question_text": "What is 8 + 5?",
-  "correct_answer": "13",
-  "step_by_step_solution": ["Start with 8", "Apply the operation step by step", "The answer is 13"],
-  "difficulty_level": 2,
+  "question_text": "On a pirate ship there are 10 pirates, 2 parrots, and the captain. How many apples do they need for a day if everyone eats 2 each?",
+  "correct_answer": "26",
+  "step_by_step_solution": [
+    "Count everyone on the ship: 10 pirates + 2 parrots + 1 captain = 13 total.",
+    "Each one eats 2 apples per day: 13 × 2 = 26.",
+    "So the ship needs 26 apples for the day."
+  ],
+  "difficulty_level": 5,
   "language": "en"
 }
 ```
 
-#### Hebrew (עברית)
+**Error responses**:
+
+| Status | Cause |
+|--------|-------|
+| `400` | Input blocked by guardrails, or answer verification failed after 2 attempts |
+| `503` | `OPENAI_API_KEY` is missing |
+| `500` | Unexpected server error |
+
+---
+
+### More Examples
+
+#### Hebrew — geometry + space theme
 
 ```json
 {
   "topic": "geometry",
-  "difficulty": 2,
+  "theme": "space station",
+  "difficulty": 4,
+  "user_info": { "name": "נועה", "age": 10 },
   "language": "he"
 }
 ```
 
-Expected response (Hebrew):
-```json
-{
-  "question_text": "לריבוע אורך צלע 4. מה השטח שלו?",
-  "correct_answer": "16",
-  "step_by_step_solution": ["משתמשים בנוסחת השטח של ריבוע: צלע × צלע", "מציבים את אורך הצלע בנוסחה: 4 * 4", "מחשבים את השטח ומקבלים 16"],
-  "difficulty_level": 2,
-  "language": "he"
-}
-```
-
-#### Russian (Русский)
+#### Russian — history + ancient Egypt
 
 ```json
 {
-  "topic": "fractions",
-  "difficulty": 2,
+  "topic": "ancient history",
+  "theme": "ancient egypt",
+  "difficulty": 6,
+  "user_info": { "name": "Миша", "age": 12 },
   "language": "ru"
 }
 ```
 
-Expected response (Russian):
+#### English — algebra + wizards, with extra student context
+
 ```json
 {
-  "question_text": "Сколько будет 15 + 9?",
-  "correct_answer": "24",
-  "step_by_step_solution": ["Начинаем с 15", "Выполняем действие шаг за шагом", "Ответ: 24"],
-  "difficulty_level": 2,
-  "language": "ru"
+  "topic": "linear equations",
+  "theme": "wizard school",
+  "difficulty": 8,
+  "user_info": {
+    "name": "Sam",
+    "age": 14,
+    "grade": "8th",
+    "learning_style": "visual"
+  },
+  "language": "en"
 }
 ```
+
+---
 
 ### Supported Languages
 
 | Code | Language |
 |------|----------|
 | `en` | English (default) |
-| `he` | Hebrew |
-| `ru` | Russian |
+| `he` | Hebrew (עברית) |
+| `ru` | Russian (Русский) |
+
+---
 
 ### Content Safety
 
-All requests are validated against:
+All requests pass through two layers of safety checks:
 
-1. **Input Guardrails**:
-   - Empty input check
-   - Local keyword filtering (5+ categories)
-   - OpenAI moderation API for additional protection
+**Input Guardrails** (before any LLM call):
+- Local keyword blocklist (6 categories: violence, substances, gambling, dark themes, adult content, policy)
+- Word-boundary regex matching — prevents false positives (e.g. "rob" in "problem")
+- Hebrew prefix variants (e.g. "בסמים" → matches "סמים")
+- OpenAI Moderation API for additional coverage
 
-2. **Output Guardrails**:
-   - Final response safety check
-   - Word-boundary matching to prevent false positives
-   - Empty response validation
+**Output Guardrails** (after generation):
+- Final keyword scan on the generated question text
+
+---
 
 ### Health Check
 
-GET `http://127.0.0.1:8000/health`
-
+```
+GET /health
+→ { "status": "ok" }
+```

@@ -1,293 +1,188 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
-from typing import Any, cast
 
 from openai import OpenAI
 
-from .i18n import ARITHMETIC_ROUTE_HINTS, GEOMETRY_ROUTE_HINTS, QUESTION_TEMPLATES, STEP_TEMPLATES
-from .models import EvaluationResult, GenerationRequest, MathProblem, MathRoute, RouterDecision
-from .tools import calculate_expression, extract_math_expression
+from .i18n import LANGUAGE_NAMES
+from .models import EvaluationResult, GenerationRequest, MathProblem
 
-ROUTER_SYSTEM_PROMPT = (
-    "You are a routing agent for a math question generator. "
-    "Route arithmetic topics to 'arithmetic' and geometry topics to 'geometry'. "
-    "Return only structured JSON."
-)
 
-GENERATOR_SYSTEM_PROMPT = (
-    "You are a math tutor for children. Always output the required JSON format. "
-    "Do not include violence, alcohol, weapons, or adult themes in word problems. "
-    "Use concise, age-appropriate language and provide a clear step-by-step solution."
-)
+# ---------------------------------------------------------------------------
+# System prompts
+# ---------------------------------------------------------------------------
 
-FEW_SHOT_EXAMPLES = [
-    {
-        "role": "user",
-        "content": "Topic: Addition, Difficulty: 1, Context: pony stickers, Language: en",
-    },
-    {
-        "role": "assistant",
-        "content": json.dumps(
-            {
-                "question_text": "A child has 2 pony stickers and gets 3 more pony stickers. How many pony stickers are there now?",
-                "correct_answer": "5",
-                "step_by_step_solution": [
-                    "Start with 2 pony stickers.",
-                    "Add 3 more: 2 + 3 = 5.",
-                    "The answer is 5.",
-                ],
-                "difficulty_level": 1,
-                "language": "en",
-                "math_expression": "2 + 3",
-            },
-            ensure_ascii=False,
-        ),
-    },
-    {
-        "role": "user",
-        "content": "Topic: Geometry, Difficulty: 2, Context: playground, Language: he",
-    },
-    {
-        "role": "assistant",
-        "content": json.dumps(
-            {
-                "question_text": "לריבוע של פינת משחק יש אורך צלע 4. מה השטח שלו?",
-                "correct_answer": "16",
-                "step_by_step_solution": [
-                    "נשתמש בנוסחת השטח של ריבוע: צלע × צלע.",
-                    "נציב: 4 × 4 = 16.",
-                    "השטח הוא 16.",
-                ],
-                "difficulty_level": 2,
-                "language": "he",
-                "math_expression": "4 * 4",
-            },
-            ensure_ascii=False,
-        ),
-    },
-    {
-        "role": "user",
-        "content": "Topic: Addition, Difficulty: 2, Context: toy rockets, Language: ru",
-    },
-    {
-        "role": "assistant",
-        "content": json.dumps(
-            {
-                "question_text": "У ребёнка было 10 игрушечных ракет, и ему подарили ещё 6. Сколько ракет стало теперь?",
-                "correct_answer": "16",
-                "step_by_step_solution": [
-                    "Начинаем с 10 игрушечных ракет.",
-                    "Добавляем 6: 10 + 6 = 16.",
-                    "Ответ: 16.",
-                ],
-                "difficulty_level": 2,
-                "language": "ru",
-                "math_expression": "10 + 6",
-            },
-            ensure_ascii=False,
-        ),
-    },
-]
+GENERATOR_SYSTEM_PROMPT = """\
+You are a world-class educational question designer for children and students of all ages.
+
+Your task is to create ONE engaging, imaginative, and curriculum-aligned question.
+
+RULES:
+1. TOPIC — The question must genuinely test the given subject.
+   Examples: "fractions" → student must work with fractions; "history" → question involves real facts or reasoning.
+   The topic defines WHAT the student is learning — never skip it.
+
+2. THEME — Weave the creative theme naturally into the narrative/story of the question.
+   The theme is the world/setting, not the subject itself.
+   Make it vivid and fun — names, places, objects should all fit the theme.
+
+3. DIFFICULTY (1–10) — Scale complexity accordingly:
+   1–2  → kindergarten/early primary (counting, basic shapes, simple facts)
+   3–4  → primary school (double-digit arithmetic, introductory concepts)
+   5–6  → middle school (fractions, percentages, multi-step reasoning)
+   7–8  → late middle / early high school (algebra, ratios, deeper analysis)
+   9–10 → advanced high school (complex equations, proofs, advanced topics)
+   Use the student's AGE as a secondary guide, but DIFFICULTY takes priority.
+
+4. PERSONALISATION — Mention the student by NAME somewhere in the question to make it feel personal.
+
+5. ACCURACY — The correct_answer MUST be exactly right. \
+Double-check all arithmetic, logic, and facts before responding. \
+Never guess.
+
+6. SOLUTION — step_by_step_solution must walk the student through the reasoning clearly. \
+Each step = one sentence. Minimum 2 steps, maximum 6 steps. \
+Steps must be logically ordered and lead to the correct answer.
+
+7. LANGUAGE — Write ENTIRELY in the requested output language. Do not mix languages under any circumstances.
+
+8. SAFETY — Never include violence, weapons, drugs, alcohol, adult content, or anything \
+inappropriate for children.
+
+OUTPUT — Return ONLY a valid JSON object with exactly these three keys, nothing else:
+{
+  "question_text": "...",
+  "correct_answer": "...",
+  "step_by_step_solution": ["Step 1 ...", "Step 2 ...", "Step 3 ..."]
+}
+"""
+
+EVALUATOR_SYSTEM_PROMPT = """\
+You are a precise answer-verification agent for an educational platform.
+
+Given a question, its proposed correct answer, and a step-by-step solution, \
+determine whether the answer is correct and the solution is sound.
+
+Verification approach:
+- MATH questions: verify every arithmetic/algebraic step; confirm the final answer matches.
+- NON-MATH questions (history, science, geography, etc.): check factual accuracy and logical soundness.
+- Scrutinise every step of the provided solution for errors or logical jumps.
+- If an answer is approximately correct but has a minor rounding difference, mark it correct \
+  and note it in the explanation.
+
+Return ONLY a valid JSON object:
+{
+  "is_correct": true,
+  "explanation": "One-sentence verdict explaining your reasoning."
+}
+"""
+
+
+# ---------------------------------------------------------------------------
+# Agent
+# ---------------------------------------------------------------------------
 
 
 @dataclass(slots=True)
-class MathAgents:
-    client: OpenAI | None
+class QuestionAgent:
+    """
+    LLM-powered agent that:
+    1. Generates a themed, personalised educational question (``generate``).
+    2. Independently verifies the answer correctness (``evaluate``).
+    """
+
+    client: OpenAI
     model: str
 
-    def route(self, req: GenerationRequest) -> RouterDecision:
-        topic_lower = req.topic.lower()
-        route = MathRoute.geometry if any(word in topic_lower for word in ["geometry", "shape", "area", "perimeter"]) else MathRoute.arithmetic
-        rationale = GEOMETRY_ROUTE_HINTS[req.language] if route == MathRoute.geometry else ARITHMETIC_ROUTE_HINTS[req.language]
-        return RouterDecision(route=route, rationale=rationale)
+    # ------------------------------------------------------------------
+    # Public interface
+    # ------------------------------------------------------------------
 
-    def generate(self, req: GenerationRequest, route: MathRoute) -> MathProblem:
-        if self.client is None:
-            return self._generate_fallback(req, route)
-
-        last_error: str | None = None
-        for _ in range(3):
-            try:
-                problem = self._generate_with_llm(req, route, last_error)
-                evaluation = self.evaluate(problem)
-                if evaluation.is_valid:
-                    return problem
-                last_error = evaluation.feedback
-            except Exception as exc:
-                last_error = str(exc)
-
-        return self._generate_fallback(req, route)
-
-    def _generate_with_llm(self, req: GenerationRequest, route: MathRoute, last_error: str | None = None) -> MathProblem:
-        messages: list[dict[str, Any]] = [{"role": "system", "content": GENERATOR_SYSTEM_PROMPT}]
-        messages.extend(FEW_SHOT_EXAMPLES)
-        messages.append({"role": "user", "content": self._build_user_prompt(req, route, last_error)})
-
-        completion = self.client.beta.chat.completions.parse(  # type: ignore[union-attr]
+    def generate(self, req: GenerationRequest) -> MathProblem:
+        """Call the LLM to produce a rich, themed question from the request."""
+        response = self.client.chat.completions.create(
             model=self.model,
-            messages=cast(Any, messages),
-            response_format=MathProblem,
-            temperature=0.4,
+            messages=[
+                {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
+                {"role": "user", "content": self._build_generation_prompt(req)},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.85,  # creative but not chaotic
         )
 
-        problem = completion.choices[0].message.parsed
-        if problem is None:
-            raise ValueError("The model returned an empty structured response.")
+        raw: dict = json.loads(response.choices[0].message.content)
 
-        problem.language = req.language
-        problem.difficulty_level = req.difficulty
-        problem.route = route
-        return problem
-
-    def _build_user_prompt(self, req: GenerationRequest, route: MathRoute, last_error: str | None = None) -> str:
-        context_line = req.context.strip() if req.context.strip() else "none"
-        base_prompt = (
-            f"Topic: {req.topic}\n"
-            f"Difficulty: {req.difficulty}\n"
-            f"Context: {context_line}\n"
-            f"Language: {req.language.value}\n"
-            f"Route: {route.value}\n\n"
-            "Create a child-safe, engaging word problem that uses the context naturally. "
-            "Make the story feel like something the child likes. If the context mentions a character, toy, show, animal, game, or hobby, weave it into the story naturally and clearly. "
-            "Write at least 18 words in question_text, and make it sound like a mini story (setting + characters + action). "
-            "Return JSON only with question_text, correct_answer, step_by_step_solution, difficulty_level, language, and math_expression. "
-            "math_expression must be a simple arithmetic expression that matches the answer."
-        )
-
-        if last_error:
-            base_prompt += f"\nPrevious attempt error: {last_error}. Improve the story and ensure the answer matches the math_expression exactly."
-
-        return base_prompt
-
-    def _generate_fallback(self, req: GenerationRequest, route: MathRoute) -> MathProblem:
-        math_expression = extract_math_expression(req.topic, req.context, req.difficulty)
-        calculated = calculate_expression(math_expression)
-        correct_answer = str(int(calculated)) if calculated.is_integer() else str(calculated)
-
-        context = req.context.strip()
-        if route == MathRoute.geometry:
-            side = math_expression.split(" * ")[0]
-            if context:
-                question_text = {
-                    "en": f"In a fun {context} adventure park, a square play zone has side length {side} meters. What is the area of this play zone?",
-                    "he": f"בפארק הרפתקאות של {context}, אזור המשחק הוא ריבוע באורך צלע {side}. מה השטח של אזור המשחק?",
-                    "ru": f"В парке приключений по теме {context} есть квадратная игровая зона со стороной {side}. Какова площадь этой зоны?",
-                }[req.language.value]
-            else:
-                question_text = QUESTION_TEMPLATES[req.language]["geometry"].format(side=side)
-            steps = [step.format(expression=math_expression, answer=correct_answer, first_number=side) for step in STEP_TEMPLATES[req.language]["geometry"]]
-        else:
-            if context:
-                first, second = self._extract_numbers(math_expression)
-                unit = self._derive_context_unit(context, req.language.value)
-                setting = self._derive_setting(context, req.language.value)
-                question_text = {
-                    "en": (
-                        f"On the beautiful {setting}, there were {first} happy {unit}. "
-                        f"Then a group of {second} more {unit} joined them after seeing the fun place. "
-                        f"How many {unit} are on the {setting} now?"
-                    ),
-                    "he": (
-                        f"ב-{setting} היפה היו {first} {unit} שמחים. "
-                        f"אחר כך הצטרפה קבוצה של עוד {second} {unit}. "
-                        f"כמה {unit} יש עכשיו ב-{setting}?"
-                    ),
-                    "ru": (
-                        f"На прекрасном месте под названием {setting} было {first} счастливых {unit}. "
-                        f"Потом к ним присоединились ещё {second} {unit}. "
-                        f"Сколько {unit} стало теперь в {setting}?"
-                    ),
-                }[req.language.value]
-                steps = {
-                    "en": [
-                        f"At the beginning, there are {first} {unit} on the {setting}.",
-                        f"Then {second} more {unit} join, so we add: {first} + {second}.",
-                        f"{first} + {second} = {correct_answer}, so there are {correct_answer} {unit} in total.",
-                    ],
-                    "he": [
-                        f"בהתחלה יש {first} {unit} ב-{setting}.",
-                        f"מצטרפים עוד {second} {unit}, לכן מחשבים: {first} + {second}.",
-                        f"{first} + {second} = {correct_answer}, ולכן יש בסך הכל {correct_answer} {unit}.",
-                    ],
-                    "ru": [
-                        f"Сначала на {setting} было {first} {unit}.",
-                        f"Потом присоединились ещё {second}, значит считаем: {first} + {second}.",
-                        f"{first} + {second} = {correct_answer}, всего стало {correct_answer} {unit}.",
-                    ],
-                }[req.language.value]
-            else:
-                question_text = QUESTION_TEMPLATES[req.language]["arithmetic"].format(expression=math_expression)
-                first_number = math_expression.split(" ")[0]
-                steps = [step.format(expression=math_expression, answer=correct_answer, first_number=first_number) for step in STEP_TEMPLATES[req.language]["arithmetic"]]
-
-        response = MathProblem(
-            question_text=question_text,
-            correct_answer=correct_answer,
-            step_by_step_solution=steps,
+        return MathProblem(
+            question_text=raw["question_text"],
+            correct_answer=str(raw["correct_answer"]),
+            step_by_step_solution=raw["step_by_step_solution"],
             difficulty_level=req.difficulty,
             language=req.language,
-            math_expression=math_expression,
-            route=route,
         )
-        return response
-
-    def _extract_numbers(self, expression: str) -> tuple[str, str]:
-        numbers = re.findall(r"\d+(?:\.\d+)?", expression)
-        if len(numbers) >= 2:
-            return numbers[0], numbers[1]
-        if len(numbers) == 1:
-            return numbers[0], "1"
-        return "5", "3"
-
-    def _derive_setting(self, context: str, language: str) -> str:
-        value = context.strip()
-        if not value:
-            return {
-                "en": "magic island",
-                "he": "אי קסום",
-                "ru": "волшебный остров",
-            }[language]
-        if language == "en" and "island" not in value.lower():
-            return f"{value} island"
-        return value
-
-    def _derive_context_unit(self, context: str, language: str) -> str:
-        value = context.strip().lower()
-        if language == "en":
-            if any(word in value for word in ["pony", "ponies", "poney"]):
-                return "ponies"
-            if any(word in value for word in ["cat", "cats"]):
-                return "cats"
-            if any(word in value for word in ["dog", "dogs"]):
-                return "dogs"
-            return "friends"
-        if language == "he":
-            if "סוס" in value or "פוני" in value:
-                return "פונים"
-            return "חברים"
-        if any(word in value for word in ["пони", "лошад"]):
-            return "пони"
-        return "друзей"
 
     def evaluate(self, problem: MathProblem) -> EvaluationResult:
-        if not problem.math_expression:
-            return EvaluationResult(
-                is_valid=False,
-                calculated_answer="",
-                generated_answer=problem.correct_answer,
-                feedback="evaluation skipped: no math_expression provided",
-            )
+        """
+        Run a separate LLM call to verify the generated answer is correct.
 
-        calculated = calculate_expression(problem.math_expression)
-        generated = float(problem.correct_answer)
-        is_valid = abs(calculated - generated) < 1e-9
-        return EvaluationResult(
-            is_valid=is_valid,
-            calculated_answer=str(int(calculated)) if calculated.is_integer() else str(calculated),
-            generated_answer=str(problem.correct_answer),
-            feedback="Answer verified successfully." if is_valid else "Generated answer did not match calculator verification.",
+        Using a second, zero-temperature call rather than asking the model to
+        self-verify in the same turn — this catches hallucinations the generator
+        may have made while being creative.
+        """
+        steps_text = "\n".join(
+            f"  {i + 1}. {step}" for i, step in enumerate(problem.step_by_step_solution)
+        )
+        user_prompt = (
+            f"Question: {problem.question_text}\n\n"
+            f"Proposed correct answer: {problem.correct_answer}\n\n"
+            f"Step-by-step solution:\n{steps_text}"
         )
 
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": EVALUATOR_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.0,  # deterministic: we want the same verdict every time
+        )
+
+        raw: dict = json.loads(response.choices[0].message.content)
+        is_valid = bool(raw.get("is_correct", False))
+        explanation = str(raw.get("explanation", "No explanation provided."))
+
+        return EvaluationResult(
+            is_valid=is_valid,
+            calculated_answer=problem.correct_answer,
+            generated_answer=problem.correct_answer,
+            feedback=explanation,
+        )
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_generation_prompt(req: GenerationRequest) -> str:
+        """
+        Construct the user-turn prompt that feeds all request fields to the
+        generator.  Extra ``user_info`` fields (beyond name/age) are appended
+        automatically so the model can use them for personalisation.
+        """
+        lines = [
+            f"Topic: {req.topic}",
+            f"Theme: {req.theme}",
+            f"Difficulty: {req.difficulty}/10",
+            f"Student name: {req.user_info.name}",
+            f"Student age: {req.user_info.age} years old",
+            f"Output language: {LANGUAGE_NAMES.get(req.language, req.language)}",
+        ]
+
+        # Forward any extra student fields (e.g. grade, learning_style) to the LLM
+        extra = req.user_info.model_extra or {}
+        if extra:
+            extra_parts = ", ".join(f"{k}: {v}" for k, v in extra.items())
+            lines.append(f"Additional student context: {extra_parts}")
+
+        return "\n".join(lines)
