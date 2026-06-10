@@ -11,7 +11,8 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String username;
+    @Column(name = "full_name")
+    private String fullName;
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
@@ -19,10 +20,9 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    private String gender;
+    private Integer age;
 
-    @Column(nullable = false)
-    private boolean emailVerified;
+    private String gender;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -30,12 +30,12 @@ public class User {
     public User() {
     }
 
-    public User(String username, String passwordHash, String email, String gender, boolean emailVerified, LocalDateTime createdAt) {
-        this.username = username;
+    public User(String fullName, String passwordHash, String email, Integer age, String gender, LocalDateTime createdAt) {
+        this.fullName = fullName;
         this.passwordHash = passwordHash;
         this.email = email;
+        this.age = age;
         this.gender = gender;
-        this.emailVerified = emailVerified;
         this.createdAt = createdAt;
     }
 
@@ -43,8 +43,8 @@ public class User {
         return id;
     }
 
-    public String getUsername() {
-        return username;
+    public String getFullName() {
+        return fullName;
     }
 
     public String getPasswordHash() {
@@ -55,20 +55,20 @@ public class User {
         return email;
     }
 
-    public String getGender() {
-        return gender;
+    public Integer getAge() {
+        return age;
     }
 
-    public boolean isEmailVerified() {
-        return emailVerified;
+    public String getGender() {
+        return gender;
     }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public void setPasswordHash(String passwordHash) {
@@ -79,12 +79,12 @@ public class User {
         this.email = email;
     }
 
-    public void setGender(String gender) {
-        this.gender = gender;
+    public void setAge(Integer age) {
+        this.age = age;
     }
 
-    public void setEmailVerified(boolean emailVerified) {
-        this.emailVerified = emailVerified;
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
