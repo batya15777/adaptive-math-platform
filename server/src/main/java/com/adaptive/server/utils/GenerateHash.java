@@ -6,8 +6,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class GenerateHash {
-    public static String hashMd5 (String username, String password) {
-        String source = username + password;
+    public static String hashMd5 (String fullName, String password) {
+        String source = fullName + password;
         try {
             return DatatypeConverter.printHexBinary( MessageDigest.getInstance("MD5").digest(source.getBytes("UTF-8")));
         } catch (NoSuchAlgorithmException e) {

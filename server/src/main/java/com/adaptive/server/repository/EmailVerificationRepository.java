@@ -3,7 +3,10 @@ package com.adaptive.server.repository;
 import com.adaptive.server.entity.EmailVerification;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface EmailVerificationRepository extends JpaRepository<EmailVerification,String> {
-    boolean existsByEmailAndCode(
-            String email,String code);
+import java.util.Optional;
+
+public interface EmailVerificationRepository extends JpaRepository<EmailVerification,Long> {
+    Optional<EmailVerification> findByEmail(String email);
+
+    void deleteByEmail(String email);
 }

@@ -1,9 +1,19 @@
 package com.adaptive.server.utils;
 
 public enum Errors {
-    USER_ALREADY_EXISTS("User with the given username already exists."),
-    INVALID_CREDENTIALS("Invalid username or password or email or email."),
-    USER_NOT_FOUND("User not found.");
+    INVALID_REGISTRATION_REQUEST("Invalid registration request."),
+    INVALID_FULL_NAME("Invalid full name."),
+    INVALID_PASSWORD("Invalid password."),
+    INVALID_EMAIL("Invalid email."),
+    INVALID_AGE("Invalid age."),
+    INVALID_GENDER("Invalid gender."),
+    EMAIL_ALREADY_EXISTS("User with this email already exists."),
+    VERIFICATION_NOT_FOUND("Pending registration not found."),
+    INVALID_VERIFICATION_CODE("Invalid verification code."),
+    VERIFICATION_CODE_EXPIRED("Verification code has expired."),
+    VERIFICATION_EMAIL_SEND_FAILED("Unable to send verification email. Please try again."),
+    USER_NOT_FOUND("User not found."),
+    INVALID_CREDENTIALS("Invalid email or password.");
 
 
     private final String message;
