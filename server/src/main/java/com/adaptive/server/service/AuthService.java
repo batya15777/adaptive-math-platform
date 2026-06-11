@@ -35,7 +35,7 @@ public class AuthService {
     private final EmailService emailService;
 
 
-    public AuthService(UserRepository userRepository, EmailVerificationRepository emailVerificationRepository, ValidationService validationService , SessionTokenRepository sessionTokenRepository) {
+    public AuthService(EmailService emailService ,UserRepository userRepository, EmailVerificationRepository emailVerificationRepository, ValidationService validationService , SessionTokenRepository sessionTokenRepository) {
         this.userRepository = userRepository;
         this.emailVerificationRepository = emailVerificationRepository;
         this.validationService = validationService;
@@ -57,7 +57,7 @@ public class AuthService {
         }//אם אימייל שלקוח הקליד לא קיים נחזיר שגיאה כללית
         User user = optionalUser.get();
 
-        String hashedPassword = GenerateHash.hashMd5(user.getUsername() , loginRequest.getPassword());
+        String hashedPassword = GenerateHash.hashMd5(user.getFullName() , loginRequest.getPassword());
         if (!hashedPassword.equals(user.getPasswordHash())) {
             return new LoginResponse(false , Errors.INVALID_CREDENTIALS.getMessage() , null);
         }//לוקחים סיסמא שלקוח הקליד נכניס לפונקציית HASH שלנו ונבדוק אם תוצאה שווה למה שיש בDB
