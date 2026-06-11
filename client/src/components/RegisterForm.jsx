@@ -1,5 +1,7 @@
-import {useState} from "react";
+import {useState, useContext} from "react";
+import { useNavigate } from "react-router-dom";
 import {register, verifyCode} from "../service/authApi.js";
+import { AuthContext } from "../context/AuthContext.jsx";
 
 function RegisterForm(){
 
@@ -11,6 +13,9 @@ function RegisterForm(){
     const [code, setCode] = useState("");
     const [showCode, setShowCode] = useState(false);
     const [errors, setErrors] = useState("");
+
+    const navigate = useNavigate();
+    const { loginUser } = useContext(AuthContext);
 
 
     const fullNameRegex =(value)=>{
@@ -80,6 +85,15 @@ function RegisterForm(){
             if (response.data.success){
                 setShowCode(false);
                 setErrors("You have registered successfully.")
+                // Log in the user after successful registration
+                const userData = {
+                    fullName,
+                    email,
+                    age: Number(age),
+                    gender
+                };
+                loginUser(userData);
+                navigate("/"); // Redirect to dashboard
             }
         })
             .catch(error=>{

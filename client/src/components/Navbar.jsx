@@ -1,15 +1,18 @@
 import { useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext.jsx";
 import { logout } from "../service/authApi.js";
 
 function Navbar() {
 
     const { user, logoutUser } = useContext(AuthContext);
+    const navigate = useNavigate();
 
     const handleLogout = () => {
         logout()
             .then(() => {
                 logoutUser();
+                navigate("/login"); // Redirect to login after logout
             })
             .catch(error => {
                 console.log("שגיאה בהתנתקות:", error);

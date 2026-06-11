@@ -1,17 +1,30 @@
-import { createContext, useState, useContext } from 'react';
-
-const ProfileContext = createContext();
+import { useState, useContext, useEffect } from 'react';
+import { ProfileContext } from './ProfileContextSetup.js';
+import { AuthContext } from '../context/AuthContext.jsx';
 
 export const ProfileProvider = ({ children }) => {
-    // Initial state simulating fetched user data
+    const { user } = useContext(AuthContext);
+
+    // Initial state using authenticated user data
     const [profileData, setProfileData] = useState({
-        name: 'Roman Kovalchuk',
-        email: 'roman@example.com',
+        name: '',
+        email: '',
         preferences: {
-            language: 'he', // 'he', 'en', or 'ru'
-            solutionDetailLevel: 'detailed', // 'basic', 'moderate', or 'detailed'
+            language: 'he',
+            solutionDetailLevel: 'detailed',
         }
     });
+
+    // Update profile data when user logs in
+    useEffect(() => {
+        if (user) {
+            setProfileData({
+                ...profileData,
+                name: user.fullName || user.name || '',
+                email: user.email || '',
+            });
+        }
+    }, [user?.email, user?.fullName, user?.name]);
 
     // Function to update the profile data
     const updateProfile = (newData) => {
@@ -25,5 +38,3 @@ export const ProfileProvider = ({ children }) => {
     );
 };
 
-// Custom hook for easier access
-export const useProfile = () => useContext(ProfileContext);

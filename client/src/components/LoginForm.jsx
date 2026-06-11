@@ -1,4 +1,5 @@
 import {useState , useContext} from "react";
+import { useNavigate } from "react-router-dom";
 import { emailRegex, passwordRegex } from "../utils/validators.js";
 import { login } from "../service/authApi.js";
 import { AuthContext } from "../context/AuthContext.jsx";
@@ -9,8 +10,8 @@ function LoginForm() {
     const [password, setPassword] = useState("");
     const [errors, setErrors] = useState("");
 
-
     const { loginUser } = useContext(AuthContext);
+    const navigate = useNavigate();
 
     const validation = () => {
         let hasError = false;
@@ -35,9 +36,11 @@ function LoginForm() {
         login(data)
             .then(response => {
                 if (response.data.success) {
-                    console.log("Logged in!", response.data.data.user);
+                    console.log(response.data);
+                    console.log("Logged in!", response.data.loginData.user);
 
-                    loginUser(response.data.data.user);
+                    loginUser(response.data.loginData.user);
+                    navigate("/"); // Redirect to dashboard
                 } else {
                     setErrors("Email or Password are incorrect")
                 }
