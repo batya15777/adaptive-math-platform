@@ -14,6 +14,19 @@ public class EmailVerification {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "full_name", nullable = false)
+    private String fullName;
+
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
+    @Column(nullable = false)
+    private Integer age;
+
+    @Column(nullable = false)
+    private String gender;
+
+    @Column(nullable = false)
     private String code;
 
     @Column(nullable = false)
@@ -25,8 +38,12 @@ public class EmailVerification {
     public EmailVerification() {
     }
 
-    public EmailVerification(String email, String code, LocalDateTime expiresAt, LocalDateTime createdAt) {
+    public EmailVerification(String email, String fullName, String passwordHash, Integer age, String gender, String code, LocalDateTime expiresAt, LocalDateTime createdAt) {
         this.email = email;
+        this.fullName = fullName;
+        this.passwordHash = passwordHash;
+        this.age = age;
+        this.gender = gender;
         this.code = code;
         this.expiresAt = expiresAt;
         this.createdAt = createdAt;
@@ -38,6 +55,22 @@ public class EmailVerification {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public String getGender() {
+        return gender;
     }
 
     public String getCode() {
@@ -54,6 +87,22 @@ public class EmailVerification {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 
     public void setCode(String code) {

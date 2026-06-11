@@ -3,29 +3,32 @@ package com.adaptive.server.DTOs;
 public class RegisterRequest {
 
 
-    private String username;
+    private String fullName;
 
     private String password;
 
     private String email;
 
+    private Integer age;
+
     private String gender;
 
 
-    public RegisterRequest(String username, String password, String email, String gender) {
-        this.username = username;
+    public RegisterRequest(String fullName, String password, String email, Integer age, String gender) {
+        this.fullName = fullName;
         this.password = password;
         this.email = email;
+        this.age = age;
         this.gender = gender;
     }
     public RegisterRequest(){}
 
-    public String getUsername() {
-        return username;
+    public String getFullName() {
+        return fullName;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getPassword() {
@@ -42,6 +45,14 @@ public class RegisterRequest {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
     }
 
     public String getGender() {

@@ -3,18 +3,19 @@ import {register, verifyCode} from "../service/authApi.js";
 
 function RegisterForm(){
 
-    const [username, setUsername] = useState("");
+    const [fullName, setFullName] = useState("");
     const [password, setPassword] = useState("");
     const [email, setEmail] = useState("");
+    const [age, setAge] = useState("");
     const [gender, setGender] = useState("");
     const [code, setCode] = useState("");
     const [showCode, setShowCode] = useState(false);
     const [errors, setErrors] = useState("");
 
 
-    const usernameRegex =(value)=>{
-        const checkUsername = /^[A-Za-z]{2,10}$/;
-        return checkUsername.test(value.trim());
+    const fullNameRegex =(value)=>{
+        const checkFullName = /^[A-Za-z]+(?: [A-Za-z]+)+$/;
+        return checkFullName.test(value.trim());
     }
     const passwordRegex =(value)=>{
         const checkPassword = /^[A-Za-z!0-9@#*]{2,10}$/;
@@ -30,13 +31,16 @@ function RegisterForm(){
 
     const validation =()=>{
         let hasErrors = false;
-        if(!usernameRegex(username)){
+        if(!fullNameRegex(fullName)){
             hasErrors = true;
         }
         if (!passwordRegex(password)){
             hasErrors = true;
         }
         if (!emailRegex(email)){
+            hasErrors = true;
+        }
+        if (age === "" || Number(age) < 1 || Number(age) > 120){
             hasErrors = true;
         }
         if (gender.trim().length === 0){
@@ -51,7 +55,7 @@ function RegisterForm(){
         if(validation())return;
 
    const data = {
-       username,password,email,gender
+       fullName,password,email,age: Number(age),gender
    }
 
      register(data)
@@ -101,9 +105,9 @@ function RegisterForm(){
 
              <input
                  type="text"
-                 value={username}
-                 placeholder="Enter username"
-                 onChange={(e) => setUsername(e.target.value)}
+                 value={fullName}
+                 placeholder="Enter full name"
+                 onChange={(e) => setFullName(e.target.value)}
              />
 
              <input
@@ -120,26 +124,30 @@ function RegisterForm(){
                  onChange={(e) => setEmail(e.target.value)}
              />
 
-             <div>
-                 <label>
-                     <input
-                         type="radio"
-                         name="gender"
-                         value="male"
-                         checked={gender === "male"}
-                         onChange={(e) => setGender(e.target.value)}
-                     /> Male
-                 </label>
-                 <label>
-                     <input
-                         type="radio"
-                         name="gender"
-                         value="female"
-                         checked={gender === "female"}
-                         onChange={(e) => setGender(e.target.value)}
-                     /> Female
-                 </label>
-             </div>
+             <input
+                 type="number"
+                 value={age}
+                 min="1"
+                 max="120"
+                 placeholder="Enter age"
+                 onChange={(e) => setAge(e.target.value)}
+             />
+
+             <input
+                 type="radio"
+                 name="gender"
+                 value="male"
+                 checked={gender === "male"}
+                 onChange={(e) => setGender(e.target.value)}
+             />
+
+             <input
+                 type="radio"
+                 name="gender"
+                 value="female"
+                 checked={gender === "female"}
+                 onChange={(e) => setGender(e.target.value)}
+             />
              <button
                  disabled={validation()}
                  type="submit">

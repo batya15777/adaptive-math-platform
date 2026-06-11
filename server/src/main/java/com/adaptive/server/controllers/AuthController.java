@@ -3,6 +3,7 @@ package com.adaptive.server.controllers;
 import com.adaptive.server.DTOs.LoginRequest;
 import com.adaptive.server.DTOs.LoginSuccessData;
 import com.adaptive.server.DTOs.RegisterRequest;
+import com.adaptive.server.DTOs.VerifyEmailRequest;
 import com.adaptive.server.responses.BasicResponse;
 import com.adaptive.server.responses.LoginResponse;
 import com.adaptive.server.service.AuthService;
@@ -53,6 +54,12 @@ public class AuthController {
         return authService.register(registerRequest);
     }
 
+    @PostMapping("/verify")
+    public BasicResponse verify(@RequestBody VerifyEmailRequest verifyEmailRequest) {
+        return authService.verify(verifyEmailRequest);
+    }
+
+//    @PostMapping("/login")
 
 
 }
