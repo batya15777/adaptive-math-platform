@@ -11,7 +11,7 @@ public class UserResponseDTO {
     public UserResponseDTO(User user) {
         this.id = user.getId();
         this.email = user.getEmail();
-        this.username = user.getUsername();
+        this.username = user.getFullName();
         this.gender = user.getGender();
     }
 

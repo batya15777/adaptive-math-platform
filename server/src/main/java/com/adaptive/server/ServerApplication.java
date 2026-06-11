@@ -35,8 +35,8 @@ public class ServerApplication {
                         myUsername,
                         hash,
                         testEmail,
+                        10,
                         "female",
-                        true, // נגדיר שהאימייל כבר מאומת כדי שלא יעשה בעיות
                         LocalDateTime.now()
                 );
 
