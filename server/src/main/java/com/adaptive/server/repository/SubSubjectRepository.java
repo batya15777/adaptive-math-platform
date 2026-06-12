@@ -14,5 +14,7 @@ public interface SubSubjectRepository extends JpaRepository<SubSubject, Long> {
 
     SubSubject findByName(String name);
 
+    SubSubject findByNameAndSubject_Name(String name, String subjectName);
+
     public Optional<SubSubject> findByNameAndSubjectId(String name, Long subjectId);
 }

@@ -7,7 +7,11 @@ import com.adaptive.server.repository.SubSubjectRepository;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public abstract class QuestionGenerator {
+/**
+ * Base class for question generators. Each generator handles one Subject
+ * and declares an enum T listing the sub-subjects it can generate for.
+ */
+public abstract class QuestionGenerator<T extends Enum<T>> {
 
     protected final QuestionTemplateRepository templateRepository;
     protected final SubSubjectRepository subSubjectRepository;
@@ -17,17 +21,21 @@ public abstract class QuestionGenerator {
         this.subSubjectRepository = subSubjectRepository;
     }
 
-    public abstract Question createQuestion(int difficultyLevel, String language, boolean multipleChoice);
+    public abstract Question createQuestion(T subSubject, int difficultyLevel, String language, boolean multipleChoice);
 
     /**
-     * The SubSubject name this generator handles (e.g. "Calculation").
+     * The Subject this generator handles (e.g. "Calculation").
      */
-    protected abstract String getSubSubjectName();
+    protected abstract String getSubjectName();
 
-    protected SubSubject resolveSubSubject() {
-        SubSubject subSubject = subSubjectRepository.findByName(getSubSubjectName());
+    /**
+     * Looks up a sub-subject by name, scoped under this generator's subject.
+     */
+    protected SubSubject resolveSubSubject(String subSubjectName) {
+        SubSubject subSubject = subSubjectRepository.findByNameAndSubject_Name(subSubjectName, getSubjectName());
         if (subSubject == null) {
-            throw new QuestionGenerationException("SubSubject not found: " + getSubSubjectName());
+            throw new QuestionGenerationException(
+                    "SubSubject '" + subSubjectName + "' not found under subject '" + getSubjectName() + "'");
         }
         return subSubject;
     }

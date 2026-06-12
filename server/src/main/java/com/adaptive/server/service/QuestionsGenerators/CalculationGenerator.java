@@ -3,12 +3,12 @@ package com.adaptive.server.service.QuestionsGenerators;
 import com.adaptive.server.entity.Question;
 import com.adaptive.server.entity.QuestionTemplate;
 import com.adaptive.server.entity.SubSubject;
+import com.adaptive.server.entity.enums.CalculationOperation;
 import com.adaptive.server.entity.enums.QuestionStatus;
 import com.adaptive.server.repository.QuestionTemplateRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 import org.springframework.stereotype.Service;
 
@@ -19,12 +19,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-public class CalculationGenerator extends QuestionGenerator {
+public class CalculationGenerator extends QuestionGenerator<CalculationOperation> {
 
-    private static final String SUB_SUBJECT_NAME = "Calculation";
+    private static final String SUBJECT_NAME = "Calculation";
     private static final int OPTIONS_COUNT = 4;
     // Distractors are spread within +/- 15% of the correct answer (at least +/- 1)
     private static final double DISTRACTOR_SPREAD = 0.15;
+    // How many times to re-roll a division before accepting a non-whole answer
+    private static final int DIVISION_RETRIES = 50;
 
     // Formatter to clean up whole numbers (e.g., 24.0 -> "24") but keep valid decimals (e.g., "24.5")
     private final DecimalFormat format = new DecimalFormat("0.##");
@@ -35,19 +37,21 @@ public class CalculationGenerator extends QuestionGenerator {
     }
 
     @Override
-    protected String getSubSubjectName() {
-        return SUB_SUBJECT_NAME;
+    protected String getSubjectName() {
+        return SUBJECT_NAME;
     }
 
     @Override
-    public Question createQuestion(int difficultyLevel, String language, boolean multipleChoice) {
-        SubSubject subSubject = resolveSubSubject();
+    public Question createQuestion(CalculationOperation operation, int difficultyLevel, String language, boolean multipleChoice) {
+        SubSubject subSubject = resolveSubSubject(operation.getSubSubjectName());
 
-        QuestionTemplate questionTemplate = pickTemplate(difficultyLevel, subSubject);
-        String expression = fillPlaceholders(questionTemplate.getExpression(), difficultyLevel);
+        String template = chooseTemplateExpression(operation, subSubject, difficultyLevel);
+        String expression = fillPlaceholders(template, difficultyLevel);
+        if (template.contains("/")) { // division involved (DIV or a mixed template)
+            expression = preferWholeAnswer(template, expression, difficultyLevel);
+        }
 
-        Expression exp = new ExpressionBuilder(expression).build();
-        double mathResult = exp.evaluate();
+        double mathResult = evaluate(expression);
         String finalAnswer = format.format(mathResult);
 
         String optionsString = multipleChoice ? generateMultipleChoiceOptions(mathResult) : null;
@@ -66,9 +70,11 @@ public class CalculationGenerator extends QuestionGenerator {
     }
 
     /**
-     * Picks a random template matching the difficulty; falls back to the hardest available one.
+     * Picks a random template matching the difficulty, falling back to the hardest
+     * available one. If the sub-subject has no templates at all, the operation's
+     * built-in default template (e.g. "X + X") is used.
      */
-    private QuestionTemplate pickTemplate(int difficultyLevel, SubSubject subSubject) {
+    private String chooseTemplateExpression(CalculationOperation operation, SubSubject subSubject, int difficultyLevel) {
         List<QuestionTemplate> templates = templateRepository.findAllBySubSubject_Name(subSubject.getName());
 
         List<QuestionTemplate> matching = templates.stream()
@@ -76,14 +82,14 @@ public class CalculationGenerator extends QuestionGenerator {
                 .toList();
 
         if (!matching.isEmpty()) {
-            return matching.get(ThreadLocalRandom.current().nextInt(matching.size()));
+            return matching.get(ThreadLocalRandom.current().nextInt(matching.size())).getExpression();
         }
 
         return templates.stream()
                 .filter(q -> q.getDifficultyLevel() != null)
                 .max(Comparator.comparingInt(QuestionTemplate::getDifficultyLevel))
-                .orElseThrow(() -> new QuestionGenerationException(
-                        "No templates with a difficulty level found for sub-subject: " + subSubject.getName()));
+                .map(QuestionTemplate::getExpression)
+                .orElse(operation.getDefaultTemplate());
     }
 
     private String fillPlaceholders(String expression, int difficultyLevel) {
@@ -91,6 +97,25 @@ public class CalculationGenerator extends QuestionGenerator {
             expression = expression.replaceFirst("X", String.valueOf(generatePlaceholderValue(difficultyLevel)));
         }
         return expression;
+    }
+
+    /**
+     * Re-rolls the template values a few times, hoping for a whole-number result,
+     * so division questions usually have clean answers. Keeps the last roll otherwise.
+     */
+    private String preferWholeAnswer(String template, String expression, int difficultyLevel) {
+        for (int i = 0; i < DIVISION_RETRIES; i++) {
+            double result = evaluate(expression);
+            if (Double.isFinite(result) && result == Math.floor(result)) {
+                return expression;
+            }
+            expression = fillPlaceholders(template, difficultyLevel);
+        }
+        return expression;
+    }
+
+    private double evaluate(String expression) {
+        return new ExpressionBuilder(expression).build().evaluate();
     }
 
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(?:\\.\\d+)?");

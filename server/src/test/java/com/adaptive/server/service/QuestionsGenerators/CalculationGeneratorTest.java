@@ -2,7 +2,9 @@ package com.adaptive.server.service.QuestionsGenerators;
 
 import com.adaptive.server.entity.Question;
 import com.adaptive.server.entity.QuestionTemplate;
+import com.adaptive.server.entity.Subject;
 import com.adaptive.server.entity.SubSubject;
+import com.adaptive.server.entity.enums.CalculationOperation;
 import com.adaptive.server.repository.QuestionTemplateRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,7 +23,7 @@ class CalculationGeneratorTest {
     private QuestionTemplateRepository templateRepository;
     private SubSubjectRepository subSubjectRepository;
     private CalculationGenerator generator;
-    private SubSubject calculation;
+    private SubSubject addSubSubject;
 
     @BeforeEach
     void setUp() {
@@ -29,23 +31,26 @@ class CalculationGeneratorTest {
         subSubjectRepository = mock(SubSubjectRepository.class);
         generator = new CalculationGenerator(templateRepository, subSubjectRepository);
 
-        calculation = new SubSubject();
-        calculation.setName("Calculation");
-        when(subSubjectRepository.findByName("Calculation")).thenReturn(calculation);
+        addSubSubject = subSubject("add");
+        when(subSubjectRepository.findByNameAndSubject_Name("add", "Calculation")).thenReturn(addSubSubject);
     }
 
-    private QuestionTemplate template(String expression, Integer difficulty) {
-        QuestionTemplate t = new QuestionTemplate(calculation, expression);
+    private SubSubject subSubject(String name) {
+        return new SubSubject(name, new Subject());
+    }
+
+    private QuestionTemplate template(SubSubject subSubject, String expression, Integer difficulty) {
+        QuestionTemplate t = new QuestionTemplate(subSubject, expression);
         t.setDifficultyLevel(difficulty);
         return t;
     }
 
     @Test
     void createsQuestionFromMatchingTemplate() {
-        when(templateRepository.findAllBySubSubject_Name("Calculation"))
-                .thenReturn(List.of(template("X + X", 2)));
+        when(templateRepository.findAllBySubSubject_Name("add"))
+                .thenReturn(List.of(template(addSubSubject, "X + X", 2)));
 
-        Question question = generator.createQuestion(2, "en", false);
+        Question question = generator.createQuestion(CalculationOperation.ADD, 2, "en", false);
 
         assertNotNull(question);
         assertEquals("en", question.getLanguage());
@@ -60,21 +65,52 @@ class CalculationGeneratorTest {
 
     @Test
     void fallsBackToHardestTemplateWhenNoExactDifficultyMatch() {
-        when(templateRepository.findAllBySubSubject_Name("Calculation"))
-                .thenReturn(Arrays.asList(template("X + 1", 1), template("X * X", 3)));
+        when(templateRepository.findAllBySubSubject_Name("add"))
+                .thenReturn(Arrays.asList(
+                        template(addSubSubject, "X + 1", 1),
+                        template(addSubSubject, "X + X + X", 3)));
 
-        Question question = generator.createQuestion(5, "en", false);
+        Question question = generator.createQuestion(CalculationOperation.ADD, 5, "en", false);
 
         assertNotNull(question);
-        assertTrue(question.getExpression().contains("*"), "should fall back to the hardest template");
+        assertEquals(2, question.getExpression().chars().filter(c -> c == '+').count(),
+                "should fall back to the hardest template");
+    }
+
+    @Test
+    void usesOperationDefaultTemplateWhenNoTemplatesExist() {
+        SubSubject mult = subSubject("mult");
+        when(subSubjectRepository.findByNameAndSubject_Name("mult", "Calculation")).thenReturn(mult);
+        when(templateRepository.findAllBySubSubject_Name("mult")).thenReturn(Collections.emptyList());
+
+        Question question = generator.createQuestion(CalculationOperation.MULT, 1, "en", false);
+
+        assertNotNull(question);
+        assertTrue(question.getExpression().contains("*"), "default template should use the operation symbol");
+        String[] parts = question.getExpression().split(" \\* ");
+        int expected = Integer.parseInt(parts[0]) * Integer.parseInt(parts[1]);
+        assertEquals(String.valueOf(expected), question.getCorrectAnswer());
+    }
+
+    @Test
+    void divisionQuestionsPreferWholeAnswers() {
+        SubSubject div = subSubject("div");
+        when(subSubjectRepository.findByNameAndSubject_Name("div", "Calculation")).thenReturn(div);
+        when(templateRepository.findAllBySubSubject_Name("div")).thenReturn(Collections.emptyList());
+
+        Question question = generator.createQuestion(CalculationOperation.DIV, 1, "en", false);
+
+        assertFalse(question.getCorrectAnswer().contains("."),
+                "division answer should be a whole number, got: "
+                        + question.getExpression() + " = " + question.getCorrectAnswer());
     }
 
     @Test
     void generatesFourUniqueMultipleChoiceOptionsIncludingCorrectAnswer() throws Exception {
-        when(templateRepository.findAllBySubSubject_Name("Calculation"))
-                .thenReturn(List.of(template("X + X", 1)));
+        when(templateRepository.findAllBySubSubject_Name("add"))
+                .thenReturn(List.of(template(addSubSubject, "X + X", 1)));
 
-        Question question = generator.createQuestion(1, "en", true);
+        Question question = generator.createQuestion(CalculationOperation.ADD, 1, "en", true);
 
         assertNotNull(question.getOptions());
         List<String> options = Arrays.asList(new ObjectMapper().readValue(question.getOptions(), String[].class));
@@ -85,19 +121,50 @@ class CalculationGeneratorTest {
 
     @Test
     void throwsWhenSubSubjectIsMissing() {
-        when(subSubjectRepository.findByName("Calculation")).thenReturn(null);
+        when(subSubjectRepository.findByNameAndSubject_Name("sub", "Calculation")).thenReturn(null);
 
         assertThrows(QuestionGenerationException.class,
-                () -> generator.createQuestion(1, "en", false));
+                () -> generator.createQuestion(CalculationOperation.SUB, 1, "en", false));
     }
 
     @Test
-    void throwsWhenNoTemplatesExist() {
-        when(templateRepository.findAllBySubSubject_Name("Calculation"))
-                .thenReturn(Collections.emptyList());
+    void operationParsesFromStringCaseInsensitively() {
+        assertEquals(CalculationOperation.ADD, CalculationOperation.from("add"));
+        assertEquals(CalculationOperation.MULT, CalculationOperation.from("MULT"));
+        assertEquals(CalculationOperation.DIV, CalculationOperation.from("Div"));
+        assertEquals(CalculationOperation.MIXED, CalculationOperation.from("mixed"));
+        assertThrows(IllegalArgumentException.class, () -> CalculationOperation.from("pow"));
+    }
 
-        assertThrows(QuestionGenerationException.class,
-                () -> generator.createQuestion(1, "en", false));
+    @Test
+    void mixedQuestionCombinesOperationsAndSolvesWithPrecedence() {
+        SubSubject mixed = subSubject("mixed");
+        when(subSubjectRepository.findByNameAndSubject_Name("mixed", "Calculation")).thenReturn(mixed);
+        when(templateRepository.findAllBySubSubject_Name("mixed")).thenReturn(Collections.emptyList());
+
+        Question question = generator.createQuestion(CalculationOperation.MIXED, 1, "en", false);
+
+        // Default mixed template is "X + X * X"
+        assertTrue(question.getExpression().contains("+"));
+        assertTrue(question.getExpression().contains("*"));
+        // First solution step must be the multiplication (precedence), not the addition
+        assertTrue(question.getSolution().split("\n")[0].contains("*"),
+                "multiplication should be solved first in: " + question.getSolution());
+        assertTrue(question.getSolution().endsWith("Answer: " + question.getCorrectAnswer()));
+    }
+
+    @Test
+    void mixedTemplateWithDivisionPrefersWholeAnswers() {
+        SubSubject mixed = subSubject("mixed");
+        when(subSubjectRepository.findByNameAndSubject_Name("mixed", "Calculation")).thenReturn(mixed);
+        when(templateRepository.findAllBySubSubject_Name("mixed"))
+                .thenReturn(List.of(template(mixed, "X + X / X", 1)));
+
+        Question question = generator.createQuestion(CalculationOperation.MIXED, 1, "en", false);
+
+        assertFalse(question.getCorrectAnswer().contains("."),
+                "mixed answer with division should be whole, got: "
+                        + question.getExpression() + " = " + question.getCorrectAnswer());
     }
 
     @Test
@@ -127,10 +194,10 @@ class CalculationGeneratorTest {
 
     @Test
     void generatedQuestionIncludesSolutionEndingWithTheAnswer() {
-        when(templateRepository.findAllBySubSubject_Name("Calculation"))
-                .thenReturn(List.of(template("X + X", 1)));
+        when(templateRepository.findAllBySubSubject_Name("add"))
+                .thenReturn(List.of(template(addSubSubject, "X + X", 1)));
 
-        Question question = generator.createQuestion(1, "en", false);
+        Question question = generator.createQuestion(CalculationOperation.ADD, 1, "en", false);
 
         assertNotNull(question.getSolution());
         assertTrue(question.getSolution().startsWith("Step 1: "));
@@ -141,7 +208,6 @@ class CalculationGeneratorTest {
     void distractorsScaleWithLargeAnswers() {
         String json = generator.generateMultipleChoiceOptions(1200.0);
         assertTrue(json.startsWith("[") && json.endsWith("]"));
-        // With a 15% spread, at least one distractor should differ from 1200 by more than 5
         assertNotEquals("[\"1200\",\"1200\",\"1200\",\"1200\"]", json);
     }
 }
