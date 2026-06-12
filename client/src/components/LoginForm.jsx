@@ -2,7 +2,7 @@ import {useState , useContext} from "react";
 import { useNavigate } from "react-router-dom";
 import { emailRegex, passwordRegex } from "../utils/validators.js";
 import { login } from "../service/authApi.js";
-import { AuthContext } from "../context/AuthContext.jsx";
+import { AuthContext } from "../context/AuthContextSetup.js";
 
 function LoginForm() {
 

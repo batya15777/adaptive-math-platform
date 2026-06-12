@@ -1,7 +1,7 @@
 import {useState, useContext} from "react";
 import { useNavigate } from "react-router-dom";
 import {register, verifyCode} from "../service/authApi.js";
-import { AuthContext } from "../context/AuthContext.jsx";
+import { AuthContext } from "../context/AuthContextSetup.js";
 
 function RegisterForm(){
 

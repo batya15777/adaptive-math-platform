@@ -1,6 +1,6 @@
 import {useState, useContext} from "react";
-import {useProfile} from "../../contexts/ProfileContext.jsx";
-import { AuthContext } from "../../context/AuthContext.jsx";
+import {useProfile} from "../../contexts/useProfile.js";
+import { AuthContext } from "../../context/AuthContextSetup.js";
 
 export const ProfileSettings = () => {
     const { profileData, updateProfile } = useProfile();

@@ -5,7 +5,9 @@ import Navbar from "./components/Navbar.jsx";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./components/DashboardLayout/DashboardLayout.jsx";
 import {Home} from "./pages/Home/Home.jsx";
-import { AuthProvider, AuthContext } from "./context/AuthContext.jsx";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import { AuthContext } from "./context/AuthContextSetup.js";
+import { ProfileProvider } from "./contexts/ProfileContext.jsx";
 import { useContext } from "react";
 import {ProfileSettings} from "./components/ProfileSettings/ProfileSettings.jsx";
 
@@ -59,7 +61,9 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <ProfileProvider>
+        <AppRoutes />
+      </ProfileProvider>
     </AuthProvider>
   );
 }
