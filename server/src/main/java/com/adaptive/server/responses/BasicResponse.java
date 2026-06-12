@@ -1,7 +1,6 @@
 package com.adaptive.server.responses;
 
 public class BasicResponse {
-
     private boolean success;
     private String message;
 
@@ -13,19 +12,9 @@ public class BasicResponse {
         this.message = message;
     }
 
-    public boolean isSuccess() {
-        return success;
-    }
+    public boolean isSuccess() { return success; }
+    public void setSuccess(boolean success) { this.success = success; }
 
-    public void setSuccess(boolean success) {
-        this.success = success;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 }

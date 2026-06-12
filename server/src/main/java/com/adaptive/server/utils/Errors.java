@@ -13,7 +13,14 @@ public enum Errors {
     VERIFICATION_CODE_EXPIRED("Verification code has expired."),
     VERIFICATION_EMAIL_SEND_FAILED("Unable to send verification email. Please try again."),
     USER_NOT_FOUND("User not found."),
-    INVALID_CREDENTIALS("Invalid email or password.");
+    INVALID_CREDENTIALS("Invalid email or password."),
+
+
+    SESSION_TOKEN_MISSING("Missing session token. Please log in first."),
+    SESSION_TOKEN_INVALID("Invalid session token. Please log in again."),
+    SESSION_TOKEN_EXPIRED("Session has expired. Please log in again."),
+    ACCESS_DENIED_USER_MISMATCH("Access denied: token does not match the provided user ID."),
+    SUB_SUBJECT_NOT_FOUND("Sub-subject not found.");
 
 
     private final String message;
