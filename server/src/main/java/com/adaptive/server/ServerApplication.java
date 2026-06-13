@@ -2,6 +2,7 @@ package com.adaptive.server;
 
 import com.adaptive.server.entity.User;
 import com.adaptive.server.repository.UserRepository;
+import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
 import com.adaptive.server.utils.GenerateHash;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
