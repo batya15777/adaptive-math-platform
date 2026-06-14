@@ -1,15 +1,16 @@
 package com.adaptive.server.controllers;
 
-import com.adaptive.server.DTOs.ProgressStatusResponse;
 import com.adaptive.server.DTOs.SubmitAnswerRequest;
 import com.adaptive.server.entity.SessionToken;
+import com.adaptive.server.responses.ProgressStatusResponse;
 import com.adaptive.server.service.LevelManagerService;
 import com.adaptive.server.service.SessionValidationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.adaptive.server.responses.QuestionResponse;
 
 @RestController
-@RequestMapping("/api/progress")
+@RequestMapping("/progress")
 public class ProgressController {
 
     private final LevelManagerService levelManagerService;
@@ -17,7 +18,7 @@ public class ProgressController {
 
     public ProgressController(LevelManagerService levelManagerService,
                               SessionValidationService sessionValidationService) {
-        this.levelManagerService = levelManagerService;
+        this.levelManagerService   = levelManagerService;
         this.sessionValidationService = sessionValidationService;
     }
 
@@ -28,9 +29,7 @@ public class ProgressController {
 
         SessionToken token  = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
-
         ProgressStatusResponse result = levelManagerService.submitAnswer(userId, request);
-
         return ResponseEntity.ok(result);
     }
 
@@ -42,9 +41,23 @@ public class ProgressController {
 
         SessionToken token  = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
-
         ProgressStatusResponse result = levelManagerService.getStatus(userId, subSubjectId);
+        return ResponseEntity.ok(result);
+    }
 
+
+    @GetMapping("/next-question")
+    public ResponseEntity<QuestionResponse> getNextQuestion(
+            @CookieValue(value = "session_token", required = false) String sessionToken,
+            @RequestParam Long subSubjectId,
+            @RequestParam(defaultValue = "he") String language,
+            @RequestParam(defaultValue = "false") boolean mc) {
+
+        SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
+        Long userId = token.getUser().getId();
+        QuestionResponse result = levelManagerService.getNextQuestion(
+                userId, subSubjectId, language, mc);
         return ResponseEntity.ok(result);
     }
 }
+

@@ -1,22 +1,23 @@
 package com.adaptive.server.service;
 
-import com.adaptive.server.DTOs.ProgressStatusResponse;
 import com.adaptive.server.DTOs.SubmitAnswerRequest;
 import com.adaptive.server.entity.ExerciseAttempt;
+import com.adaptive.server.entity.Question;
 import com.adaptive.server.entity.StudentProgress;
 import com.adaptive.server.entity.SubSubject;
 import com.adaptive.server.entity.User;
+import com.adaptive.server.entity.enums.CalculationOperation;
 import com.adaptive.server.entity.enums.SpaceshipStatus;
-import com.adaptive.server.repository.ExerciseAttemptRepository;
-import com.adaptive.server.repository.StudentProgressRepository;
-import com.adaptive.server.repository.SubSubjectRepository;
-import com.adaptive.server.repository.UserRepository;
+import com.adaptive.server.repository.*;
+import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.adaptive.server.responses.ProgressStatusResponse;
+import com.adaptive.server.responses.QuestionResponse;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -26,44 +27,43 @@ import java.util.Map;
 
 @Service
 public class LevelManagerService {
-    private static final int LEVEL_UP_WINDOW = 30;
-    private static final int LEVEL_UP_THRESHOLD = 24;
-    private static final int INTERMEDIATE_WINDOW = 10;
-    private static final int INTERMEDIATE_THRESHOLD = 6;
-    private static final int WEAKNESS_WINDOW = 15;
-    private static final double WEAKNESS_ERROR_RATE = 0.50;
-    private static final int WEAKNESS_MIN_SAMPLE = 4;
+    static final int LEVEL_UP_WINDOW     = 30;
+    static final int LEVEL_UP_THRESHOLD  = 24;   // ≥ 80 %
+    static final int INTERMEDIATE_WINDOW = 10;
+    static final int INTERMEDIATE_THRESHOLD = 6; // < 60 %
+    static final int WEAKNESS_WINDOW = 15;
+    static final double WEAKNESS_ERROR_RATE = 0.50;
+    static final int WEAKNESS_MIN_SAMPLE  = 4;
+    private static final int MIN_LEVEL = 1;
 
-    private final ExerciseAttemptRepository attemptRepository;
-    private final StudentProgressRepository progressRepository;
-    private final UserRepository userRepository;
+
+    private final QuestionRepository questionRepository;
+    private final ExerciseAttemptRepository  attemptRepository;
+    private final StudentProgressRepository  progressRepository;
+    private final UserRepository  userRepository;
     private final SubSubjectRepository subSubjectRepository;
+    private final CalculationGenerator       calculationGenerator;
 
-    public LevelManagerService(ExerciseAttemptRepository attemptRepository,
-                               StudentProgressRepository progressRepository,
-                               UserRepository userRepository,
-                               SubSubjectRepository subSubjectRepository) {
+    public LevelManagerService(ExerciseAttemptRepository attemptRepository, StudentProgressRepository progressRepository,
+                               UserRepository userRepository, SubSubjectRepository subSubjectRepository,
+                               CalculationGenerator calculationGenerator , QuestionRepository questionRepository) {
         this.attemptRepository = attemptRepository;
         this.progressRepository = progressRepository;
         this.userRepository = userRepository;
         this.subSubjectRepository = subSubjectRepository;
+        this.calculationGenerator = calculationGenerator;
+        this.questionRepository = questionRepository;
     }
 
-    /**
-     * @param userId  Authenticated user ID (extracted from session token by controller).
-     * @param request Answer details from the frontend.
-     */
+
     @Transactional
     public ProgressStatusResponse submitAnswer(Long userId, SubmitAnswerRequest request) {
-        User user = resolveUser(userId);
+        User       user       = resolveUser(userId);
         SubSubject subSubject = resolveSubSubject(request.getSubSubjectId());
-
         saveAttempt(user, subSubject, request);
-
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
-
-        long total = attemptRepository.countByUserIdAndSubSubjectId(userId, request.getSubSubjectId());
-        List<ExerciseAttempt> last30 = fetchRecent(userId, request.getSubSubjectId(), LEVEL_UP_WINDOW);
+        long                   total    = attemptRepository.countByUserIdAndSubSubjectId(userId, request.getSubSubjectId());
+        List<ExerciseAttempt>  last30   = fetchRecent(userId, request.getSubSubjectId(), LEVEL_UP_WINDOW);
 
         long correct30 = countCorrect(last30);
         long correct10 = countCorrect(slice(last30, INTERMEDIATE_WINDOW));
@@ -77,13 +77,9 @@ public class LevelManagerService {
         return buildResponse(progress, status, correct10, correct30, total, weakness, request.isCorrect());
     }
 
-    /**
-     * @param userId Authenticated user ID (extracted from session token by controller).
-     * @param subSubjectId The sub-subject to query.
-     */
+
     @Transactional(readOnly = true)
     public ProgressStatusResponse getStatus(Long userId, Long subSubjectId) {
-
         return progressRepository
                 .findByUserIdAndSubSubjectId(userId, subSubjectId)
                 .filter(p -> Boolean.TRUE.equals(p.getActive()))
@@ -91,7 +87,27 @@ public class LevelManagerService {
                 .orElseGet(this::buildDefaultStatus);
     }
 
-    private SpaceshipStatus evaluateSpaceshipStatus(long total, long correct30, long correct10) {
+
+    @Transactional
+    public QuestionResponse getNextQuestion(Long userId, Long subSubjectId, String language, boolean multipleChoice) {
+        User user = resolveUser(userId);
+        SubSubject subSubject = resolveSubSubject(subSubjectId);
+        // Load or create progress to read the current difficulty level
+        StudentProgress progress = loadOrCreateProgress(user, subSubject);
+        int difficultyLevel = progress.getCurrentLevel();
+        // Detect weakness to guide operation selection
+        List<ExerciseAttempt> last15 = fetchRecent(userId, subSubjectId, WEAKNESS_WINDOW);
+        String weakness = detectWeakness(last15);
+        // Pick which CalculationOperation to generate; weakness overrides random selection
+        CalculationOperation operation = resolveOperation(subSubject, weakness);
+        // Delegate to the teammate's generator — this is the integration point
+        Question question = calculationGenerator.createQuestion(operation, difficultyLevel, language, multipleChoice);
+        question = questionRepository.save(question); //שמירת שאלה לתוך DB
+        return buildQuestionResponse(question, subSubjectId, weakness);
+    }
+
+
+    SpaceshipStatus evaluateSpaceshipStatus(long total, long correct30, long correct10) {
         if (total >= LEVEL_UP_WINDOW && correct30 >= LEVEL_UP_THRESHOLD) {
             return SpaceshipStatus.BOOSTING;
         }
@@ -102,36 +118,37 @@ public class LevelManagerService {
     }
 
 
-    private void applyStatusToProgress(StudentProgress progress, SpaceshipStatus status) {
+    void applyStatusToProgress(StudentProgress progress, SpaceshipStatus status) {
         switch (status) {
             case BOOSTING:
                 progress.setCurrentLevel(progress.getCurrentLevel() + 1);
                 progress.setCurrentProgress(0);
                 break;
+
+            case STOPPED:
+                // Drop to an intermediate easier level (never below MIN_LEVEL)
+                progress.setCurrentLevel(Math.max(MIN_LEVEL, progress.getCurrentLevel() - 1));
+                progress.setCurrentProgress(0);
+                break;
+
             case MOVING:
+            default:
                 int current = progress.getCurrentProgress() == null ? 0 : progress.getCurrentProgress();
                 progress.setCurrentProgress(current + 1);
-                break;
-            case STOPPED:
-            default:
-                // Spaceship stays in place - no progress changes
                 break;
         }
     }
 
-
-    private String detectWeakness(List<ExerciseAttempt> attempts) {
+   //זיהוי חולשות
+    String detectWeakness(List<ExerciseAttempt> attempts) {
         if (attempts.isEmpty()) return null;
-
         Map<String, TypeStats> stats = new HashMap<>();
-
         for (ExerciseAttempt attempt : attempts) {
             String type = attempt.getQuestionType();
             if (type == null) continue;
             stats.computeIfAbsent(type, k -> new TypeStats())
                  .record(Boolean.FALSE.equals(attempt.getIsCorrect()));
         }
-
         return stats.entrySet().stream()
                 .filter(e -> e.getValue().total >= WEAKNESS_MIN_SAMPLE)
                 .filter(e -> e.getValue().errorRate() > WEAKNESS_ERROR_RATE)
@@ -140,14 +157,45 @@ public class LevelManagerService {
                 .orElse(null);
     }
 
+    private CalculationOperation resolveOperation(SubSubject subSubject, String weakness) {
+        if (weakness != null) {
+            CalculationOperation fromWeakness = questionTypeToOperation(weakness);
+            if (fromWeakness != null) {
+                return fromWeakness;
+            }
+        }
+        try {
+            return CalculationOperation.from(subSubject.getName());
+        } catch (IllegalArgumentException e) {
+            return CalculationOperation.ADD; // Safe fallback
+        }
+    }
 
-    private ProgressStatusResponse buildResponse(StudentProgress progress,
-                                                  SpaceshipStatus status,
-                                                  long correct10, long correct30, long total,
-                                                  String weakness, boolean lastAnswerCorrect) {
-        boolean isLevelUp = (status == SpaceshipStatus.BOOSTING);
+
+    private CalculationOperation questionTypeToOperation(String questionType) {
+        if (questionType == null) return null;
+        switch (questionType.toUpperCase()) {
+            case "SIMPLE_ADDITION":
+            case "CARRYING_ADDITION":
+                return CalculationOperation.ADD;
+            case "SIMPLE_SUBTRACTION":
+            case "CARRYING_SUBTRACTION":
+                return CalculationOperation.SUB;
+            case "MULTIPLICATION":
+                return CalculationOperation.MULT;
+            case "DIVISION":
+                return CalculationOperation.DIV;
+            default:
+                return null;
+        }
+    }
+
+
+    private ProgressStatusResponse buildResponse(StudentProgress progress, SpaceshipStatus status,
+                                                 long correct10, long correct30, long total,
+                                                 String weakness, boolean lastAnswerCorrect) {
+        boolean isLevelUp      = (status == SpaceshipStatus.BOOSTING);
         boolean isIntermediate = (status == SpaceshipStatus.STOPPED);
-
         ProgressStatusResponse response = new ProgressStatusResponse();
         response.setSuccess(true);
         response.setCurrentLevel(progress.getCurrentLevel());
@@ -163,13 +211,14 @@ public class LevelManagerService {
         return response;
     }
 
-    private ProgressStatusResponse buildStatusFromHistory(StudentProgress progress, Long userId, Long subSubjectId) {
+    private ProgressStatusResponse buildStatusFromHistory(StudentProgress progress,
+                                                          Long userId, Long subSubjectId) {
         long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
         List<ExerciseAttempt> last30 = fetchRecent(userId, subSubjectId, LEVEL_UP_WINDOW);
 
         long correct30 = countCorrect(last30);
         long correct10 = countCorrect(slice(last30, INTERMEDIATE_WINDOW));
-        SpaceshipStatus status = evaluateSpaceshipStatus(total, correct30, correct10);
+        SpaceshipStatus status  = evaluateSpaceshipStatus(total, correct30, correct10);
         String weakness = detectWeakness(slice(last30, WEAKNESS_WINDOW));
 
         ProgressStatusResponse r = new ProgressStatusResponse();
@@ -187,7 +236,7 @@ public class LevelManagerService {
     private ProgressStatusResponse buildDefaultStatus() {
         ProgressStatusResponse r = new ProgressStatusResponse();
         r.setSuccess(true);
-        r.setCurrentLevel(1);
+        r.setCurrentLevel(MIN_LEVEL);
         r.setSpaceshipStatus(SpaceshipStatus.MOVING.name());
         r.setCorrectLast10(0);
         r.setCorrectLast30(0);
@@ -196,6 +245,24 @@ public class LevelManagerService {
         return r;
     }
 
+    private QuestionResponse buildQuestionResponse(Question question,
+                                                   Long subSubjectId,
+                                                   String weakness) {
+        QuestionResponse response = new QuestionResponse();
+        response.setSuccess(true);
+        response.setQuestionId(question.getId());       // may be null if not yet persisted
+        response.setExpression(question.getExpression());
+        response.setCorrectAnswer(question.getCorrectAnswer());
+        response.setSolution(question.getSolution());
+        response.setOptions(question.getOptions());
+        response.setDifficultyLevel(question.getDifficultyLevel());
+        response.setSubSubjectId(subSubjectId);
+        response.setRecommendedQuestionType(weakness);
+        response.setMessage(weakness != null
+                ? "נחש! אתה מתאמן על: " + formatQuestionType(weakness)
+                : "שאלה חדשה מחכה לך! 💪");
+        return response;
+    }
 
     private String resolveMessage(SpaceshipStatus status, String weakness, boolean lastCorrect) {
         switch (status) {
@@ -231,7 +298,7 @@ public class LevelManagerService {
     }
 
     private StudentProgress createNewProgress(User user, SubSubject subSubject) {
-        return progressRepository.save(new StudentProgress(user, subSubject, 1, 0, true));
+        return progressRepository.save(new StudentProgress(user, subSubject, MIN_LEVEL, 0, true));
     }
 
     private List<ExerciseAttempt> fetchRecent(Long userId, Long subSubjectId, int limit) {
@@ -252,7 +319,6 @@ public class LevelManagerService {
                         HttpStatus.NOT_FOUND, "SubSubject not found: " + subSubjectId));
     }
 
-
     private long countCorrect(List<ExerciseAttempt> attempts) {
         return attempts.stream()
                 .filter(a -> Boolean.TRUE.equals(a.getIsCorrect()))
@@ -272,20 +338,19 @@ public class LevelManagerService {
             case "WORD_PROBLEM":         return "שאלות מילוליות";
             case "MISSING_NUMBER":       return "מספר חסר";
             case "MULTIPLE_CHOICE":      return "בחירה מרובה";
+            case "MULTIPLICATION":       return "כפל";
+            case "DIVISION":             return "חילוק";
             default:                     return questionType;
         }
     }
 
-
-    private static class TypeStats {
+    static class TypeStats {
         int total;
         int wrong;
-
         void record(boolean isWrong) {
             total++;
             if (isWrong) wrong++;
         }
-
         double errorRate() {
             return total == 0 ? 0.0 : (double) wrong / total;
         }
