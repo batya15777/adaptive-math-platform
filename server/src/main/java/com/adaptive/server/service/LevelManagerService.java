@@ -27,22 +27,22 @@ import java.util.Map;
 
 @Service
 public class LevelManagerService {
-    static final int LEVEL_UP_WINDOW     = 30;
-    static final int LEVEL_UP_THRESHOLD  = 24;   // ≥ 80 %
+    static final int LEVEL_UP_WINDOW = 30;
+    static final int LEVEL_UP_THRESHOLD = 24; // ≥ 80 %
     static final int INTERMEDIATE_WINDOW = 10;
     static final int INTERMEDIATE_THRESHOLD = 6; // < 60 %
     static final int WEAKNESS_WINDOW = 15;
     static final double WEAKNESS_ERROR_RATE = 0.50;
-    static final int WEAKNESS_MIN_SAMPLE  = 4;
+    static final int WEAKNESS_MIN_SAMPLE = 4;
     private static final int MIN_LEVEL = 1;
 
 
     private final QuestionRepository questionRepository;
-    private final ExerciseAttemptRepository  attemptRepository;
-    private final StudentProgressRepository  progressRepository;
-    private final UserRepository  userRepository;
+    private final ExerciseAttemptRepository attemptRepository;
+    private final StudentProgressRepository progressRepository;
+    private final UserRepository userRepository;
     private final SubSubjectRepository subSubjectRepository;
-    private final CalculationGenerator       calculationGenerator;
+    private final CalculationGenerator calculationGenerator;
 
     public LevelManagerService(ExerciseAttemptRepository attemptRepository, StudentProgressRepository progressRepository,
                                UserRepository userRepository, SubSubjectRepository subSubjectRepository,
@@ -58,12 +58,12 @@ public class LevelManagerService {
 
     @Transactional
     public ProgressStatusResponse submitAnswer(Long userId, SubmitAnswerRequest request) {
-        User       user       = resolveUser(userId);
+        User user = resolveUser(userId);
         SubSubject subSubject = resolveSubSubject(request.getSubSubjectId());
         saveAttempt(user, subSubject, request);
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
-        long                   total    = attemptRepository.countByUserIdAndSubSubjectId(userId, request.getSubSubjectId());
-        List<ExerciseAttempt>  last30   = fetchRecent(userId, request.getSubSubjectId(), LEVEL_UP_WINDOW);
+        long total = attemptRepository.countByUserIdAndSubSubjectId(userId, request.getSubSubjectId());
+        List<ExerciseAttempt> last30 = fetchRecent(userId, request.getSubSubjectId(), LEVEL_UP_WINDOW);
 
         long correct30 = countCorrect(last30);
         long correct10 = countCorrect(slice(last30, INTERMEDIATE_WINDOW));
@@ -194,7 +194,7 @@ public class LevelManagerService {
     private ProgressStatusResponse buildResponse(StudentProgress progress, SpaceshipStatus status,
                                                  long correct10, long correct30, long total,
                                                  String weakness, boolean lastAnswerCorrect) {
-        boolean isLevelUp      = (status == SpaceshipStatus.BOOSTING);
+        boolean isLevelUp = (status == SpaceshipStatus.BOOSTING);
         boolean isIntermediate = (status == SpaceshipStatus.STOPPED);
         ProgressStatusResponse response = new ProgressStatusResponse();
         response.setSuccess(true);
@@ -211,8 +211,7 @@ public class LevelManagerService {
         return response;
     }
 
-    private ProgressStatusResponse buildStatusFromHistory(StudentProgress progress,
-                                                          Long userId, Long subSubjectId) {
+    private ProgressStatusResponse buildStatusFromHistory(StudentProgress progress, Long userId, Long subSubjectId) {
         long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
         List<ExerciseAttempt> last30 = fetchRecent(userId, subSubjectId, LEVEL_UP_WINDOW);
 
@@ -245,12 +244,10 @@ public class LevelManagerService {
         return r;
     }
 
-    private QuestionResponse buildQuestionResponse(Question question,
-                                                   Long subSubjectId,
-                                                   String weakness) {
+    private QuestionResponse buildQuestionResponse(Question question, Long subSubjectId, String weakness) {
         QuestionResponse response = new QuestionResponse();
         response.setSuccess(true);
-        response.setQuestionId(question.getId());       // may be null if not yet persisted
+        response.setQuestionId(question.getId());  // may be null if not yet persisted
         response.setExpression(question.getExpression());
         response.setCorrectAnswer(question.getCorrectAnswer());
         response.setSolution(question.getSolution());

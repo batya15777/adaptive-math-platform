@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.server.ResponseStatusException;
+import com.adaptive.server.responses.ProgressStatusResponse;
+import com.adaptive.server.responses.QuestionResponse;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -27,13 +29,14 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+
 class LevelManagerServiceTest {
     private ExerciseAttemptRepository  attemptRepository;
     private StudentProgressRepository  progressRepository;
     private UserRepository             userRepository;
     private SubSubjectRepository       subSubjectRepository;
     private CalculationGenerator       calculationGenerator;
-    private QuestionRepository questionRepository;
+    private QuestionRepository         questionRepository;
 
     private LevelManagerService service;
 
@@ -58,11 +61,9 @@ class LevelManagerServiceTest {
                 userRepository, subSubjectRepository,
                 calculationGenerator ,questionRepository);
 
-        // User has no setId() (JPA-managed), so we use a mock.
         testUser = mock(User.class);
         when(testUser.getId()).thenReturn(USER_ID);
 
-        // SubSubject has no setId() exposed either — use a mock for the same reason.
         testSubSubject = mock(SubSubject.class);
         when(testSubSubject.getId()).thenReturn(SUB_SUBJECT_ID);
         when(testSubSubject.getName()).thenReturn("add");
@@ -81,7 +82,6 @@ class LevelManagerServiceTest {
     @Nested
     @DisplayName("evaluateSpaceshipStatus()")
     class EvaluateSpaceshipStatus {
-
         @Test
         @DisplayName("Returns MOVING when total < LEVEL_UP_WINDOW")
         void fewerThan30Attempts_isMoving() {
@@ -130,7 +130,6 @@ class LevelManagerServiceTest {
         @Test
         @DisplayName("BOOSTING check takes priority over STOPPED check")
         void boostingTakesPriorityOverStopped() {
-            // Total ≥ 30 and correct30 ≥ 24 → BOOSTING, even if correct10 is low
             SpaceshipStatus status = service.evaluateSpaceshipStatus(30, 24, 3);
             assertEquals(SpaceshipStatus.BOOSTING, status,
                     "BOOSTING condition is evaluated before STOPPED");
@@ -146,9 +145,7 @@ class LevelManagerServiceTest {
         @DisplayName("BOOSTING increments currentLevel by 1 and resets progress counter")
         void boosting_incrementsLevel() {
             StudentProgress progress = progressAt(3);
-
             service.applyStatusToProgress(progress, SpaceshipStatus.BOOSTING);
-
             assertEquals(4, progress.getCurrentLevel(),    "level should go up");
             assertEquals(0, progress.getCurrentProgress(), "progress counter reset");
         }
@@ -165,9 +162,7 @@ class LevelManagerServiceTest {
         @DisplayName("STOPPED decrements currentLevel by 1 (intermediate drop)")
         void stopped_decrementsLevel() {
             StudentProgress progress = progressAt(5);
-
             service.applyStatusToProgress(progress, SpaceshipStatus.STOPPED);
-
             assertEquals(4, progress.getCurrentLevel(),    "level should drop by 1");
             assertEquals(0, progress.getCurrentProgress(), "progress counter reset");
         }
@@ -176,9 +171,7 @@ class LevelManagerServiceTest {
         @DisplayName("STOPPED at level 1 stays at level 1 (never goes below minimum)")
         void stopped_atLevelOne_staysAtOne() {
             StudentProgress progress = progressAt(1);
-
             service.applyStatusToProgress(progress, SpaceshipStatus.STOPPED);
-
             assertEquals(1, progress.getCurrentLevel(), "level must not drop below 1");
         }
 
@@ -187,9 +180,7 @@ class LevelManagerServiceTest {
         void moving_incrementsProgressCounter() {
             StudentProgress progress = progressAt(3);
             progress.setCurrentProgress(7);
-
             service.applyStatusToProgress(progress, SpaceshipStatus.MOVING);
-
             assertEquals(3, progress.getCurrentLevel(),    "level unchanged");
             assertEquals(8, progress.getCurrentProgress(), "progress counter incremented");
         }
@@ -199,9 +190,7 @@ class LevelManagerServiceTest {
         void moving_withNullProgressCounter_startsFromZero() {
             StudentProgress progress = progressAt(2);
             progress.setCurrentProgress(null);
-
             service.applyStatusToProgress(progress, SpaceshipStatus.MOVING);
-
             assertEquals(1, progress.getCurrentProgress());
         }
     }
@@ -221,23 +210,20 @@ class LevelManagerServiceTest {
         @DisplayName("Returns null when no type has enough samples (below WEAKNESS_MIN_SAMPLE)")
         void belowMinSample_returnsNull() {
             List<ExerciseAttempt> attempts = new ArrayList<>();
-            attempts.add(attempt("CARRYING_ADDITION", false)); // only 1 wrong
-            attempts.add(attempt("CARRYING_ADDITION", false)); // only 2 wrong
-            attempts.add(attempt("CARRYING_ADDITION", false)); // only 3 wrong → still below min of 4
-
+            attempts.add(attempt("CARRYING_ADDITION", false));
+            attempts.add(attempt("CARRYING_ADDITION", false));
+            attempts.add(attempt("CARRYING_ADDITION", false));
             assertNull(service.detectWeakness(attempts));
         }
 
         @Test
         @DisplayName("Returns null when error rate is exactly at the threshold (not above)")
         void errorRateAtThreshold_returnsNull() {
-            // 50% error rate — threshold is > 0.50, so this should return null
             List<ExerciseAttempt> attempts = new ArrayList<>();
             attempts.add(attempt("SIMPLE_ADDITION", false));
             attempts.add(attempt("SIMPLE_ADDITION", false));
             attempts.add(attempt("SIMPLE_ADDITION", true));
             attempts.add(attempt("SIMPLE_ADDITION", true));
-            // 2 wrong / 4 total = 0.50 — not strictly above threshold
             assertNull(service.detectWeakness(attempts));
         }
 
@@ -245,12 +231,10 @@ class LevelManagerServiceTest {
         @DisplayName("Returns the type with error rate strictly above 50% and ≥4 samples")
         void highErrorRate_returnsWeaknessType() {
             List<ExerciseAttempt> attempts = new ArrayList<>();
-            // CARRYING_ADDITION: 3 wrong / 4 total = 75% error
             attempts.add(attempt("CARRYING_ADDITION", false));
             attempts.add(attempt("CARRYING_ADDITION", false));
             attempts.add(attempt("CARRYING_ADDITION", false));
             attempts.add(attempt("CARRYING_ADDITION", true));
-
             assertEquals("CARRYING_ADDITION", service.detectWeakness(attempts));
         }
 
@@ -258,17 +242,14 @@ class LevelManagerServiceTest {
         @DisplayName("Returns the HIGHEST error-rate type when multiple types have weakness")
         void multipleWeakTypes_returnsHighestErrorRate() {
             List<ExerciseAttempt> attempts = new ArrayList<>();
-            // SIMPLE_SUBTRACTION: 3/4 = 75%
             attempts.add(attempt("SIMPLE_SUBTRACTION", false));
             attempts.add(attempt("SIMPLE_SUBTRACTION", false));
             attempts.add(attempt("SIMPLE_SUBTRACTION", false));
             attempts.add(attempt("SIMPLE_SUBTRACTION", true));
-            // CARRYING_ADDITION: 4/4 = 100%
             attempts.add(attempt("CARRYING_ADDITION", false));
             attempts.add(attempt("CARRYING_ADDITION", false));
             attempts.add(attempt("CARRYING_ADDITION", false));
             attempts.add(attempt("CARRYING_ADDITION", false));
-
             assertEquals("CARRYING_ADDITION", service.detectWeakness(attempts),
                     "Should return the type with highest error rate");
         }
@@ -281,7 +262,6 @@ class LevelManagerServiceTest {
             attempts.add(attempt(null, false));
             attempts.add(attempt(null, false));
             attempts.add(attempt(null, false));
-
             assertNull(service.detectWeakness(attempts), "null types must be ignored");
         }
 
@@ -289,9 +269,8 @@ class LevelManagerServiceTest {
         @DisplayName("Returns null when all types have low error rates")
         void lowErrorRates_returnsNull() {
             List<ExerciseAttempt> attempts = new ArrayList<>();
-            for (int i = 0; i < 4; i++) attempts.add(attempt("SIMPLE_ADDITION", true));   // 0%
-            for (int i = 0; i < 4; i++) attempts.add(attempt("SIMPLE_SUBTRACTION", true)); // 0%
-
+            for (int i = 0; i < 4; i++) attempts.add(attempt("SIMPLE_ADDITION", true));
+            for (int i = 0; i < 4; i++) attempts.add(attempt("SIMPLE_SUBTRACTION", true));
             assertNull(service.detectWeakness(attempts));
         }
     }
@@ -330,7 +309,7 @@ class LevelManagerServiceTest {
             when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(30L);
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(nCorrect(30, "SIMPLE_ADDITION")); // all 30 correct
+                    .thenReturn(nCorrect(30, "SIMPLE_ADDITION"));
 
             ProgressStatusResponse response = service.submitAnswer(USER_ID, submitRequest(true));
 
@@ -350,7 +329,7 @@ class LevelManagerServiceTest {
             when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(10L);
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(nWrong(10, "CARRYING_ADDITION")); // all wrong
+                    .thenReturn(nWrong(10, "CARRYING_ADDITION"));
 
             ProgressStatusResponse response = service.submitAnswer(USER_ID, submitRequest(false));
 
@@ -388,7 +367,6 @@ class LevelManagerServiceTest {
             when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(10L);
 
-            // Build list: 4 wrong CARRYING_ADDITION + 6 correct others → weakness detected
             List<ExerciseAttempt> attempts = new ArrayList<>(nWrong(4, "CARRYING_ADDITION"));
             attempts.addAll(nCorrect(6, "SIMPLE_ADDITION"));
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
@@ -502,11 +480,12 @@ class LevelManagerServiceTest {
                     .thenReturn(Collections.emptyList());
             when(calculationGenerator.createQuestion(any(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(5));
+            when(questionRepository.save(any(Question.class))).thenReturn(stubSavedQuestion(5)); // תוספת השמירה
 
             service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
 
-            // Generator must receive exactly the student's current level
             verify(calculationGenerator).createQuestion(any(), eq(5), eq("he"), eq(false));
+            verify(questionRepository).save(any(Question.class));
         }
 
         @Test
@@ -520,6 +499,7 @@ class LevelManagerServiceTest {
                     .thenReturn(Collections.emptyList());
             when(calculationGenerator.createQuestion(any(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(1));
+            when(questionRepository.save(any(Question.class))).thenReturn(stubSavedQuestion(1)); // תוספת השמירה
 
             QuestionResponse response = service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
 
@@ -535,30 +515,29 @@ class LevelManagerServiceTest {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(Optional.of(progress));
 
-            // Build 4 wrong CARRYING_ADDITION → weakness = CARRYING_ADDITION → maps to ADD
             List<ExerciseAttempt> attempts = new ArrayList<>(nWrong(4, "CARRYING_ADDITION"));
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
                     .thenReturn(attempts);
             when(calculationGenerator.createQuestion(any(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(3));
+            when(questionRepository.save(any(Question.class))).thenReturn(stubSavedQuestion(3)); // תוספת השמירה
 
             service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
 
-            // CARRYING_ADDITION maps to CalculationOperation.ADD
             verify(calculationGenerator).createQuestion(eq(CalculationOperation.ADD), anyInt(), anyString(), anyBoolean());
         }
 
         @Test
         @DisplayName("Without weakness, falls back to operation derived from sub-subject name")
         void withoutWeakness_usesSubjectOperation() {
-            // testSubSubject name = "add" → maps to ADD
             StudentProgress progress = progressAt(2);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(Optional.of(progress));
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(Collections.emptyList()); // no weakness
+                    .thenReturn(Collections.emptyList());
             when(calculationGenerator.createQuestion(any(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(2));
+            when(questionRepository.save(any(Question.class))).thenReturn(stubSavedQuestion(2)); // תוספת השמירה
 
             service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
 
@@ -575,9 +554,11 @@ class LevelManagerServiceTest {
                     .thenReturn(Collections.emptyList());
             when(calculationGenerator.createQuestion(any(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(4));
+            when(questionRepository.save(any(Question.class))).thenReturn(stubSavedQuestion(4)); // תוספת השמירה
 
             QuestionResponse response = service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
 
+            assertEquals(99L,       response.getQuestionId()); // הבדיקה החדשה!
             assertEquals("10 + 5",  response.getExpression());
             assertEquals("15",      response.getCorrectAnswer());
             assertEquals(4,         response.getDifficultyLevel());
@@ -594,6 +575,7 @@ class LevelManagerServiceTest {
                     .thenReturn(Collections.emptyList());
             when(calculationGenerator.createQuestion(any(), anyInt(), anyString(), eq(true)))
                     .thenReturn(stubQuestion(2));
+            when(questionRepository.save(any(Question.class))).thenReturn(stubSavedQuestion(2)); // תוספת השמירה
 
             service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "en", true);
 
@@ -609,7 +591,6 @@ class LevelManagerServiceTest {
         @Test
         @DisplayName("Student progresses: correct streak → level up → struggle → level drops → recovers")
         void fullProgressionCycle() {
-            // ── Phase 1: Boost from level 2 to 3 ───────────────────────────────
             StudentProgress progress = progressAt(2);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(Optional.of(progress));
@@ -624,8 +605,7 @@ class LevelManagerServiceTest {
             assertEquals(3, boost.getCurrentLevel());
             assertTrue(boost.isLevelUp());
 
-            // ── Phase 2: Struggle at level 3 → drop back to 2 ──────────────────
-            progress = progressAt(3); // simulate saved state
+            progress = progressAt(3);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(Optional.of(progress));
             when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
@@ -637,7 +617,6 @@ class LevelManagerServiceTest {
             assertEquals(2, stop.getCurrentLevel());
             assertTrue(stop.isInIntermediateLevel());
 
-            // ── Phase 3: Recover to MOVING (fewer than 30 attempts) ─────────────
             progress = progressAt(2);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(Optional.of(progress));
@@ -653,44 +632,32 @@ class LevelManagerServiceTest {
     }
 
 
-    /** Creates a StudentProgress at the given level with active=true. */
     private StudentProgress progressAt(int level) {
-        // StudentProgress constructor stores the user/subSubject references.
-        // We don't need to call setId() here because progress.getId() is never
-        // called by the service under test — it only reads currentLevel.
         return new StudentProgress(testUser, testSubSubject, level, 0, true);
     }
 
-    /** Creates a correct or wrong ExerciseAttempt for a given question type. */
     private ExerciseAttempt attempt(String questionType, boolean correct) {
         ExerciseAttempt a = new ExerciseAttempt(
                 testUser, testSubSubject, null, correct, 1, questionType, LocalDateTime.now());
         return a;
     }
 
-    /** Builds a list of N correct attempts of the given question type. */
     private List<ExerciseAttempt> nCorrect(int n, String questionType) {
         List<ExerciseAttempt> list = new ArrayList<>();
         for (int i = 0; i < n; i++) list.add(attempt(questionType, true));
         return list;
     }
 
-    /** Builds a list of N wrong attempts of the given question type. */
     private List<ExerciseAttempt> nWrong(int n, String questionType) {
         List<ExerciseAttempt> list = new ArrayList<>();
         for (int i = 0; i < n; i++) list.add(attempt(questionType, false));
         return list;
     }
 
-    /** Creates a minimal SubmitAnswerRequest for subSubjectId=SUB_SUBJECT_ID. */
     private SubmitAnswerRequest submitRequest(boolean correct) {
         return new SubmitAnswerRequest(SUB_SUBJECT_ID, 1L, correct, "SIMPLE_ADDITION", 1);
     }
 
-    /**
-     * Creates a stub {@link Question} (not persisted) at the given difficulty level.
-     * The expression is "10 + 5" and the correct answer is "15" for easy assertion.
-     */
     private Question stubQuestion(int difficultyLevel) {
         Question q = new Question(
                 testSubSubject,
@@ -702,7 +669,13 @@ class LevelManagerServiceTest {
                 difficultyLevel,
                 QuestionStatus.CURRENT
         );
-        // ID is null since this is not a persisted entity — this mirrors real generator behaviour
+        return q;
+    }
+
+    // הוספת פונקציית העזר לשמירת ID
+    private Question stubSavedQuestion(int difficultyLevel) {
+        Question q = stubQuestion(difficultyLevel);
+        q.setId(99L);
         return q;
     }
 }

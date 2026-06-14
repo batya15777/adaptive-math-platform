@@ -16,17 +16,14 @@ public class ProgressController {
     private final LevelManagerService levelManagerService;
     private final SessionValidationService sessionValidationService;
 
-    public ProgressController(LevelManagerService levelManagerService,
-                              SessionValidationService sessionValidationService) {
+    public ProgressController(LevelManagerService levelManagerService, SessionValidationService sessionValidationService) {
         this.levelManagerService   = levelManagerService;
         this.sessionValidationService = sessionValidationService;
     }
 
     @PostMapping("/submit-answer")
-    public ResponseEntity<ProgressStatusResponse> submitAnswer(
-            @CookieValue(value = "session_token", required = false) String sessionToken,
+    public ResponseEntity<ProgressStatusResponse> submitAnswer(@CookieValue(value = "session_token", required = false) String sessionToken,
             @RequestBody SubmitAnswerRequest request) {
-
         SessionToken token  = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
         ProgressStatusResponse result = levelManagerService.submitAnswer(userId, request);
@@ -35,10 +32,8 @@ public class ProgressController {
 
 
     @GetMapping("/status/sub-subject/{subSubjectId}")
-    public ResponseEntity<ProgressStatusResponse> getStatus(
-            @CookieValue(value = "session_token", required = false) String sessionToken,
+    public ResponseEntity<ProgressStatusResponse> getStatus(@CookieValue(value = "session_token", required = false) String sessionToken,
             @PathVariable Long subSubjectId) {
-
         SessionToken token  = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
         ProgressStatusResponse result = levelManagerService.getStatus(userId, subSubjectId);
@@ -47,12 +42,10 @@ public class ProgressController {
 
 
     @GetMapping("/next-question")
-    public ResponseEntity<QuestionResponse> getNextQuestion(
-            @CookieValue(value = "session_token", required = false) String sessionToken,
+    public ResponseEntity<QuestionResponse> getNextQuestion(@CookieValue(value = "session_token", required = false) String sessionToken,
             @RequestParam Long subSubjectId,
             @RequestParam(defaultValue = "he") String language,
             @RequestParam(defaultValue = "false") boolean mc) {
-
         SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
         QuestionResponse result = levelManagerService.getNextQuestion(
