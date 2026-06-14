@@ -7,7 +7,6 @@ import com.adaptive.server.entity.SubSubject;
 import com.adaptive.server.entity.enums.CalculationOperation;
 import com.adaptive.server.repository.QuestionTemplateRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,8 +54,7 @@ class CalculationGeneratorTest {
         assertNotNull(question);
         assertEquals("en", question.getLanguage());
         assertEquals(2, question.getDifficultyLevel());
-        assertNull(question.getOptions());
-        // Placeholders replaced: no 'X' left and the answer matches the expression
+        assertTrue(question.getOptions().isEmpty());
         assertFalse(question.getExpression().contains("X"));
         String[] parts = question.getExpression().split(" \\+ ");
         int expected = Integer.parseInt(parts[0]) + Integer.parseInt(parts[1]);
@@ -106,14 +104,13 @@ class CalculationGeneratorTest {
     }
 
     @Test
-    void generatesFourUniqueMultipleChoiceOptionsIncludingCorrectAnswer() throws Exception {
+    void generatesFourUniqueMultipleChoiceOptionsIncludingCorrectAnswer() {
         when(templateRepository.findAllBySubSubject_Name("add"))
                 .thenReturn(List.of(template(addSubSubject, "X + X", 1)));
 
         Question question = generator.createQuestion(CalculationOperation.ADD, 1, "en", true);
 
-        assertNotNull(question.getOptions());
-        List<String> options = Arrays.asList(new ObjectMapper().readValue(question.getOptions(), String[].class));
+        List<String> options = question.getOptions();
         assertEquals(4, options.size());
         assertEquals(4, options.stream().distinct().count(), "options must be unique");
         assertTrue(options.contains(question.getCorrectAnswer()), "options must contain the correct answer");
@@ -144,13 +141,12 @@ class CalculationGeneratorTest {
 
         Question question = generator.createQuestion(CalculationOperation.MIXED, 1, "en", false);
 
-        // Default mixed template is "X + X * X"
         assertTrue(question.getExpression().contains("+"));
         assertTrue(question.getExpression().contains("*"));
-        // First solution step must be the multiplication (precedence), not the addition
-        assertTrue(question.getSolution().split("\n")[0].contains("*"),
-                "multiplication should be solved first in: " + question.getSolution());
-        assertTrue(question.getSolution().endsWith("Answer: " + question.getCorrectAnswer()));
+        // First step must be the multiplication (precedence), not the addition
+        assertTrue(question.getSolution().get(0).contains("*"),
+                "multiplication should be solved first, steps: " + question.getSolution());
+        assertEquals("Answer: " + question.getCorrectAnswer(), question.getSolution().getLast());
     }
 
     @Test
@@ -169,27 +165,21 @@ class CalculationGeneratorTest {
 
     @Test
     void solutionFollowsOperatorPrecedence() {
-        String solution = generator.generateSolution("2 + 3 * 4");
+        List<String> solution = generator.generateSolution("2 + 3 * 4");
 
-        assertEquals(
-                "Step 1: 3 * 4 = 12\n" +
-                "Step 2: 2 + 12 = 14\n" +
-                "Answer: 14", solution);
+        assertEquals(List.of("3 * 4 = 12", "2 + 12 = 14", "Answer: 14"), solution);
     }
 
     @Test
     void solutionResolvesParenthesesFirst() {
-        String solution = generator.generateSolution("(2 + 3) * 4");
+        List<String> solution = generator.generateSolution("(2 + 3) * 4");
 
-        assertEquals(
-                "Step 1: 2 + 3 = 5\n" +
-                "Step 2: 5 * 4 = 20\n" +
-                "Answer: 20", solution);
+        assertEquals(List.of("2 + 3 = 5", "5 * 4 = 20", "Answer: 20"), solution);
     }
 
     @Test
     void solutionHandlesSingleOperationAndDivision() {
-        assertEquals("Step 1: 9 / 2 = 4.5\nAnswer: 4.5", generator.generateSolution("9 / 2"));
+        assertEquals(List.of("9 / 2 = 4.5", "Answer: 4.5"), generator.generateSolution("9 / 2"));
     }
 
     @Test
@@ -199,15 +189,16 @@ class CalculationGeneratorTest {
 
         Question question = generator.createQuestion(CalculationOperation.ADD, 1, "en", false);
 
-        assertNotNull(question.getSolution());
-        assertTrue(question.getSolution().startsWith("Step 1: "));
-        assertTrue(question.getSolution().endsWith("Answer: " + question.getCorrectAnswer()));
+        assertFalse(question.getSolution().isEmpty());
+        assertEquals("Answer: " + question.getCorrectAnswer(), question.getSolution().getLast());
     }
 
     @Test
     void distractorsScaleWithLargeAnswers() {
-        String json = generator.generateMultipleChoiceOptions(1200.0);
-        assertTrue(json.startsWith("[") && json.endsWith("]"));
-        assertNotEquals("[\"1200\",\"1200\",\"1200\",\"1200\"]", json);
+        List<String> options = generator.generateMultipleChoiceOptions(1200.0);
+
+        assertEquals(4, options.size());
+        assertEquals(4, options.stream().distinct().count());
+        assertTrue(options.contains("1200"));
     }
 }
