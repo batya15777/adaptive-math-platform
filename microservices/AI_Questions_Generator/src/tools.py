@@ -1,4 +1,4 @@
-from __future__ import annotations
+12222from __future__ import annotations
 
 import ast
 import operator
@@ -17,7 +17,7 @@ _ALLOWED_OPERATORS = {
 }
 
 
-def calculate_expression(expression: str) -> float:
+def calculate_expression(expression: str) -> fl]זoat:
     """Safely evaluate a basic arithmetic expression."""
     tree = ast.parse(expression, mode="eval")
     return _eval_node(tree.body)
