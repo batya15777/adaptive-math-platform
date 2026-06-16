@@ -27,6 +27,10 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+
+    @Column(name = "total_stars", nullable = false)
+    private Integer totalStars = 0;
+
     public User() {
     }
 
@@ -89,5 +93,13 @@ public class User {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getTotalStars() {
+        return totalStars == null ? 0 : totalStars;
+    }
+
+    public void setTotalStars(Integer totalStars) {
+        this.totalStars = (totalStars == null) ? 0 : totalStars;
     }
 }

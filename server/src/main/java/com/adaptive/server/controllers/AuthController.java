@@ -59,7 +59,4 @@ public class AuthController {
         return authService.verify(verifyEmailRequest);
     }
 
-//    @PostMapping("/login")
-
-
 }

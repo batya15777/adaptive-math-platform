@@ -31,6 +31,14 @@ public class QuestionTemplate {
         this.expression = expression;
     }
 
+    public Integer getSubSubjectLevel() {
+        return subSubjectLevel;
+    }
+
+    public void setSubSubjectLevel(Integer subSubjectLevel) {
+        this.subSubjectLevel = subSubjectLevel;
+    }
+
     public Long getId() {
         return id;
     }
