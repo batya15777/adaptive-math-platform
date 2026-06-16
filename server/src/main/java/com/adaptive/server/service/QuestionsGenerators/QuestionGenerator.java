@@ -11,7 +11,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * Base class for question generators. Each generator handles one Subject
  * and declares an enum T listing the sub-subjects it can generate for.
  */
-public abstract class QuestionGenerator<T extends Enum<T>> {
+public abstract class QuestionGenerator {
 
     protected final QuestionTemplateRepository templateRepository;
     protected final SubSubjectRepository subSubjectRepository;
@@ -21,7 +21,16 @@ public abstract class QuestionGenerator<T extends Enum<T>> {
         this.subSubjectRepository = subSubjectRepository;
     }
 
-    public abstract Question createQuestion(T subSubject, int difficultyLevel, String language, boolean multipleChoice);
+    public abstract Question createQuestion(SubSubject subSubject,int subSubjectLevel, int difficultyLevel, String language, boolean multipleChoice);
+
+    /**
+     * Creates a bonus question — harder than any normal difficulty level.
+     * Subclasses should override to add subject-specific challenge (e.g. compound shapes,
+     * collecting like terms). The default bumps difficulty to 10.
+     */
+//    public Question createBonusQuestion(T operation, String language, boolean multipleChoice) {
+//        return createQuestion(operation, 10, language, multipleChoice);
+//    }
 
     /**
      * The Subject this generator handles (e.g. "Calculation").

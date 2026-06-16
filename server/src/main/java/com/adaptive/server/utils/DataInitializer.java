@@ -4,6 +4,8 @@ import com.adaptive.server.entity.QuestionTemplate;
 import com.adaptive.server.entity.SubSubject;
 import com.adaptive.server.entity.Subject;
 import com.adaptive.server.entity.enums.CalculationOperation;
+import com.adaptive.server.entity.enums.GeometryOperation;
+import com.adaptive.server.entity.enums.PolynomialOperation;
 import com.adaptive.server.repository.QuestionTemplateRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import com.adaptive.server.repository.SubjectRepository;
@@ -16,10 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Seeds the database with initial data for manual testing.
- * Disabled by default — enable by adding to application.properties:
- *
- *   app.seed-data=true
- *
+ * Disabled by default — enable with: app.seed-data=true (or env SEED_DATA=true)
  * Safe to run repeatedly: existing data is never duplicated.
  */
 @Component
@@ -28,8 +27,6 @@ public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
-    private static final String CALCULATION_SUBJECT = "Calculation";
-
     private final SubjectRepository subjectRepository;
     private final SubSubjectRepository subSubjectRepository;
     private final QuestionTemplateRepository templateRepository;
@@ -37,23 +34,76 @@ public class DataInitializer implements CommandLineRunner {
     public DataInitializer(SubjectRepository subjectRepository,
                            SubSubjectRepository subSubjectRepository,
                            QuestionTemplateRepository templateRepository) {
-        this.subjectRepository = subjectRepository;
+        this.subjectRepository    = subjectRepository;
         this.subSubjectRepository = subSubjectRepository;
-        this.templateRepository = templateRepository;
+        this.templateRepository   = templateRepository;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
-        log.info("Seeding initial data for manual tests...");
-        Subject calculation = getOrCreateSubject(CALCULATION_SUBJECT);
-
-        for (CalculationOperation operation : CalculationOperation.values()) {
-            SubSubject subSubject = getOrCreateSubSubject(operation.getSubSubjectName(), calculation);
-            seedTemplates(subSubject, operation);
-        }
+        log.info("Seeding initial data...");
+        seedCalculation();
+        seedGeometry();
+        seedPolynomial();
+        seedAi();
         log.info("Seeding done.");
     }
+
+    // ── Calculation ──────────────────────────────────────────────────────
+
+    private void seedCalculation() {
+        Subject subject = getOrCreateSubject("Calculation");
+        for (CalculationOperation op : CalculationOperation.values()) {
+            SubSubject sub = getOrCreateSubSubject(op.getSubSubjectName(), subject);
+            seedCalculationTemplates(sub, op);
+        }
+    }
+
+    private void seedCalculationTemplates(SubSubject subSubject, CalculationOperation op) {
+        if (!templateRepository.findAllBySubSubject_Name(subSubject.getName()).isEmpty()) return;
+
+        if (op == CalculationOperation.MIXED) {
+            saveTemplate(subSubject, "X + X * X", 1);
+            saveTemplate(subSubject, "X * X - X + X", 2);
+            saveTemplate(subSubject, "(X + X) * X - X / X", 3);
+        } else {
+            String s = op.getSymbol();
+            saveTemplate(subSubject, "X " + s + " X", 1);
+            saveTemplate(subSubject, "X " + s + " X " + s + " X", 2);
+            saveTemplate(subSubject, "(X " + s + " X) " + s + " X", 3);
+        }
+        log.info("Created 3 templates for '{}'", subSubject.getName());
+    }
+
+    // ── Geometry ─────────────────────────────────────────────────────────
+    // GeometryGenerator does not use DB templates (formulas are fixed),
+    // but the sub-subject rows must exist as FKs for the Question entity.
+
+    private void seedGeometry() {
+        Subject subject = getOrCreateSubject("Geometry");
+        for (GeometryOperation op : GeometryOperation.values()) {
+            getOrCreateSubSubject(op.getSubSubjectName(), subject);
+        }
+    }
+
+    // ── Polynomial ───────────────────────────────────────────────────────
+
+    private void seedPolynomial() {
+        Subject subject = getOrCreateSubject("Polynomial");
+        for (PolynomialOperation op : PolynomialOperation.values()) {
+            getOrCreateSubSubject(op.getSubSubjectName(), subject);
+        }
+    }
+
+    // ── AI ───────────────────────────────────────────────────────────────
+
+    private void seedAi() {
+        Subject subject = getOrCreateSubject("AI");
+        getOrCreateSubSubject("ai", subject);
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────
 
     private Subject getOrCreateSubject(String name) {
         return subjectRepository.findByName(name)
@@ -65,32 +115,9 @@ public class DataInitializer implements CommandLineRunner {
 
     private SubSubject getOrCreateSubSubject(String name, Subject subject) {
         SubSubject existing = subSubjectRepository.findByNameAndSubject_Name(name, subject.getName());
-        if (existing != null) {
-            return existing;
-        }
+        if (existing != null) return existing;
         log.info("Creating sub-subject '{}' under '{}'", name, subject.getName());
         return subSubjectRepository.save(new SubSubject(name, subject));
-    }
-
-    /**
-     * Three difficulty levels per operation. Single operations are built from
-     * their symbol ("X + X", "X + X + X", "(X + X) + X"); MIXED combines them.
-     */
-    private void seedTemplates(SubSubject subSubject, CalculationOperation operation) {
-        if (!templateRepository.findAllBySubSubject_Name(subSubject.getName()).isEmpty()) {
-            return; // already seeded
-        }
-        if (operation == CalculationOperation.MIXED) {
-            saveTemplate(subSubject, "X + X * X", 1);
-            saveTemplate(subSubject, "X * X - X + X", 2);
-            saveTemplate(subSubject, "(X + X) * X - X / X", 3);
-        } else {
-            String s = operation.getSymbol();
-            saveTemplate(subSubject, "X " + s + " X", 1);
-            saveTemplate(subSubject, "X " + s + " X " + s + " X", 2);
-            saveTemplate(subSubject, "(X " + s + " X) " + s + " X", 3);
-        }
-        log.info("Created 3 templates for '{}'", subSubject.getName());
     }
 
     private void saveTemplate(SubSubject subSubject, String expression, int difficulty) {

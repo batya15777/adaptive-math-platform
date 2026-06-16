@@ -1,14 +1,12 @@
 package com.adaptive.server.entity;
 
-import com.adaptive.server.entity.enums.QuestionStatus;
-
 import javax.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "questions")
-public class Question {
+@Table(name = "generated_questions")
+public class GeneratedQuestion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,16 +22,14 @@ public class Question {
     @Column(name = "correct_answer")
     private String correctAnswer;
 
-    // Each element is one step, e.g. "3 * 4 = 12", ordered by index
     @ElementCollection
-    @CollectionTable(name = "question_solution_steps", joinColumns = @JoinColumn(name = "question_id"))
+    @CollectionTable(name = "generated_question_solution_steps", joinColumns = @JoinColumn(name = "generated_question_id"))
     @OrderColumn(name = "step_index")
     @Column(name = "step", columnDefinition = "TEXT")
     private List<String> solution = new ArrayList<>();
 
-    // Each element is one answer option, e.g. "14", "11", "18", "9"
     @ElementCollection
-    @CollectionTable(name = "question_options", joinColumns = @JoinColumn(name = "question_id"))
+    @CollectionTable(name = "generated_question_options", joinColumns = @JoinColumn(name = "generated_question_id"))
     @OrderColumn(name = "option_index")
     @Column(name = "option_value")
     private List<String> options = new ArrayList<>();
@@ -43,15 +39,12 @@ public class Question {
     @Column(name = "difficulty_level")
     private Integer difficultyLevel;
 
-    @Enumerated(EnumType.STRING)
-    private QuestionStatus status;
-
-    public Question() {
+    public GeneratedQuestion() {
     }
 
-    public Question(SubSubject subSubject, String expression, String correctAnswer,
-                    List<String> solution, List<String> options,
-                    String language, Integer difficultyLevel, QuestionStatus status) {
+    public GeneratedQuestion(SubSubject subSubject, String expression, String correctAnswer,
+                             List<String> solution, List<String> options,
+                             String language, Integer difficultyLevel) {
         this.subSubject = subSubject;
         this.expression = expression;
         this.correctAnswer = correctAnswer;
@@ -59,7 +52,6 @@ public class Question {
         this.options = options != null ? options : new ArrayList<>();
         this.language = language;
         this.difficultyLevel = difficultyLevel;
-        this.status = status;
     }
 
     public Long getId() { return id; }
@@ -85,21 +77,4 @@ public class Question {
 
     public Integer getDifficultyLevel() { return difficultyLevel; }
     public void setDifficultyLevel(Integer difficultyLevel) { this.difficultyLevel = difficultyLevel; }
-
-    public QuestionStatus getStatus() { return status; }
-    public void setStatus(QuestionStatus status) { this.status = status; }
-
-    @Override
-    public String toString() {
-        return "Question{" +
-                "status=" + status +
-                ", difficultyLevel=" + difficultyLevel +
-                ", language='" + language + '\'' +
-                ", options=" + options +
-                ", solution=" + solution +
-                ", correctAnswer='" + correctAnswer + '\'' +
-                ", expression='" + expression + '\'' +
-                ", subSubject=" + subSubject +
-                '}';
-    }
 }

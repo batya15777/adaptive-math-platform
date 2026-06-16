@@ -17,6 +17,9 @@ public class QuestionTemplate {
     @Column(name = "difficulty_level")
     private Integer difficultyLevel;
 
+    @Column(name = "sub_subject_level")
+    private Integer subSubjectLevel;
+
     @Column(columnDefinition = "TEXT")
     private String expression;
 

@@ -1,6 +1,8 @@
 package com.adaptive.server.entity;
 
 import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "question_archive")
@@ -9,6 +11,10 @@ public class QuestionArchive {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_subject_id", nullable = false)
@@ -20,11 +26,17 @@ public class QuestionArchive {
     @Column(name = "correct_answer")
     private String correctAnswer;
 
-    @Column(columnDefinition = "TEXT")
-    private String solution;
+    @ElementCollection
+    @CollectionTable(name = "question_archive_solution_steps", joinColumns = @JoinColumn(name = "archive_id"))
+    @OrderColumn(name = "step_index")
+    @Column(name = "step", columnDefinition = "TEXT")
+    private List<String> solution = new ArrayList<>();
 
-    // Can be a comma-separated string (e.g., "9,8,4,7") or a JSON string
-    private String options;
+    @ElementCollection
+    @CollectionTable(name = "question_archive_options", joinColumns = @JoinColumn(name = "archive_id"))
+    @OrderColumn(name = "option_index")
+    @Column(name = "option_value")
+    private List<String> options = new ArrayList<>();
 
     private String language;
 
@@ -34,77 +46,43 @@ public class QuestionArchive {
     public QuestionArchive() {
     }
 
-    public QuestionArchive(SubSubject subSubject, String expression, String correctAnswer, String solution, String options, String language, Integer difficultyLevel) {
+    public QuestionArchive(User user, SubSubject subSubject, String expression, String correctAnswer,
+                           List<String> solution, List<String> options,
+                           String language, Integer difficultyLevel) {
+        this.user = user;
         this.subSubject = subSubject;
         this.expression = expression;
         this.correctAnswer = correctAnswer;
-        this.solution = solution;
-        this.options = options;
+        this.solution = solution != null ? solution : new ArrayList<>();
+        this.options = options != null ? options : new ArrayList<>();
         this.language = language;
         this.difficultyLevel = difficultyLevel;
     }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
-    public SubSubject getSubSubject() {
-        return subSubject;
-    }
+    public SubSubject getSubSubject() { return subSubject; }
+    public void setSubSubject(SubSubject subSubject) { this.subSubject = subSubject; }
 
-    public void setSubSubject(SubSubject subSubject) {
-        this.subSubject = subSubject;
-    }
+    public String getExpression() { return expression; }
+    public void setExpression(String expression) { this.expression = expression; }
 
-    public String getExpression() {
-        return expression;
-    }
+    public String getCorrectAnswer() { return correctAnswer; }
+    public void setCorrectAnswer(String correctAnswer) { this.correctAnswer = correctAnswer; }
 
-    public void setExpression(String expression) {
-        this.expression = expression;
-    }
+    public List<String> getSolution() { return solution; }
+    public void setSolution(List<String> solution) { this.solution = solution; }
 
-    public String getCorrectAnswer() {
-        return correctAnswer;
-    }
+    public List<String> getOptions() { return options; }
+    public void setOptions(List<String> options) { this.options = options; }
 
-    public void setCorrectAnswer(String correctAnswer) {
-        this.correctAnswer = correctAnswer;
-    }
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
 
-    public String getSolution() {
-        return solution;
-    }
-
-    public void setSolution(String solution) {
-        this.solution = solution;
-    }
-
-    public String getOptions() {
-        return options;
-    }
-
-    public void setOptions(String options) {
-        this.options = options;
-    }
-
-    public String getLanguage() {
-        return language;
-    }
-
-    public void setLanguage(String language) {
-        this.language = language;
-    }
-
-    public Integer getDifficultyLevel() {
-        return difficultyLevel;
-    }
-
-    public void setDifficultyLevel(Integer difficultyLevel) {
-        this.difficultyLevel = difficultyLevel;
-    }
+    public Integer getDifficultyLevel() { return difficultyLevel; }
+    public void setDifficultyLevel(Integer difficultyLevel) { this.difficultyLevel = difficultyLevel; }
 }

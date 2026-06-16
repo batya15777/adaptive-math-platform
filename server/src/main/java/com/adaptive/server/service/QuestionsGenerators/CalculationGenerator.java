@@ -7,32 +7,22 @@ import com.adaptive.server.entity.enums.CalculationOperation;
 import com.adaptive.server.entity.enums.QuestionStatus;
 import com.adaptive.server.repository.QuestionTemplateRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import net.objecthunter.exp4j.ExpressionBuilder;
 import org.springframework.stereotype.Service;
 
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
-public class CalculationGenerator extends QuestionGenerator<CalculationOperation> {
+public class CalculationGenerator extends QuestionGenerator {
 
     private static final String SUBJECT_NAME = "Calculation";
     private static final int OPTIONS_COUNT = 4;
-    // Distractors are spread within +/- 15% of the correct answer (at least +/- 1)
     private static final double DISTRACTOR_SPREAD = 0.15;
-    // How many times to re-roll a division before accepting a non-whole answer
-    private static final int DIVISION_RETRIES = 50;
+    private Random random = new Random();
 
-    // Formatter to clean up whole numbers (e.g., 24.0 -> "24") but keep valid decimals (e.g., "24.5")
-    private final DecimalFormat format = new DecimalFormat("0.##");
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    public CalculationGenerator(QuestionTemplateRepository templateRepository, SubSubjectRepository subSubjectRepository) {
+    public CalculationGenerator(QuestionTemplateRepository templateRepository,
+                                SubSubjectRepository subSubjectRepository) {
         super(templateRepository, subSubjectRepository);
     }
 
@@ -42,175 +32,120 @@ public class CalculationGenerator extends QuestionGenerator<CalculationOperation
     }
 
     @Override
-    public Question createQuestion(CalculationOperation operation, int difficultyLevel, String language, boolean multipleChoice) {
-        SubSubject subSubject = resolveSubSubject(operation.getSubSubjectName());
+    public Question createQuestion(SubSubject subSubject,int subSubjectLevel, int difficultyLevel,
+                                   String language, boolean multipleChoice) {
+        List<QuestionTemplate> templates = templateRepository
+                .findAllBySubSubjectAndDifficultyLevel(subSubject, difficultyLevel);
+        // { "X + X", "X - X", "X * X", "X / X", ... }
+        String templateExpression = "";
+        templateExpression = templates.get(random.nextInt(templates.size())).getExpression();
+//        templateExpression = "X + X * X";
 
-        String template = chooseTemplateExpression(operation, subSubject, difficultyLevel);
-        String expression = fillPlaceholders(template, difficultyLevel);
-        if (template.contains("/")) { // division involved (DIV or a mixed template)
-            expression = preferWholeAnswer(template, expression, difficultyLevel);
-        }
-
-        double mathResult = evaluate(expression);
-        String finalAnswer = format.format(mathResult);
-
-        String optionsString = multipleChoice ? generateMultipleChoiceOptions(mathResult) : null;
-        String solution = generateSolution(expression);
-
-        return new Question(
-                subSubject,
-                expression,
-                finalAnswer,
-                solution,
-                optionsString,
-                language,
-                difficultyLevel,
-                QuestionStatus.CURRENT
-        );
-    }
-
-    /**
-     * Picks a random template matching the difficulty, falling back to the hardest
-     * available one. If the sub-subject has no templates at all, the operation's
-     * built-in default template (e.g. "X + X") is used.
-     */
-    private String chooseTemplateExpression(CalculationOperation operation, SubSubject subSubject, int difficultyLevel) {
-        List<QuestionTemplate> templates = templateRepository.findAllBySubSubject_Name(subSubject.getName());
-
-        List<QuestionTemplate> matching = templates.stream()
-                .filter(q -> q.getDifficultyLevel() != null && q.getDifficultyLevel() == difficultyLevel)
-                .toList();
-
-        if (!matching.isEmpty()) {
-            return matching.get(ThreadLocalRandom.current().nextInt(matching.size())).getExpression();
-        }
-
-        return templates.stream()
-                .filter(q -> q.getDifficultyLevel() != null)
-                .max(Comparator.comparingInt(QuestionTemplate::getDifficultyLevel))
-                .map(QuestionTemplate::getExpression)
-                .orElse(operation.getDefaultTemplate());
-    }
-
-    private String fillPlaceholders(String expression, int difficultyLevel) {
-        while (expression.contains("X")) {
-            expression = expression.replaceFirst("X", String.valueOf(generatePlaceholderValue(difficultyLevel)));
-        }
-        return expression;
-    }
-
-    /**
-     * Re-rolls the template values a few times, hoping for a whole-number result,
-     * so division questions usually have clean answers. Keeps the last roll otherwise.
-     */
-    private String preferWholeAnswer(String template, String expression, int difficultyLevel) {
-        for (int i = 0; i < DIVISION_RETRIES; i++) {
-            double result = evaluate(expression);
-            if (Double.isFinite(result) && result == Math.floor(result)) {
-                return expression;
+        // Step 1: replace X's with random values
+        List<String> tokens = new ArrayList<>(List.of(templateExpression.split(" ")));
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).equals("X")) {
+                String prevOp = (i > 0) ? tokens.get(i - 1) : "";
+                String nextOp = (i < tokens.size() - 1) ? tokens.get(i + 1) : "";
+                boolean nearMult = prevOp.equals("*") || nextOp.equals("*");
+                int val = nearMult
+                        ? randomInt(2, Math.max(3, difficultyLevel * 2))
+                        : randomInt(subSubjectLevel + difficultyLevel, subSubjectLevel + difficultyLevel * 2);
+                tokens.set(i, String.valueOf(val));
             }
-            expression = fillPlaceholders(template, difficultyLevel);
         }
-        return expression;
-    }
+        String expression = String.join(" ", tokens); // what the student sees
 
-    private double evaluate(String expression) {
-        return new ExpressionBuilder(expression).build().evaluate();
-    }
+        List<String> solutionSteps = new ArrayList<>();
 
-    private static final Pattern NUMBER = Pattern.compile("-?\\d+(?:\\.\\d+)?");
-    private static final Pattern INNER_PAREN = Pattern.compile("\\(([^()]+)\\)");
-    private static final Pattern MUL_DIV = Pattern.compile("(-?\\d+(?:\\.\\d+)?)\\s*([*/])\\s*(-?\\d+(?:\\.\\d+)?)");
-    private static final Pattern ADD_SUB = Pattern.compile("(-?\\d+(?:\\.\\d+)?)\\s*([+\\-])\\s*(-?\\d+(?:\\.\\d+)?)");
-
-    /**
-     * Builds a step-by-step solution by resolving one operation at a time:
-     * innermost parentheses first, then multiplication/division, then addition/subtraction.
-     */
-    String generateSolution(String expression) {
-        List<String> steps = new ArrayList<>();
-        String current = expression.trim();
-
-        int guard = 0;
-        while (!NUMBER.matcher(current).matches()) {
-            if (++guard > 100) {
-                throw new QuestionGenerationException("Could not build a solution for: " + expression);
-            }
-            current = resolveNextStep(current, steps);
-        }
-
-        StringBuilder solution = new StringBuilder();
-        for (int i = 0; i < steps.size(); i++) {
-            solution.append("Step ").append(i + 1).append(": ").append(steps.get(i)).append("\n");
-        }
-        solution.append("Answer: ").append(current);
-        return solution.toString();
-    }
-
-    private String resolveNextStep(String expression, List<String> steps) {
-        // Work inside the innermost parentheses first
-        Matcher paren = INNER_PAREN.matcher(expression);
-        if (paren.find()) {
-            String inner = paren.group(1).trim();
-            String replacement = NUMBER.matcher(inner).matches()
-                    ? inner // "(5)" -> "5", no step needed
-                    : "(" + applyOneOperation(inner, steps) + ")";
-            return expression.substring(0, paren.start()) + replacement + expression.substring(paren.end());
-        }
-        return applyOneOperation(expression, steps);
-    }
-
-    /**
-     * Computes the leftmost highest-precedence operation, records it as a step,
-     * and returns the expression with that operation replaced by its result.
-     */
-    private String applyOneOperation(String expression, List<String> steps) {
-        Matcher op = MUL_DIV.matcher(expression);
-        if (!op.find()) {
-            op = ADD_SUB.matcher(expression);
-            if (!op.find()) {
-                throw new QuestionGenerationException("No operation found in: " + expression);
+        // Step 2: evaluate * and / first (left-to-right among them)
+        while (tokens.contains("*") || tokens.contains("/")) {
+            for (int i = 1; i < tokens.size() - 1; i++) {
+                String op = tokens.get(i);
+                if (op.equals("*") || op.equals("/")) {
+                    int left  = Integer.parseInt(tokens.get(i - 1));
+                    int right = Integer.parseInt(tokens.get(i + 1));
+                    if (op.equals("/") && left % right != 0) {
+                        right = randomDivisor(left);
+                        tokens.set(i + 1, String.valueOf(right));
+                    }
+                    int result = op.equals("*") ? left * right : left / right;
+                    solutionSteps.add(left + " " + op + " " + right + " = " + result);
+                    tokens.set(i - 1, String.valueOf(result));
+                    tokens.remove(i);
+                    tokens.remove(i);
+                    break;
+                }
             }
         }
 
-        double a = Double.parseDouble(op.group(1));
-        double b = Double.parseDouble(op.group(3));
-        double result = switch (op.group(2)) {
-            case "*" -> a * b;
-            case "/" -> a / b;
-            case "+" -> a + b;
-            default -> a - b;
-        };
+        // Step 3: evaluate + and -
+        while (tokens.contains("+") || tokens.contains("-")) {
+            for (int i = 1; i < tokens.size() - 1; i++) {
+                String op = tokens.get(i);
+                if (op.equals("+") || op.equals("-")) {
+                    int left  = Integer.parseInt(tokens.get(i - 1));
+                    int right = Integer.parseInt(tokens.get(i + 1));
+                    int result = op.equals("+") ? left + right : left - right;
+                    solutionSteps.add(left + " " + op + " " + right + " = " + result);
+                    tokens.set(i - 1, String.valueOf(result));
+                    tokens.remove(i);
+                    tokens.remove(i);
+                    break;
+                }
+            }
+        }
 
-        String formatted = format.format(result);
-        steps.add(format.format(a) + " " + op.group(2) + " " + format.format(b) + " = " + formatted);
-        return expression.substring(0, op.start()) + formatted + expression.substring(op.end());
+        int sum = Integer.parseInt(tokens.get(0));
+        List<String> options = null;
+        if (multipleChoice) {
+            Set<Integer> unique = new LinkedHashSet<>();
+            unique.add(sum);
+            int spread = Math.max(1, (int) (Math.abs(sum) * DISTRACTOR_SPREAD));
+            // try random distractors within spread first
+            for (int attempts = 0; attempts < 30 && unique.size() < OPTIONS_COUNT; attempts++) {
+                int distractor = sum + randomInt(-spread, spread + 1);
+                if (distractor != sum) unique.add(distractor);
+            }
+            // guaranteed fallback: sum+1, sum+2, ... can never collide with each other or sum
+            for (int i = 1; unique.size() < OPTIONS_COUNT; i++) {
+                unique.add(sum + i);
+            }
+            options = new ArrayList<>();
+            for (int v : unique) options.add(String.valueOf(v));
+            Collections.shuffle(options, random);
+        }
+
+        return new Question(subSubject, expression, String.valueOf(sum), solutionSteps, options,
+                language,difficultyLevel,QuestionStatus.CURRENT
+                );
+    }
+
+    private int randomInt(int min, int max){
+        return random.nextInt(min,max);
+    }
+
+    private float randomFloat(int min, int max){
+        return random.nextFloat(min,max);
+    }
+
+    // Returns a random divisor of n (always >= 1, so division is always whole)
+    private int randomDivisor(int n) {
+        if (n == 0) return 1;
+        List<Integer> divisors = new ArrayList<>();
+        for (int i = 1; i <= Math.abs(n); i++) {
+            if (n % i == 0) divisors.add(i);
+        }
+        return divisors.get(random.nextInt(divisors.size()));
     }
 
     /**
-     * Generates a JSON array string containing the correct answer and 3 close distractors,
-     * scaled to the magnitude of the correct answer.
+     * Bonus: forces a multi-operator expression with parentheses regardless of DB templates.
+     * Difficulty is fixed at 10 so placeholder values are large.
      */
-    String generateMultipleChoiceOptions(double correctResult) {
-        Set<String> uniqueOptions = new LinkedHashSet<>();
-        uniqueOptions.add(format.format(correctResult));
-
-        double spread = Math.max(1.0, Math.abs(correctResult) * DISTRACTOR_SPREAD);
-
-        while (uniqueOptions.size() < OPTIONS_COUNT) {
-            double offset = (ThreadLocalRandom.current().nextDouble() * 2 - 1) * spread;
-            if (Math.abs(offset) < 0.01) continue;
-            uniqueOptions.add(format.format(correctResult + offset));
-        }
-
-        List<String> shuffledOptions = new ArrayList<>(uniqueOptions);
-        Collections.shuffle(shuffledOptions);
-
-        try {
-            // e.g., '["14.5","11.5","15.5","9.5"]' — parsed on the frontend via JSON.parse()
-            return objectMapper.writeValueAsString(shuffledOptions);
-        } catch (JsonProcessingException e) {
-            throw new QuestionGenerationException("Failed to serialize options: " + e.getMessage());
-        }
-    }
+//    @Override
+//    public Question createBonusQuestion(CalculationOperation operation, String language, boolean multipleChoice) {
+//
+//        return null;
+//    }
 }
