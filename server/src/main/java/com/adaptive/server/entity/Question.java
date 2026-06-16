@@ -88,4 +88,18 @@ public class Question {
 
     public QuestionStatus getStatus() { return status; }
     public void setStatus(QuestionStatus status) { this.status = status; }
+
+    @Override
+    public String toString() {
+        return "Question{" +
+                "status=" + status +
+                ", difficultyLevel=" + difficultyLevel +
+                ", language='" + language + '\'' +
+                ", options=" + options +
+                ", solution=" + solution +
+                ", correctAnswer='" + correctAnswer + '\'' +
+                ", expression='" + expression + '\'' +
+                ", subSubject=" + subSubject +
+                '}';
+    }
 }
