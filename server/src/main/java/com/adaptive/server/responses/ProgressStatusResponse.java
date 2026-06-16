@@ -10,6 +10,10 @@ public class ProgressStatusResponse extends BasicResponse {
     private int correctLast10;
     private int correctLast30;
     private long totalAttempts;
+    /** True when the student just levelled up and a bonus question is ready to be presented. */
+    private boolean bonusQuestionTriggered;
+    /** The user's total accumulated stars across all subjects (updated after each submission). */
+    private int totalStars;
 
     public ProgressStatusResponse() {
         super();
@@ -85,5 +89,21 @@ public class ProgressStatusResponse extends BasicResponse {
 
     public void setTotalAttempts(long totalAttempts) {
         this.totalAttempts = totalAttempts;
+    }
+
+    public boolean isBonusQuestionTriggered() {
+        return bonusQuestionTriggered;
+    }
+
+    public void setBonusQuestionTriggered(boolean bonusQuestionTriggered) {
+        this.bonusQuestionTriggered = bonusQuestionTriggered;
+    }
+
+    public int getTotalStars() {
+        return totalStars;
+    }
+
+    public void setTotalStars(int totalStars) {
+        this.totalStars = totalStars;
     }
 }

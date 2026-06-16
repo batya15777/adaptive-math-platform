@@ -9,6 +9,10 @@ public class QuestionResponse extends BasicResponse{
     private int difficultyLevel;
     private Long subSubjectId;
     private String recommendedQuestionType;
+    /** False for normal questions; BonusQuestionResponse overrides this to true. */
+    private boolean bonus;
+    /** Stars awarded on correct answer. 0 for normal questions; 50 for bonus. */
+    private int starsReward;
 
     public QuestionResponse() {
         super();
@@ -76,5 +80,21 @@ public class QuestionResponse extends BasicResponse{
 
     public void setRecommendedQuestionType(String recommendedQuestionType) {
         this.recommendedQuestionType = recommendedQuestionType;
+    }
+
+    public boolean isBonus() {
+        return bonus;
+    }
+
+    public void setBonus(boolean bonus) {
+        this.bonus = bonus;
+    }
+
+    public int getStarsReward() {
+        return starsReward;
+    }
+
+    public void setStarsReward(int starsReward) {
+        this.starsReward = starsReward;
     }
 }
