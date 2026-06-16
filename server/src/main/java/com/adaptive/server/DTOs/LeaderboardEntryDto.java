@@ -1,6 +1,6 @@
 package com.adaptive.server.DTOs;
 
-public class LeaderboardEntryDto {
+public class LeaderboardEntryDto {// מחלקה בשביל לא לשוח אובייקט USER שלם כי מכיל סיסמאות מייל מידע רגיש
     private String fullName;
     private Integer totalStars;
 

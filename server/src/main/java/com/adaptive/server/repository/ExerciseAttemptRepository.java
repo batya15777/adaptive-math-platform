@@ -11,7 +11,7 @@ import java.util.List;
 
 @Repository
 public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt, Long> {
-
+    //שומרים היסטוריה של כל תרגיל שתלמיד פתר, מביאים ניסיונות עבר של תלמיד לפי נושא
     List<ExerciseAttempt> findByUserIdAndSubSubjectId(
             Long userId, Long subSubjectId, Pageable pageable);
 

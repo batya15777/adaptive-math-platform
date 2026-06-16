@@ -1,6 +1,8 @@
 package com.adaptive.server.service;
 
+import com.adaptive.server.DTOs.InitialAssessmentRequest;
 import com.adaptive.server.DTOs.SubmitAnswerRequest;
+import org.mockito.ArgumentCaptor;
 import com.adaptive.server.entity.ExerciseAttempt;
 import com.adaptive.server.entity.Question;
 import com.adaptive.server.entity.QuestionArchive;
@@ -78,6 +80,9 @@ class LevelManagerServiceTest {
                 .thenReturn(Collections.emptySet());
         when(archiveRepository.save(any(QuestionArchive.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
+
+        // Default question stub so submitAnswer doesn't throw "Question not found"
+        when(questionRepository.findById(99L)).thenReturn(Optional.of(stubSavedQuestion(1)));
     }
 
 
@@ -223,6 +228,7 @@ class LevelManagerServiceTest {
                     attempt("CARRYING_ADDITION", false),
                     attempt("CARRYING_ADDITION", false),
                     attempt("CARRYING_ADDITION", false),
+                    attempt("CARRYING_ADDITION", false),
                     attempt("CARRYING_ADDITION", true))));
         }
 
@@ -336,9 +342,31 @@ class LevelManagerServiceTest {
             assertThrows(ResponseStatusException.class, () -> service.submitAnswer(999L, submitRequest(true)));
         }
 
+        @Test @DisplayName("Error pattern is calculated and saved on wrong answer (CONFUSED_SUB_WITH_ADD)")
+        void wrongAnswer_calculatesErrorPattern() {
+            StudentProgress p = progressAt(2);
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(5L);
+            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
+                    .thenReturn(Collections.emptyList());
+
+            // Question has expression "10 - 3", correct answer "7", userAnswer "13"
+            Question q = new Question(testSubSubject, "10 - 3", "7", List.of(), null, "he", 2, QuestionStatus.CURRENT);
+            q.setId(99L);
+            when(questionRepository.findById(99L)).thenReturn(Optional.of(q));
+
+            SubmitAnswerRequest req = new SubmitAnswerRequest(SUB_SUBJECT_ID, 99L, "13", "SIMPLE_SUBTRACTION", 2);
+            service.submitAnswer(USER_ID, req);
+
+            ArgumentCaptor<ExerciseAttempt> captor = ArgumentCaptor.forClass(ExerciseAttempt.class);
+            verify(attemptRepository).save(captor.capture());
+            assertEquals("CONFUSED_SUB_WITH_ADD", captor.getValue().getErrorPattern());
+        }
+
         @Test @DisplayName("Throws 404 when sub-subject is not found")
         void unknownSubSubject_throws404() {
-            SubmitAnswerRequest req = new SubmitAnswerRequest(999L, 1L, true, "ADD", 1);
+            SubmitAnswerRequest req = new SubmitAnswerRequest(999L, 99L, "15", "ADD", 1);
             when(subSubjectRepository.findById(999L)).thenReturn(Optional.empty());
             assertThrows(ResponseStatusException.class, () -> service.submitAnswer(USER_ID, req));
         }
@@ -628,7 +656,6 @@ class LevelManagerServiceTest {
                     .thenReturn(stubQuestion(3)); // always returns the seen expression
             when(questionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            // Should not throw; falls through gracefully
             BonusQuestionResponse r = service.getBonusQuestion(USER_ID, SUB_SUBJECT_ID, "he");
             assertNotNull(r, "Must return a result even when no fresh expression is found");
             assertTrue(r.isBonus());
@@ -636,7 +663,6 @@ class LevelManagerServiceTest {
     }
 
 
-    // ─────────────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("submitBonusAnswer()")
     class SubmitBonusAnswer {
@@ -685,7 +711,6 @@ class LevelManagerServiceTest {
     }
 
 
-    // ─────────────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("Adaptive progression scenario")
     class ProgressionScenario {
@@ -728,9 +753,53 @@ class LevelManagerServiceTest {
     }
 
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Test helpers
-    // ─────────────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("getInitialAssessmentQuestion()")
+    class GetInitialAssessmentQuestion {
+
+        @Test @DisplayName("Calculates correct levels based on grade and confidence")
+        void calculatesCorrectLevels() {
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
+                    .thenReturn(stubQuestion(1));
+            when(questionRepository.save(any())).thenAnswer(inv -> {
+                Question q = inv.getArgument(0);
+                q.setId(99L);
+                return q;
+            });
+
+            InitialAssessmentRequest req = new InitialAssessmentRequest(SUB_SUBJECT_ID, 2, "EASY", "he");
+            QuestionResponse r = service.getInitialAssessmentQuestion(USER_ID, req);
+
+            verify(calculationGenerator).createQuestion(testSubSubject, 1, 1, "he", true);
+            verify(archiveRepository).save(any(QuestionArchive.class));
+            assertEquals(99L, r.getQuestionId());
+        }
+
+        @Test @DisplayName("Updates existing progress instead of creating new if active")
+        void updatesExistingProgress() {
+            StudentProgress p = progressAt(5); // old level
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
+                    .thenReturn(stubQuestion(2));
+            when(questionRepository.save(any())).thenAnswer(inv -> {
+                Question q = inv.getArgument(0);
+                q.setId(99L);
+                return q;
+            });
+
+            InitialAssessmentRequest req = new InitialAssessmentRequest(SUB_SUBJECT_ID, 5, "MEDIUM", "en");
+            service.getInitialAssessmentQuestion(USER_ID, req);
+
+            verify(calculationGenerator).createQuestion(testSubSubject, 2, 2, "en", true);
+            assertEquals(2, p.getCurrentLevel(), "Should update the level to 2 based on grade 5");
+            assertEquals(0, p.getCurrentProgress(), "Should reset current progress");
+            verify(progressRepository).save(p);
+        }
+    }
 
     private StudentProgress progressAt(int level) {
         return new StudentProgress(testUser, testSubSubject, level, 0, true);
@@ -738,7 +807,7 @@ class LevelManagerServiceTest {
 
     private ExerciseAttempt attempt(String questionType, boolean correct) {
         return new ExerciseAttempt(
-                testUser, testSubSubject, null, correct, 1, questionType, LocalDateTime.now());
+                testUser, testSubSubject, null, correct, 1, questionType, "mockAnswer", null, LocalDateTime.now());
     }
 
     private List<ExerciseAttempt> nCorrect(int n, String questionType) {
@@ -754,7 +823,8 @@ class LevelManagerServiceTest {
     }
 
     private SubmitAnswerRequest submitRequest(boolean correct) {
-        return new SubmitAnswerRequest(SUB_SUBJECT_ID, 1L, correct, "SIMPLE_ADDITION", 1);
+        String answer = correct ? "15" : "wrong_answer";
+        return new SubmitAnswerRequest(SUB_SUBJECT_ID, 99L, answer, "SIMPLE_ADDITION", 1);
     }
 
     private Question stubQuestion(int difficultyLevel) {

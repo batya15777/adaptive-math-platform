@@ -2,8 +2,7 @@ package com.adaptive.server.responses;
 
 public class BonusQuestionResponse extends QuestionResponse {
 
-    /** Stars awarded to the user when this bonus question is answered correctly. */
-    public static final int BONUS_STARS = 50;
+    public static final int BONUS_STARS = 50; //זה 50 כוכבים לאחר שתלמיד ענה על שאלת בונוס קשה
 
     public BonusQuestionResponse() {
         super();

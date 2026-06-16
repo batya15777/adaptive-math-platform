@@ -25,7 +25,7 @@ public class LeaderboardController {
     }
 
 
-    @GetMapping("/top10")
+    @GetMapping("/top10")//זה בעצם 10 תלמידים שיש להם הכי הרבה כוכבים נכנסו ל10 הכי טובים
     public ResponseEntity<LeaderboardResponse> getTop10Stars(
             @CookieValue(value = "session_token", required = false) String sessionToken) {
 
