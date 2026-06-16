@@ -1,19 +1,17 @@
 package com.adaptive.server.responses;
 
-public class ProgressStatusResponse extends BasicResponse {
+public class ProgressStatusResponse extends BasicResponse {//תמונת מצב כללית של תלמיד
     private int currentLevel;
     private String spaceshipStatus;
-    private boolean levelUp;
-    private boolean inIntermediateLevel;
+    private boolean levelUp;//האם עלה רמה
+    private boolean inIntermediateLevel;//האם הוא תקוע
     private String recommendedQuestionType;
-    private String weaknessType;
+    private String weaknessType;//חולשה של תלמיד
     private int correctLast10;
     private int correctLast30;
     private long totalAttempts;
-    /** True when the student just levelled up and a bonus question is ready to be presented. */
-    private boolean bonusQuestionTriggered;
-    /** The user's total accumulated stars across all subjects (updated after each submission). */
-    private int totalStars;
+    private boolean bonusQuestionTriggered;// זה יהיה TRUE שתלמיד עלה רמה וצריך לעשות שאלת בונוס לכל רמה
+    private int totalStars;// זה סכ"ה כמות כוכבים של תלמיד
 
     public ProgressStatusResponse() {
         super();

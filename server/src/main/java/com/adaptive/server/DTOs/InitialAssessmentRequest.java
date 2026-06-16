@@ -1,6 +1,6 @@
 package com.adaptive.server.DTOs;
 
-public class InitialAssessmentRequest {
+public class InitialAssessmentRequest {//נתונים של תלמיד בשאלון הגדרת רמה לאחר הרשמה
     private Long subSubjectId;
     private Integer grade;
     private String confidenceLevel; // "EASY", "MEDIUM", "HARD"
