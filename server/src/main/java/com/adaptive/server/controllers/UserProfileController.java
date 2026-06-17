@@ -1,0 +1,44 @@
+package com.adaptive.server.controllers;
+
+import com.adaptive.server.DTOs.UpdateProfileRequest;
+import com.adaptive.server.entity.SessionToken;
+import com.adaptive.server.entity.User;
+import com.adaptive.server.responses.UserProfileResponse;
+import com.adaptive.server.service.SessionValidationService;
+import com.adaptive.server.service.UserProfileService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/profile")
+public class UserProfileController {
+
+    private final UserProfileService userProfileService;
+    private final SessionValidationService sessionValidationService;
+
+    public UserProfileController(UserProfileService userProfileService,
+                                 SessionValidationService sessionValidationService) {
+        this.userProfileService    = userProfileService;
+        this.sessionValidationService = sessionValidationService;
+    }
+
+    @GetMapping
+    public ResponseEntity<UserProfileResponse> getProfile(
+            @CookieValue(value = "session_token", required = false) String sessionToken) {
+        User user = resolveUser(sessionToken);
+        return ResponseEntity.ok(userProfileService.getProfile(user));
+    }
+
+    @PutMapping
+    public ResponseEntity<UserProfileResponse> updateProfile(
+            @CookieValue(value = "session_token", required = false) String sessionToken,
+            @RequestBody UpdateProfileRequest request) {
+        User user = resolveUser(sessionToken);
+        return ResponseEntity.ok(userProfileService.updateProfile(user, request));
+    }
+
+    private User resolveUser(String sessionToken) {
+        SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
+        return token.getUser();
+    }
+}
