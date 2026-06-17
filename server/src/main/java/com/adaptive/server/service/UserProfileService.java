@@ -7,11 +7,16 @@ import com.adaptive.server.entity.enums.Language;
 import com.adaptive.server.entity.enums.ProfileTheme;
 import com.adaptive.server.repository.UserProfileRepository;
 import com.adaptive.server.responses.UserProfileResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class UserProfileService {
+
+    // Keep in sync with the number of avatars in client/src/assets/avatars/
+    private static final long MAX_PICTURE_ID = 1;
 
     private final UserProfileRepository profileRepository;
 
@@ -19,7 +24,7 @@ public class UserProfileService {
         this.profileRepository = profileRepository;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public UserProfileResponse getProfile(User user) {
         UserProfile profile = profileRepository.findByUserId(user.getId())
                 .orElseGet(() -> createDefaultProfile(user));
@@ -31,9 +36,15 @@ public class UserProfileService {
         UserProfile profile = profileRepository.findByUserId(user.getId())
                 .orElseGet(() -> createDefaultProfile(user));
 
-        if (request.getTheme() != null)     profile.setTheme(request.getTheme());
-        if (request.getLanguage() != null)  profile.setLanguage(request.getLanguage());
-        if (request.getPictureId() != null) profile.setPictureId(request.getPictureId());
+        if (request.getTheme() != null)    profile.setTheme(request.getTheme());
+        if (request.getLanguage() != null) profile.setLanguage(request.getLanguage());
+        if (request.getPictureId() != null) {
+            long pid = request.getPictureId();
+            if (pid < 0 || pid > MAX_PICTURE_ID)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "pictureId must be between 0 and " + MAX_PICTURE_ID);
+            profile.setPictureId(pid);
+        }
 
         profileRepository.save(profile);
         return new UserProfileResponse(profile);
