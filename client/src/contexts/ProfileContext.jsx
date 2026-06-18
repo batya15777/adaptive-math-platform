@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect, useCallback } from 'react';
 import { ProfileContext } from './ProfileContextSetup.js';
 import { AuthContext } from '../context/AuthContextSetup.js';
-import { getProfile, updateProfile as updateProfileApi } from '../service/profileApi.js';
+import { getProfile, updateProfile as updateProfileApi, getProfileOptions } from '../service/profileApi.js';
 
 const DEFAULT_PROFILE = {
     theme:     'LIGHT',
@@ -9,12 +9,22 @@ const DEFAULT_PROFILE = {
     pictureId: 0,
 };
 
+const DEFAULT_OPTIONS = { themes: [], languages: [] };
+
 export const ProfileProvider = ({ children }) => {
     const { user } = useContext(AuthContext);
 
     const [profile, setProfile]   = useState(DEFAULT_PROFILE);
+    const [options, setOptions]   = useState(DEFAULT_OPTIONS);
     const [loading, setLoading]   = useState(false);
     const [error,   setError]     = useState(null);
+
+    // Theme/language labels are static metadata — fetch once on mount
+    useEffect(() => {
+        getProfileOptions()
+            .then(res => setOptions(res.data))
+            .catch(() => { /* keep defaults; selects fall back to raw values */ });
+    }, []);
 
     // Fetch from server whenever the user logs in
     useEffect(() => {
@@ -59,7 +69,7 @@ export const ProfileProvider = ({ children }) => {
     };
 
     return (
-        <ProfileContext.Provider value={{ profileData, updateProfile, loading, error }}>
+        <ProfileContext.Provider value={{ profileData, options, updateProfile, loading, error }}>
             {children}
         </ProfileContext.Provider>
     );

@@ -3,19 +3,11 @@ import { useProfile } from '../../contexts/useProfile.js';
 import { AuthContext } from '../../context/AuthContextSetup.js';
 import { AVATARS } from '../../assets/avatars/index.js';
 
-const LANGUAGE_LABELS = {
-    HEBREW:  'Hebrew (עברית)',
-    ENGLISH: 'English',
-    RUSSIAN: 'Russian (Русский)',
-};
-
-const THEME_LABELS = {
-    LIGHT: 'Light',
-    DARK:  'Dark',
-};
+// Look up a label from a server-provided options list; fall back to the raw value.
+const labelFor = (list, value) => list.find(o => o.value === value)?.label ?? value;
 
 export const ProfileSettings = () => {
-    const { profileData, updateProfile, loading, error } = useProfile();
+    const { profileData, options, updateProfile, loading, error } = useProfile();
     const { user } = useContext(AuthContext);
 
     const [isEditing, setIsEditing]    = useState(false);
@@ -97,8 +89,8 @@ export const ProfileSettings = () => {
                     </div>
 
                     <hr style={{ margin: '15px 0', borderColor: '#ddd' }} />
-                    <Field label="Theme">{THEME_LABELS[profileData.theme]}</Field>
-                    <Field label="Language">{LANGUAGE_LABELS[profileData.language]}</Field>
+                    <Field label="Theme">{labelFor(options.themes, profileData.theme)}</Field>
+                    <Field label="Language">{labelFor(options.languages, profileData.language)}</Field>
 
                     <button onClick={() => setIsEditing(true)} style={btn('#007bff')}>
                         Edit Profile
@@ -150,8 +142,9 @@ export const ProfileSettings = () => {
                     <div style={{ marginBottom: '15px' }}>
                         <label style={labelStyle}>Theme</label>
                         <select name="theme" value={formData.theme} onChange={handleChange} style={inputStyle}>
-                            <option value="LIGHT">Light</option>
-                            <option value="DARK">Dark</option>
+                            {options.themes.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -159,9 +152,9 @@ export const ProfileSettings = () => {
                     <div style={{ marginBottom: '20px' }}>
                         <label style={labelStyle}>Language</label>
                         <select name="language" value={formData.language} onChange={handleChange} style={inputStyle}>
-                            <option value="HEBREW">Hebrew (עברית)</option>
-                            <option value="ENGLISH">English</option>
-                            <option value="RUSSIAN">Russian (Русский)</option>
+                            {options.languages.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
                         </select>
                     </div>
 

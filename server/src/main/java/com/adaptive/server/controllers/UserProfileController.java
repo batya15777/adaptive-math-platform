@@ -3,6 +3,7 @@ package com.adaptive.server.controllers;
 import com.adaptive.server.DTOs.UpdateProfileRequest;
 import com.adaptive.server.entity.SessionToken;
 import com.adaptive.server.entity.User;
+import com.adaptive.server.responses.ProfileOptionsResponse;
 import com.adaptive.server.responses.UserProfileResponse;
 import com.adaptive.server.service.SessionValidationService;
 import com.adaptive.server.service.UserProfileService;
@@ -27,6 +28,12 @@ public class UserProfileController {
             @CookieValue(value = "session_token", required = false) String sessionToken) {
         User user = resolveUser(sessionToken);
         return ResponseEntity.ok(userProfileService.getProfile(user));
+    }
+
+    // Static metadata (theme/language labels) — no session needed.
+    @GetMapping("/options")
+    public ResponseEntity<ProfileOptionsResponse> getOptions() {
+        return ResponseEntity.ok(new ProfileOptionsResponse());
     }
 
     @PutMapping
