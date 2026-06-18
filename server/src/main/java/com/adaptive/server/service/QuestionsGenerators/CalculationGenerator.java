@@ -8,6 +8,8 @@ import com.adaptive.server.repository.QuestionTemplateRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 @Service
@@ -94,30 +96,33 @@ public class CalculationGenerator extends QuestionGenerator {
                 // Numbers near '*' stay small to avoid astronomically large products.
                 // Other positions scale with both subSubjectLevel and difficultyLevel
                 // so the total numeric difficulty rises as the student progresses.
-                int val = nearMult
-                        ? randomInt(2, Math.max(3, difficultyLevel * 2))
-                        : randomInt(subSubjectLevel + difficultyLevel,
-                                    subSubjectLevel + difficultyLevel * 2);
+                // Each range keeps a real spread (min < max-1) so questions actually vary.
+                int val;
+                if (nearMult) {
+                    val = randomInt(2, 3 + difficultyLevel * 2);             // diff1: 2–4, diff2: 2–6, diff3: 2–8
+                } else {
+                    int upper = (subSubjectLevel + difficultyLevel) * 5;     // lvl1/diff1: up to 10, scales up
+                    val = randomInt(1, upper + 1);                           // 1 … upper (inclusive)
+                }
                 tokens.set(i, String.valueOf(val));
             }
         }
+        // ── Step 1.5: make every division land on a multiple of 0.25 (e.g. 10 / 4 = 2.5) ──
+        // Done BEFORE capturing the expression so what the student sees matches the answer.
+        fixDivisions(tokens);
         String expression = String.join(" ", tokens); // the string the student sees
 
         List<String> solutionSteps = new ArrayList<>();
 
-        // ── Step 2: evaluate * and / (left-to-right, operator-precedence first) ──
+        // ── Step 2: evaluate * and / first (operator precedence), in decimals ──
         while (tokens.contains("*") || tokens.contains("/")) {
             for (int i = 1; i < tokens.size() - 1; i++) {
                 String op = tokens.get(i);
                 if (op.equals("*") || op.equals("/")) {
-                    int left  = Integer.parseInt(tokens.get(i - 1));
-                    int right = Integer.parseInt(tokens.get(i + 1));
-                    if (op.equals("/") && left % right != 0) {
-                        right = randomDivisor(left);
-                        tokens.set(i + 1, String.valueOf(right));
-                    }
-                    int result = op.equals("*") ? left * right : left / right;
-                    solutionSteps.add(left + " " + op + " " + right + " = " + result);
+                    double left  = Double.parseDouble(tokens.get(i - 1));
+                    double right = Double.parseDouble(tokens.get(i + 1));
+                    double result = op.equals("*") ? left * right : left / right;
+                    solutionSteps.add(fmt(left) + " " + op + " " + fmt(right) + " = " + fmt(result));
                     tokens.set(i - 1, String.valueOf(result));
                     tokens.remove(i);
                     tokens.remove(i);
@@ -131,10 +136,10 @@ public class CalculationGenerator extends QuestionGenerator {
             for (int i = 1; i < tokens.size() - 1; i++) {
                 String op = tokens.get(i);
                 if (op.equals("+") || op.equals("-")) {
-                    int left  = Integer.parseInt(tokens.get(i - 1));
-                    int right = Integer.parseInt(tokens.get(i + 1));
-                    int result = op.equals("+") ? left + right : left - right;
-                    solutionSteps.add(left + " " + op + " " + right + " = " + result);
+                    double left  = Double.parseDouble(tokens.get(i - 1));
+                    double right = Double.parseDouble(tokens.get(i + 1));
+                    double result = op.equals("+") ? left + right : left - right;
+                    solutionSteps.add(fmt(left) + " " + op + " " + fmt(right) + " = " + fmt(result));
                     tokens.set(i - 1, String.valueOf(result));
                     tokens.remove(i);
                     tokens.remove(i);
@@ -144,25 +149,29 @@ public class CalculationGenerator extends QuestionGenerator {
         }
 
         // ── Step 4: build multiple-choice options (if requested) ──────────────
-        int sum = Integer.parseInt(tokens.get(0));
+        double answer = Double.parseDouble(tokens.get(0));
+        String correctAnswer = fmt(answer);
         List<String> options = null;
         if (multipleChoice) {
-            Set<Integer> unique = new LinkedHashSet<>();
-            unique.add(sum);
-            int spread = Math.max(1, (int) (Math.abs(sum) * DISTRACTOR_SPREAD));
-            for (int attempts = 0; attempts < 30 && unique.size() < OPTIONS_COUNT; attempts++) {
-                int distractor = sum + randomInt(-spread, spread + 1);
-                if (distractor != sum) unique.add(distractor);
+            // Distractor granularity matches the answer: whole answers get whole
+            // distractors; fractional answers (e.g. 2.5) get quarter-step distractors.
+            double step = (answer == Math.floor(answer)) ? 1.0 : 0.25;
+            Set<String> unique = new LinkedHashSet<>();
+            unique.add(correctAnswer);
+            for (int attempts = 0; attempts < 40 && unique.size() < OPTIONS_COUNT; attempts++) {
+                int k = randomInt(1, 5); // 1..4 steps away
+                double distractor = answer + k * step * (random.nextBoolean() ? 1 : -1);
+                unique.add(fmt(distractor));
             }
-            // Guaranteed fallback: sum+1, sum+2, … can never collide with each other or sum
-            for (int i = 1; unique.size() < OPTIONS_COUNT; i++) unique.add(sum + i);
-
-            options = new ArrayList<>();
-            for (int v : unique) options.add(String.valueOf(v));
+            // Guaranteed fallback so we always reach OPTIONS_COUNT
+            for (int k = 1; unique.size() < OPTIONS_COUNT; k++) {
+                unique.add(fmt(answer + k * step));
+            }
+            options = new ArrayList<>(unique);
             Collections.shuffle(options, random);
         }
 
-        return new Question(subSubject, expression, String.valueOf(sum),
+        return new Question(subSubject, expression, correctAnswer,
                 solutionSteps, options, language, difficultyLevel, QuestionStatus.CURRENT);
     }
 
@@ -177,13 +186,69 @@ public class CalculationGenerator extends QuestionGenerator {
         return random.nextInt(min, max);
     }
 
-    /** Returns a random proper divisor of {@code n} so division always yields a whole number. */
-    private int randomDivisor(int n) {
-        if (n == 0) return 1;
-        List<Integer> divisors = new ArrayList<>();
-        for (int i = 1; i <= Math.abs(n); i++) {
-            if (n % i == 0) divisors.add(i);
+    /**
+     * Walks the token list honoring * / precedence and adjusts each '/' right operand
+     * (in place) so the quotient is a multiple of 0.25. Because seeded division templates
+     * are pure '/' chains, this also keeps every intermediate result nice.
+     * Editing the tokens here — before the expression is captured — keeps what the
+     * student sees consistent with the computed answer.
+     */
+    private void fixDivisions(List<String> tokens) {
+        if (tokens.isEmpty()) return;
+        double current = Double.parseDouble(tokens.get(0));
+        for (int i = 1; i + 1 < tokens.size(); i += 2) {
+            String op = tokens.get(i);
+            double right = Double.parseDouble(tokens.get(i + 1));
+            switch (op) {
+                case "*":
+                    current = current * right;
+                    break;
+                case "/":
+                    if (current != 0 && !isNiceQuarter(current / right)) {
+                        int fixed = niceDivisor(current);
+                        tokens.set(i + 1, String.valueOf(fixed));
+                        right = fixed;
+                    }
+                    current = current / right;
+                    break;
+                default: // + or - : a new term starts
+                    current = right;
+                    break;
+            }
         }
-        return divisors.get(random.nextInt(divisors.size()));
+    }
+
+    /** True when v is a multiple of 0.25 (…, 0.25, 0.5, 0.75, 1.0, …). */
+    private boolean isNiceQuarter(double v) {
+        double q = v * 4;
+        return Math.abs(q - Math.rint(q)) < 1e-9;
+    }
+
+    /**
+     * A divisor d of 4·current (so current/d is a multiple of 0.25), preferring small
+     * divisors (≤ 12) to keep the numbers readable.
+     */
+    private int niceDivisor(double current) {
+        int n = (int) Math.rint(Math.abs(current) * 4);
+        if (n <= 1) return 1;
+        List<Integer> small = new ArrayList<>();
+        List<Integer> all   = new ArrayList<>();
+        for (int d = 2; d <= n; d++) {
+            if (n % d == 0) {
+                all.add(d);
+                if (d <= 12) small.add(d);
+            }
+        }
+        List<Integer> pick = !small.isEmpty() ? small : all;
+        return pick.isEmpty() ? 1 : pick.get(random.nextInt(pick.size()));
+    }
+
+    /** Formats a value: whole numbers without a decimal point, fractions with up to 2 dp. */
+    private String fmt(double v) {
+        if (v == Math.rint(v)) {
+            return Long.toString((long) Math.rint(v));
+        }
+        return BigDecimal.valueOf(v).setScale(2, RoundingMode.HALF_UP)
+                .stripTrailingZeros().toPlainString();
     }
 }

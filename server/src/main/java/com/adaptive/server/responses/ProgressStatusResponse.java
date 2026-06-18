@@ -13,6 +13,13 @@ public class ProgressStatusResponse extends BasicResponse {//תמונת מצב �
     private boolean bonusQuestionTriggered;// זה יהיה TRUE שתלמיד עלה רמה וצריך לעשות שאלת בונוס לכל רמה
     private int totalStars;// זה סכ"ה כמות כוכבים של תלמיד
 
+    // ── question-game fields ─────────────────────────────────────────────
+    private boolean answerCorrect;      // was the just-submitted answer correct
+    private String concluded;           // "SOLVED" / "FAILED" / null (still retrying)
+    private boolean inSubLevel;         // easier-practice mode (frozen level, frozen bar)
+    private int levelProgressCurrent;   // correct answers in the current level-up window
+    private int levelProgressTarget;    // window threshold to level up (LEVEL_UP_THRESHOLD)
+
     public ProgressStatusResponse() {
         super();
     }
@@ -103,5 +110,45 @@ public class ProgressStatusResponse extends BasicResponse {//תמונת מצב �
 
     public void setTotalStars(int totalStars) {
         this.totalStars = totalStars;
+    }
+
+    public boolean isAnswerCorrect() {
+        return answerCorrect;
+    }
+
+    public void setAnswerCorrect(boolean answerCorrect) {
+        this.answerCorrect = answerCorrect;
+    }
+
+    public String getConcluded() {
+        return concluded;
+    }
+
+    public void setConcluded(String concluded) {
+        this.concluded = concluded;
+    }
+
+    public boolean isInSubLevel() {
+        return inSubLevel;
+    }
+
+    public void setInSubLevel(boolean inSubLevel) {
+        this.inSubLevel = inSubLevel;
+    }
+
+    public int getLevelProgressCurrent() {
+        return levelProgressCurrent;
+    }
+
+    public void setLevelProgressCurrent(int levelProgressCurrent) {
+        this.levelProgressCurrent = levelProgressCurrent;
+    }
+
+    public int getLevelProgressTarget() {
+        return levelProgressTarget;
+    }
+
+    public void setLevelProgressTarget(int levelProgressTarget) {
+        this.levelProgressTarget = levelProgressTarget;
     }
 }

@@ -7,6 +7,7 @@ public class SubmitAnswerRequest {
     private String userAnswer;
     private String questionType;
     private int currentDifficulty;
+    private int attemptNumber; // 1-based: which try this is for the current question
 
 
     public SubmitAnswerRequest() {
@@ -41,4 +42,7 @@ public class SubmitAnswerRequest {
 
     public int getCurrentDifficulty() { return currentDifficulty; }
     public void setCurrentDifficulty(int currentDifficulty) { this.currentDifficulty = currentDifficulty; }
+
+    public int getAttemptNumber() { return attemptNumber; }
+    public void setAttemptNumber(int attemptNumber) { this.attemptNumber = attemptNumber; }
 }

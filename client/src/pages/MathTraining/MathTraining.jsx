@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getTopics, getSubjects, getSubSubjects } from '../../service/trainingApi.js';
 
 // Drill-down: topic → subject → sub-subjects (with the student's progress on each).
-// Selection only for now — clicking a sub-subject doesn't start a game yet.
+// Clicking a sub-subject opens the question game for it.
 export const MathTraining = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [topics,      setTopics]      = useState([]);
     const [subjects,    setSubjects]    = useState([]);
     const [subSubjects, setSubSubjects] = useState([]);
@@ -28,10 +31,21 @@ export const MathTraining = () => {
         }
     }, []);
 
-    // Step 1 — topics on mount
+    // On mount: load topics. If we arrived back from the game (state carries the topic +
+    // subject), restore the sub-subjects view so "back" lands on that subject's tab.
     useEffect(() => {
-        load(getTopics, setTopics);
-    }, [load]);
+        const t = location.state?.topic;
+        const s = location.state?.subject;
+        if (t && s) {
+            setSelectedTopic(t);
+            setSelectedSubject(s);
+            getTopics().then(r => setTopics(r.data)).catch(() => {});        // for breadcrumb back
+            getSubjects(t.id).then(r => setSubjects(r.data)).catch(() => {}); // for breadcrumb back
+            load(() => getSubSubjects(s.id), setSubSubjects);                 // the restored view
+        } else {
+            load(getTopics, setTopics);
+        }
+    }, [load, location.state]);
 
     // Step 2 — pick a topic → its subjects
     const handleTopicClick = (topic) => {
@@ -117,8 +131,17 @@ export const MathTraining = () => {
             {selectedSubject && !loading && (
                 <Grid>
                     {subSubjects.map(sub => (
-                        <div key={sub.id} style={statsCard}>
-                            <span style={cardTitle}>{sub.name}</span>
+                        <div
+                            key={sub.id}
+                            style={statsCard}
+                            onClick={() => navigate(`/math-training/${sub.id}/play`, { state: { subSubjectName: sub.name, topic: selectedTopic, subject: selectedSubject } })}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#007bff'; e.currentTarget.style.boxShadow = '0 2px 8px #007bff33'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = '#ddd';     e.currentTarget.style.boxShadow = 'none'; }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={cardTitle}>{sub.name}</span>
+                                <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '14px' }}>Play ▶</span>
+                            </div>
                             <div style={statsRow}>
                                 <Stat label="Level"      value={sub.currentLevel} />
                                 <Stat label="Solved"     value={sub.questionsSolved} />
@@ -180,9 +203,10 @@ const selectCard = {
 };
 
 const statsCard = {
-    minWidth: '200px', padding: '16px 20px', borderRadius: '8px',
+    minWidth: '220px', padding: '16px 20px', borderRadius: '8px',
     border: '1px solid #ddd', backgroundColor: '#f0f8ff',
     display: 'flex', flexDirection: 'column', gap: '12px',
+    cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s',
 };
 
 const statsRow = { display: 'flex', justifyContent: 'space-around', gap: '12px' };

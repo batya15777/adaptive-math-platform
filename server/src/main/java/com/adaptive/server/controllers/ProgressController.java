@@ -1,6 +1,7 @@
 package com.adaptive.server.controllers;
 
 import com.adaptive.server.DTOs.InitialAssessmentRequest;
+import com.adaptive.server.DTOs.RevealSolutionRequest;
 import com.adaptive.server.DTOs.SubmitAnswerRequest;
 import com.adaptive.server.entity.SessionToken;
 import com.adaptive.server.responses.BonusQuestionResponse;
@@ -32,6 +33,18 @@ public class ProgressController {
         SessionToken token  = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
         ProgressStatusResponse result = levelManagerService.submitAnswer(userId, request);
+        return ResponseEntity.ok(result);
+    }
+
+
+    @PostMapping("/reveal-solution")//הצגת הפתרון המלא — מסמן את השאלה כ-FAILED
+    public ResponseEntity<ProgressStatusResponse> revealSolution(
+            @CookieValue(value = "session_token", required = false) String sessionToken,
+            @RequestBody RevealSolutionRequest request) {
+        SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
+        Long userId = token.getUser().getId();
+        ProgressStatusResponse result = levelManagerService.revealSolution(
+                userId, request.getSubSubjectId(), request.getQuestionId());
         return ResponseEntity.ok(result);
     }
 

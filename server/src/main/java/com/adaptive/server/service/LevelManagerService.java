@@ -4,6 +4,7 @@ import com.adaptive.server.DTOs.InitialAssessmentRequest;
 import com.adaptive.server.DTOs.SubmitAnswerRequest;
 import com.adaptive.server.entity.*;
 import com.adaptive.server.entity.enums.CalculationOperation;
+import com.adaptive.server.entity.enums.QuestionStatus;
 import com.adaptive.server.entity.enums.SpaceshipStatus;
 import com.adaptive.server.repository.*;
 import com.adaptive.server.responses.BonusQuestionResponse;
@@ -24,14 +25,23 @@ import java.util.stream.Collectors;
 @Service
 public class LevelManagerService {//מוח שמנהל התקדמות תלמיד מחלקה חשובה
 
-    static final int LEVEL_UP_WINDOW = 30; //חלון עליית רמה
-    static final int LEVEL_UP_THRESHOLD = 24; // ≥ 80 %
+    static final int LEVEL_UP_WINDOW = 16; //חלון עליית רמה
+    static final int LEVEL_UP_THRESHOLD = 12; // ≥ 80 %
     static final int INTERMEDIATE_WINDOW = 10; // חלון רמת ביניים
     static final int INTERMEDIATE_THRESHOLD =  6; // < 60 %
     static final int WEAKNESS_WINDOW = 15; //זיהוי חולשות
     static final double WEAKNESS_ERROR_RATE = 0.50;//אם תלמיד טעה ב50 אחוז שאלות אז נסמן כחולשה ונייצר תרגילים שמתמקדים בנושא הזה
     static final int WEAKNESS_MIN_SAMPLE = 4;//מדגם מינימלי אם נגיד טעה ב4 אז נכריז חולשה
     private static final int MIN_LEVEL = 1;//רמה מינימלית שלא נרד לרמה 0
+
+    // ── question-game progression ────────────────────────────────────────
+    static final int MAX_ATTEMPTS_PER_QUESTION = 3;  // 3rd wrong → FAILED + reveal
+    static final int SUB_LEVEL_ENTER_FAILS = 3;      // FAILED in a row → enter sub-level
+    static final int SUB_LEVEL_EXIT_SOLVES = 3;      // SOLVED in sub-level → leave it
+    static final int MC_MAX_DIFFICULTY = 2;          // difficulty ≤ 2 → multiple choice
+    static final int MAX_DIFFICULTY_BAND = 3;        // difficulty cap
+    static final int STARS_NORMAL = 10;              // correct at normal level
+    static final int STARS_SUBLEVEL = 5;             // correct inside the sub-level
 
     private static final String CALCULATION_SUBJECT_NAME = "Calculation"; //אם בעתיד נרצה לשנות את השם במסד הנתונים, נצטרך לשנות אותו רק בשורה הזו והוא יתעדכן אוטומטית בכל הפרויקט
 
@@ -61,83 +71,196 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
     @Transactional
     public ProgressStatusResponse submitAnswer(Long userId, SubmitAnswerRequest request) {
-        //המתודה הזו לוקחת את מה שעשית בודקת איך זה מסתדר עם מה שעשית בעבר,
-        // ומחליטה מה הצעד הבא הכי טוב עבורך – אם זה לעלות רמה, להישאר באותו מקום, או לקבל תגבור
+        // Counter/outcome model: a question allows up to 3 attempts. Correct → SOLVED,
+        // 3rd wrong → FAILED. SOLVED advances the level-up window (and stars); a run of
+        // FAILED questions drops the student into the easier "sub-level".
         User user = resolveUser(userId);
         SubSubject subSubject = resolveSubSubject(request.getSubSubjectId());
 
         Question question = questionRepository.findById(request.getQuestionId())
-                .orElseThrow(() -> new RuntimeException("Question not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found"));
 
         boolean isCorrect = question.getCorrectAnswer().equals(request.getUserAnswer());
-        // קריאה למתודה המעודכנת שדורשת את ה-question וה-userAnswer
-        String calculatedErrorPattern = !isCorrect ?
-                analyzeErrorPattern(question.getExpression(), question.getCorrectAnswer(), request.getUserAnswer(), request.getQuestionType())
+        String errorPattern = !isCorrect
+                ? analyzeErrorPattern(question.getExpression(), question.getCorrectAnswer(),
+                                      request.getUserAnswer(), request.getQuestionType())
                 : null;
         saveAttempt(user, subSubject, request.getQuestionId(), isCorrect, request.getCurrentDifficulty(),
-                request.getQuestionType(), request.getUserAnswer(), calculatedErrorPattern, LocalDateTime.now());
+                request.getQuestionType(), request.getUserAnswer(), errorPattern, LocalDateTime.now());
+
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
         long total = attemptRepository.countByUserIdAndSubSubjectId(userId, request.getSubSubjectId());
-        List<ExerciseAttempt> last30 = fetchRecent(userId, request.getSubSubjectId(), LEVEL_UP_WINDOW);
 
-        long correct30 = 0;
-        long correct10 = 0;
-        for (int i = 0; i < last30.size(); i++) {
-            if (Boolean.TRUE.equals(last30.get(i).getIsCorrect())) {
-                correct30++;
-                if (i < INTERMEDIATE_WINDOW) {
-                    correct10++;
+        boolean levelUp = false;
+        String concluded = null;
+
+        if (isCorrect) {
+            question.setStatus(QuestionStatus.SOLVED);
+            concluded = "SOLVED";
+            if (progress.getInSubLevel()) {
+                // Sub-level: easier practice. Stars but NO level-progress change (bar frozen).
+                user.setTotalStars(user.getTotalStars() + STARS_SUBLEVEL);
+                progress.setSubLevelProgress(progress.getSubLevelProgress() + 1);
+                if (progress.getSubLevelProgress() >= SUB_LEVEL_EXIT_SOLVES) {
+                    // recovered — return to the normal level; level progress is preserved (not reset)
+                    progress.setInSubLevel(false);
+                    progress.setSubLevelProgress(0);
+                    progress.setConsecutiveFails(0);
+                }
+            } else {
+                // Normal level: advance the level-progress counter; level up when it hits the target.
+                user.setTotalStars(user.getTotalStars() + STARS_NORMAL);
+                progress.setConsecutiveFails(0);
+                int newProgress = currentProgressOf(progress) + 1;
+                if (newProgress >= LEVEL_UP_THRESHOLD) {
+                    progress.setCurrentLevel(progress.getCurrentLevel() + 1);
+                    progress.setCurrentProgress(0);
+                    levelUp = true;
+                } else {
+                    progress.setCurrentProgress(newProgress);
                 }
             }
+            userRepository.save(user);
+        } else if (request.getAttemptNumber() >= MAX_ATTEMPTS_PER_QUESTION) {
+            question.setStatus(QuestionStatus.FAILED);
+            concluded = "FAILED";
+            onFailed(progress);
         }
-        List<ExerciseAttempt> weaknessWindow = new ArrayList<>();
-        int limit = Math.min(last30.size(), WEAKNESS_WINDOW);
-        for (int i = 0; i < limit; i++) {
-            weaknessWindow.add(last30.get(i));
-        }
-        SpaceshipStatus status = evaluateSpaceshipStatus(total, correct30, correct10);
-        applyStatusToProgress(progress, status);
+        // wrong with attempts left → not concluded; the client lets the student retry
+
+        questionRepository.save(question);
         progressRepository.save(progress);
-        String weakness = detectWeakness(weaknessWindow);
-        return buildResponse(user, progress, status, weakness, isCorrect, correct10, correct30, total);
+
+        ProgressStatusResponse response = buildGameResponse(user, progress, total);
+        response.setAnswerCorrect(isCorrect);
+        response.setConcluded(concluded);
+        response.setLevelUp(levelUp);
+        response.setBonusQuestionTriggered(levelUp);
+        response.setMessage(resolveGameMessage(isCorrect, concluded, levelUp, progress));
+        return response;
     }
 
-        @Transactional(readOnly = true)
-        public ProgressStatusResponse getStatus(Long userId, Long subSubjectId) {
-        //אם מראים לתלמיד דוח התקדמות כי הוא לומד או הודעת פתיחה אם חדש בנושא
-            Optional<StudentProgress> progressOpt = progressRepository.findByUserIdAndSubSubjectId(userId, subSubjectId);
-            if (progressOpt.isPresent()) {
-                StudentProgress progress = progressOpt.get();
-                if (Boolean.TRUE.equals(progress.getActive())) {
-                    return buildStatusFromHistory(progress, userId, subSubjectId);
-                }
+    private int currentProgressOf(StudentProgress progress) {
+        return progress.getCurrentProgress() == null ? 0 : progress.getCurrentProgress();
+    }
+
+    // A concluded-FAILED question: stay in the sub-level (resetting its solve streak) or,
+    // at the normal level, count toward dropping into the sub-level.
+    private void onFailed(StudentProgress progress) {
+        if (progress.getInSubLevel()) {
+            progress.setSubLevelProgress(0);
+        } else {
+            progress.setConsecutiveFails(progress.getConsecutiveFails() + 1);
+            if (progress.getConsecutiveFails() >= SUB_LEVEL_ENTER_FAILS) {
+                progress.setInSubLevel(true);
+                progress.setConsecutiveFails(0);
+                progress.setSubLevelProgress(0);
             }
-            // אם לא נמצא או לא פעיל, מחזירים ברירת מחדל
-            return buildDefaultStatus();
         }
+    }
+
+    private ProgressStatusResponse buildGameResponse(User user, StudentProgress progress, long total) {
+        ProgressStatusResponse response = new ProgressStatusResponse();
+        response.setSuccess(true);
+        response.setCurrentLevel(progress.getCurrentLevel());
+        response.setInSubLevel(progress.getInSubLevel());
+        response.setLevelProgressCurrent(currentProgressOf(progress)); // frozen automatically in sub-level
+        response.setLevelProgressTarget(LEVEL_UP_THRESHOLD);
+        response.setTotalStars(user.getTotalStars());
+        response.setTotalAttempts(total);
+        return response;
+    }
+
+    private String resolveGameMessage(boolean correct, String concluded, boolean levelUp, StudentProgress progress) {
+        if (levelUp) {
+            return "כל הכבוד! עלית רמה! 🚀 מחכה לך שאלת בונוס!";
+        }
+        if ("FAILED".equals(concluded)) {
+            return progress.getInSubLevel()
+                    ? "בוא נתרגל ברמה קלה יותר 🎯"
+                    : "אל דאגה — הנה הפתרון. ננסה את הבאה!";
+        }
+        if (correct) {
+            return progress.getInSubLevel() ? "כל הכבוד! עוד אחת 🌟" : "מצוין! תשובה נכונה ✅";
+        }
+        return "לא נורא, נסה שוב! 💡";
+    }
+
+    @Transactional
+    public ProgressStatusResponse revealSolution(Long userId, Long subSubjectId, Long questionId) {
+        // "Show full solution" / give up: reveal everything and mark the question FAILED.
+        User user = resolveUser(userId);
+        SubSubject subSubject = resolveSubSubject(subSubjectId);
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found"));
+        question.setStatus(QuestionStatus.FAILED);
+        questionRepository.save(question);
+
+        StudentProgress progress = loadOrCreateProgress(user, subSubject);
+        onFailed(progress);
+        progressRepository.save(progress);
+
+        long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
+        ProgressStatusResponse response = buildGameResponse(user, progress, total);
+        response.setConcluded("FAILED");
+        response.setMessage(progress.getInSubLevel()
+                ? "בוא נתרגל ברמה קלה יותר 🎯"
+                : "הנה הפתרון המלא. ננסה את הבאה!");
+        return response;
+    }
+
+    @Transactional(readOnly = true)
+    public ProgressStatusResponse getStatus(Long userId, Long subSubjectId) {
+        // Snapshot for the game page (initial progress bar + level + stars).
+        User user = resolveUser(userId);
+        long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
+        Optional<StudentProgress> progressOpt = progressRepository.findByUserIdAndSubSubjectId(userId, subSubjectId);
+        if (progressOpt.isPresent()) {
+            ProgressStatusResponse response =
+                    buildGameResponse(user, progressOpt.get(), total);
+            response.setMessage("בהצלחה! 💪");
+            return response;
+        }
+        // No progress yet — defaults for a fresh sub-subject.
+        ProgressStatusResponse response = new ProgressStatusResponse();
+        response.setSuccess(true);
+        response.setCurrentLevel(MIN_LEVEL);
+        response.setInSubLevel(false);
+        response.setLevelProgressCurrent(0);
+        response.setLevelProgressTarget(LEVEL_UP_THRESHOLD);
+        response.setTotalStars(user.getTotalStars());
+        response.setTotalAttempts(0);
+        response.setMessage("בוא נתחיל! 🚀");
+        return response;
+    }
 
 
     @Transactional
     public QuestionResponse getNextQuestion(Long userId, Long subSubjectId, String language, boolean multipleChoice) {
-        //בודקים רמת תלמיד ונקודות חולשה ולפי זה לוקחים ממחולל שאלה מתאימה ושומרים אותה בארכיון שמערכת לא תשכח
+        // Difficulty comes from the student's level (sub-level forces the easiest). The
+        // multipleChoice flag is derived from difficulty here, so the client renders MC
+        // for easy questions and a typed box for the hardest.
         User user = resolveUser(userId);
         SubSubject subSubject = resolveSubSubject(subSubjectId);
-
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
-        int difficultyLevel = progress.getCurrentLevel();
-        int subSubjectLevel = progress.getCurrentLevel();
 
-        List<ExerciseAttempt> last15 = fetchRecent(userId, subSubjectId, WEAKNESS_WINDOW);
-        String weakness = detectWeakness(last15);
+        int difficultyLevel;
+        int subSubjectLevel;
+        if (progress.getInSubLevel()) {
+            difficultyLevel = 1;
+            subSubjectLevel = 1;
+        } else {
+            difficultyLevel = Math.min(progress.getCurrentLevel(), MAX_DIFFICULTY_BAND);
+            subSubjectLevel = progress.getCurrentLevel();
+        }
+        boolean mc = difficultyLevel <= MC_MAX_DIFFICULTY;
 
-        SubSubject targetSubSubject = resolveTargetSubSubject(subSubject, weakness);
-
-        Question question = calculationGenerator.createQuestion(targetSubSubject, subSubjectLevel,
-                difficultyLevel, language, multipleChoice);
+        Question question = calculationGenerator.createQuestion(subSubject, subSubjectLevel,
+                difficultyLevel, language, mc);
         question = questionRepository.save(question);
         // Archive so this question counts toward the student's history
-        archiveQuestion(user, targetSubSubject, question);
-        return buildQuestionResponse(question, subSubjectId, weakness);
+        archiveQuestion(user, subSubject, question);
+        return buildQuestionResponse(question, subSubjectId, null);
     }
 
 
@@ -230,23 +353,20 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
     @Transactional
     public ProgressStatusResponse submitBonusAnswer(Long userId, Long subSubjectId, boolean correct) {
-        //מנהלת את הבונוס אם יש כוכבים או אין
+        // Award the bonus stars (50) on a correct bonus answer, then return the snapshot.
         User user = resolveUser(userId);
         if (correct) {
             user.setTotalStars(user.getTotalStars() + BonusQuestionResponse.BONUS_STARS);
             userRepository.save(user);
         }
-        //  שליפת ההתקדמות ממסד הנתונים
-        Optional<StudentProgress> progressOptional = progressRepository.findByUserIdAndSubSubjectId(userId, subSubjectId);
-        if (progressOptional.isPresent()) {//האם התקדמות פועלת והאם פעילה
-            StudentProgress progress = progressOptional.get();
-            if (Boolean.TRUE.equals(progress.getActive())) {
-                // אם האובייקט גם קיים וגם פעיל - מחזירים סטטוס היסטוריה
-                return buildStatusFromHistory(progress, userId, subSubjectId, user);
-            }
-        }
-        // אם ההתקדמות לא הייתה קיימת, או שהיא קיימת אבל לא פעילה - נגיע לכאן
-        return buildDefaultStatus(user);
+        StudentProgress progress = loadOrCreateProgress(user, resolveSubSubject(subSubjectId));
+        long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
+        ProgressStatusResponse response = buildGameResponse(user, progress, total);
+        response.setAnswerCorrect(correct);
+        response.setMessage(correct
+                ? "מעולה! +" + BonusQuestionResponse.BONUS_STARS + " כוכבים! 🌟"
+                : "לא נורא! נמשיך 💪");
+        return response;
     }
 
 
