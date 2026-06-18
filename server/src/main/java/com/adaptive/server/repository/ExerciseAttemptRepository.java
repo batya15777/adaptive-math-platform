@@ -19,4 +19,7 @@ public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt
             Long userId, Long subSubjectId, String questionType, Pageable pageable);
 
     long countByUserIdAndSubSubjectId(Long userId, Long subSubjectId);
+
+    // Correct answers only — used by the Math Training page for "questions solved".
+    long countByUserIdAndSubSubjectIdAndIsCorrectTrue(Long userId, Long subSubjectId);
 }

@@ -3,10 +3,12 @@ package com.adaptive.server;
 import com.adaptive.server.entity.QuestionTemplate;
 import com.adaptive.server.entity.SubSubject;
 import com.adaptive.server.entity.Subject;
+import com.adaptive.server.entity.Topic;
 import com.adaptive.server.entity.User;
 import com.adaptive.server.repository.QuestionTemplateRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import com.adaptive.server.repository.SubjectRepository;
+import com.adaptive.server.repository.TopicRepository;
 import com.adaptive.server.repository.UserRepository;
 import com.adaptive.server.utils.GenerateHash;
 import org.springframework.boot.CommandLineRunner;
@@ -70,13 +72,28 @@ public class ServerApplication {
      */
     @Bean
     CommandLineRunner createMockCalculationData(
+            TopicRepository topicRepository,
             SubjectRepository subjectRepository,
             SubSubjectRepository subSubjectRepository,
             QuestionTemplateRepository templateRepository) {
 
         return args -> {
+            // Subject.topic is required — ensure a "Math" topic exists and the
+            // Calculation subject is linked to it (covers a fresh insert and an
+            // older row whose topic_id was never set).
+            Topic math = topicRepository.findByName("Math")
+                    .orElseGet(() -> topicRepository.save(new Topic("Math")));
+
             Subject calculation = subjectRepository.findByName("Calculation")
-                    .orElseGet(() -> subjectRepository.save(new Subject("Calculation")));
+                    .orElse(null);
+            if (calculation == null) {
+                calculation = new Subject("Calculation");
+                calculation.setTopic(math);
+                calculation = subjectRepository.save(calculation);
+            } else if (calculation.getTopic() == null) {
+                calculation.setTopic(math);
+                calculation = subjectRepository.save(calculation);
+            }
 
             // ── Template seed matrix ─────────────────────────────────────────
             // Each record: { expression, difficultyLevel, subSubjectLevel }

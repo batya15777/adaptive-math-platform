@@ -10,6 +10,7 @@ import { AuthContext } from "./context/AuthContextSetup.js";
 import { ProfileProvider } from "./contexts/ProfileContext.jsx";
 import { useContext } from "react";
 import {ProfileSettings} from "./components/ProfileSettings/ProfileSettings.jsx";
+import { MathTraining } from "./pages/MathTraining/MathTraining.jsx";
 
 // Protected Route component
 const ProtectedRoute = ({ element }) => {
@@ -48,6 +49,7 @@ function AppRoutes() {
         <Route path="/" element={<ProtectedRoute element={<DashboardLayout />} />}>
           <Route index element={<Navigate to="/home" replace />} />
           <Route path="home" element={<Home />} />
+          <Route path="math-training" element={<MathTraining />} />
           <Route path="profile-settings" element={<ProfileSettings />} />
         </Route>
 

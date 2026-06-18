@@ -7,6 +7,7 @@ const DashboardLayout = () => {
 
     const navItems = [
         { name: 'Home', path: '/home'},
+        { name: 'Math Training', path: '/math-training'},
         { name: 'settings', path: '/profile-settings'}
     ];
 
