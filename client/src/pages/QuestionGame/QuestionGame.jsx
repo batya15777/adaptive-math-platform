@@ -5,7 +5,7 @@ import _LottieImport from 'lottie-react';
 // the default export. This unwrap handles both the pre-bundled case (function) and the
 // not-yet-pre-bundled case (object with .default).
 const Lottie = typeof _LottieImport === 'function' ? _LottieImport : _LottieImport.default;
-import levelUpSound from '../../assets/sound/level-up.mp3.mp3';
+import levelUpSound from '../../assets/sound/level-up.mp3';
 import trophyAnimation from '../../assets/bonusStars/Trophy.json';
 import './QuestionGame.css';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
