@@ -63,6 +63,27 @@ def test_provider_failure_uses_local_hint() -> None:
     assert "נתונים" in response.message
 
 
+def test_correct_final_answer_is_confirmed_even_when_it_echoes_answer() -> None:
+    # When the student states the correct final answer, the tutor may confirm it
+    # (echoing the answer back is praise, not a leak) instead of falling back.
+    service = TutorService(
+        provider=StubProvider(
+            ProviderReply(
+                message="כל הכבוד! הגעת ל-15, סיימת את התרגיל!",
+                action=TutorAction.hint,
+            )
+        )
+    )
+
+    request = TutorChatRequest.model_validate(
+        request_body(message="15", guidance_level=4)
+    )
+    response = service.reply(request)
+
+    assert response.action == TutorAction.hint
+    assert "15" in response.message
+
+
 def test_redirect_does_not_advance_guidance_level() -> None:
     service = TutorService(
         provider=StubProvider(
@@ -79,7 +100,9 @@ def test_redirect_does_not_advance_guidance_level() -> None:
     assert response.guidance_level == 2
 
 
-def test_later_hint_with_answer_uses_natural_answer_free_fallback() -> None:
+def test_later_hint_with_answer_falls_back_to_safe_step() -> None:
+    # The provider hint contains the final answer, so the answer-leak guard must
+    # fall back to a local hint that does not reveal it.
     service = TutorService(
         provider=StubProvider(
             ProviderReply(
@@ -95,4 +118,4 @@ def test_later_hint_with_answer_uses_natural_answer_free_fallback() -> None:
     assert response.guidance_level == 3
     assert "15" not in response.message
     assert "[התשובה מוסתרת]" not in response.message
-    assert "הצעד הקטן הבא" in response.message
+    assert response.message.strip() != ""

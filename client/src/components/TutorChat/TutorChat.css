@@ -1,0 +1,136 @@
+.tutor-chat {
+    width: 100%;
+    max-width: 420px;
+    min-height: 520px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    text-align: right;
+}
+
+.tutor-chat__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--social-bg);
+}
+
+.tutor-chat__header h2 {
+    margin: 0;
+    color: var(--text-h);
+}
+
+.tutor-chat__eyebrow {
+    margin-bottom: 4px;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.tutor-chat__messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+    overflow-y: auto;
+}
+
+.tutor-chat__empty {
+    margin: auto 0;
+    padding: 18px;
+    border: 1px dashed var(--border);
+    border-radius: 16px;
+    color: var(--text);
+    background: var(--social-bg);
+}
+
+.tutor-chat__message {
+    max-width: 85%;
+    padding: 12px 14px;
+    border-radius: 16px;
+    line-height: 1.5;
+}
+
+.tutor-chat__message--student {
+    align-self: flex-start;
+    color: white;
+    background: var(--accent);
+    border-bottom-left-radius: 4px;
+}
+
+.tutor-chat__message--tutor {
+    align-self: flex-end;
+    color: var(--text-h);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+    border-bottom-right-radius: 4px;
+}
+
+.tutor-chat__sender {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.tutor-chat__error,
+.tutor-chat__hint {
+    padding: 0 18px 12px;
+    font-size: 14px;
+}
+
+.tutor-chat__error {
+    color: #c2410c;
+}
+
+.tutor-chat__hint {
+    color: var(--text);
+}
+
+.tutor-chat__form {
+    display: flex;
+    gap: 10px;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.tutor-chat__form textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    font: inherit;
+    color: var(--text-h);
+    background: var(--bg);
+}
+
+.tutor-chat__form textarea:focus {
+    outline: 2px solid var(--accent-border);
+    border-color: var(--accent);
+}
+
+.tutor-chat__form button {
+    align-self: stretch;
+    border: 0;
+    border-radius: 14px;
+    padding: 0 18px;
+    font: inherit;
+    font-weight: 700;
+    color: white;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+.tutor-chat__form button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

@@ -34,6 +34,63 @@ OFF_TOPIC_TERMS = {
 }
 
 
+EMOTIONAL_TERMS = {
+    "טיפש",
+    "טיפשה",
+    "מטומטם",
+    "מטומטמת",
+    "לא מבין",
+    "לא מבינה",
+    "לא יודע",
+    "לא יודעת",
+    "קשה לי",
+    "אוף",
+    "לא רגיש",
+    "מתוסכל",
+    "מתוסכלת",
+    "מאוכזב",
+    "מאוכזבת",
+    "נמאס",
+    "נמאס לי",
+    "stupid",
+    "dumb",
+}
+
+
+DIRECT_ANSWER_TERMS = {
+    "תגלה לי",
+    "תגלי לי",
+    "תן לי את התשובה",
+    "תני לי את התשובה",
+    "מה התשובה",
+    "מהי התשובה",
+    "מה הפתרון",
+    "פתור לי",
+    "פתרי לי",
+    "תפתור לי",
+    "תפתרי לי",
+    "תגיד לי כמה זה",
+    "תגידי לי כמה זה",
+    "give me the answer",
+    "what is the answer",
+    "tell me the answer",
+    "solve it for me",
+}
+
+
+STUCK_TERMS = {
+    "לא יודע",
+    "לא יודעת",
+    "לא מבין",
+    "לא מבינה",
+    "לא הבנתי",
+    "קשה לי",
+    "אין לי מושג",
+    "i don't know",
+    "i'm stuck",
+}
+
+
 def contains_term(text: str, terms: set[str]) -> bool:
     normalized = text.casefold()
     for term in terms:
@@ -55,6 +112,18 @@ def is_unsafe(text: str) -> bool:
 
 def is_clearly_off_topic(text: str) -> bool:
     return contains_term(text, OFF_TOPIC_TERMS)
+
+
+def is_emotional(text: str) -> bool:
+    return contains_term(text, EMOTIONAL_TERMS)
+
+
+def is_direct_answer_request(text: str) -> bool:
+    return contains_term(text, DIRECT_ANSWER_TERMS)
+
+
+def is_stuck(text: str) -> bool:
+    return contains_term(text, STUCK_TERMS)
 
 
 def is_safe_output(text: str) -> bool:
