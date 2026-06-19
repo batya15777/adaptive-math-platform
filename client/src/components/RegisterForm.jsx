@@ -1,21 +1,21 @@
-import {useState, useContext} from "react";
+import {useState} from "react";
 import { useNavigate } from "react-router-dom";
 import {register, verifyCode} from "../service/authApi.js";
-import { AuthContext } from "../context/AuthContextSetup.js";
-
 function RegisterForm(){
 
     const [fullName, setFullName] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [email, setEmail] = useState("");
     const [age, setAge] = useState("");
     const [gender, setGender] = useState("");
     const [code, setCode] = useState("");
     const [showCode, setShowCode] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState("");
 
     const navigate = useNavigate();
-    const { loginUser } = useContext(AuthContext);
 
 
     const fullNameRegex =(value)=>{
@@ -40,6 +40,9 @@ function RegisterForm(){
             hasErrors = true;
         }
         if (!passwordRegex(password)){
+            hasErrors = true;
+        }
+        if (password !== confirmPassword){
             hasErrors = true;
         }
         if (!emailRegex(email)){
@@ -84,16 +87,8 @@ function RegisterForm(){
         verifyCode(data).then((response)=>{
             if (response.data.success){
                 setShowCode(false);
-                setErrors("You have registered successfully.")
-                // Log in the user after successful registration
-                const userData = {
-                    fullName,
-                    email,
-                    age: Number(age),
-                    gender
-                };
-                loginUser(userData);
-                navigate("/"); // Redirect to dashboard
+                setErrors("You have registered successfully. Please log in.")
+                navigate("/login");
             }
         })
             .catch(error=>{
@@ -124,12 +119,35 @@ function RegisterForm(){
                  onChange={(e) => setFullName(e.target.value)}
              />
 
-             <input
-                 type="password"
-                 value={password}
-                 placeholder="Enter password"
-                 onChange={(e) => setPassword(e.target.value)}
-             />
+             <div>
+                 <input
+                     type={showPassword ? "text" : "password"}
+                     value={password}
+                     placeholder="Enter password"
+                     onChange={(e) => setPassword(e.target.value)}
+                 />
+                 <button
+                     type="button"
+                     onClick={() => setShowPassword((currentValue) => !currentValue)}
+                 >
+                     {showPassword ? "Hide" : "Show"}
+                 </button>
+             </div>
+
+             <div>
+                 <input
+                     type={showConfirmPassword ? "text" : "password"}
+                     value={confirmPassword}
+                     placeholder="Confirm password"
+                     onChange={(e) => setConfirmPassword(e.target.value)}
+                 />
+                 <button
+                     type="button"
+                     onClick={() => setShowConfirmPassword((currentValue) => !currentValue)}
+                 >
+                     {showConfirmPassword ? "Hide" : "Show"}
+                 </button>
+             </div>
 
              <input
                  type="email"
@@ -191,6 +209,7 @@ function RegisterForm(){
 
 
                  </button>
+
              </>
          }
      </>

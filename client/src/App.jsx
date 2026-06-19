@@ -16,7 +16,7 @@ const ProtectedRoute = ({ element }) => {
   const { user } = useContext(AuthContext);
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/register" replace />;
   }
 
   return element;
@@ -52,7 +52,7 @@ function AppRoutes() {
         </Route>
 
         {/* Default redirect */}
-        <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
+        <Route path="*" element={<Navigate to={user ? "/" : "/register"} replace />} />
       </Routes>
     </BrowserRouter>
   );
