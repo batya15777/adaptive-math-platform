@@ -6,3 +6,4 @@ export const submitAnswer      = (body)                    => api.post('/progres
 export const revealSolution    = (body)                    => api.post('/progress/reveal-solution', body);
 export const getBonusQuestion  = (subSubjectId, language)  => api.get('/progress/bonus-question', { params: { subSubjectId, language } });
 export const submitBonusAnswer = (subSubjectId, correct)   => api.post('/progress/bonus-answer', null, { params: { subSubjectId, correct } });
+export const initialAssessment = (body)                    => api.post('/progress/initial-assessment', body);
