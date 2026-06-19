@@ -43,6 +43,10 @@ public class StudentProgress {
     @Column(name = "level_up_baseline")
     private Integer levelUpBaseline = 0;
 
+    // Consecutive correct answers in a row (resets to 0 on any wrong answer).
+    @Column(name = "current_streak")
+    private Integer currentStreak = 0;
+
     public StudentProgress() {
     }
 
@@ -132,5 +136,13 @@ public class StudentProgress {
 
     public void setLevelUpBaseline(Integer levelUpBaseline) {
         this.levelUpBaseline = levelUpBaseline;
+    }
+
+    public Integer getCurrentStreak() {
+        return currentStreak == null ? 0 : currentStreak;
+    }
+
+    public void setCurrentStreak(Integer currentStreak) {
+        this.currentStreak = currentStreak;
     }
 }

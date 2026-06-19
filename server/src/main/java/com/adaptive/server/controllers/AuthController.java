@@ -3,11 +3,15 @@ package com.adaptive.server.controllers;
 import com.adaptive.server.DTOs.LoginRequest;
 import com.adaptive.server.DTOs.LoginSuccessData;
 import com.adaptive.server.DTOs.RegisterRequest;
+import com.adaptive.server.DTOs.UserResponseDTO;
 import com.adaptive.server.DTOs.VerifyEmailRequest;
+import com.adaptive.server.entity.SessionToken;
 import com.adaptive.server.responses.BasicResponse;
 import com.adaptive.server.responses.LoginResponse;
 import com.adaptive.server.service.AuthService;
+import com.adaptive.server.service.SessionValidationService;
 import com.adaptive.server.utils.CookieUtils;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -16,9 +20,11 @@ import javax.servlet.http.HttpServletResponse;
 @RequestMapping("/auth")
 public class AuthController {
     private final AuthService authService;
+    private final SessionValidationService sessionValidationService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, SessionValidationService sessionValidationService) {
         this.authService = authService;
+        this.sessionValidationService = sessionValidationService;
     }
 
     @PostMapping("/login")
@@ -57,6 +63,13 @@ public class AuthController {
     @PostMapping("/verify")
     public BasicResponse verify(@RequestBody VerifyEmailRequest verifyEmailRequest) {
         return authService.verify(verifyEmailRequest);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDTO> me(
+            @CookieValue(value = "session_token", required = false) String sessionToken) {
+        SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
+        return ResponseEntity.ok(new UserResponseDTO(token.getUser()));
     }
 
 }

@@ -19,6 +19,7 @@ public class ProgressStatusResponse extends BasicResponse {//תמונת מצב �
     private boolean inSubLevel;         // easier-practice mode (frozen level, frozen bar)
     private int levelProgressCurrent;   // correct answers in the current level-up window
     private int levelProgressTarget;    // window threshold to level up (LEVEL_UP_THRESHOLD)
+    private int currentStreak;          // consecutive correct answers in a row
 
     public ProgressStatusResponse() {
         super();
@@ -150,5 +151,13 @@ public class ProgressStatusResponse extends BasicResponse {//תמונת מצב �
 
     public void setLevelProgressTarget(int levelProgressTarget) {
         this.levelProgressTarget = levelProgressTarget;
+    }
+
+    public int getCurrentStreak() {
+        return currentStreak;
+    }
+
+    public void setCurrentStreak(int currentStreak) {
+        this.currentStreak = currentStreak;
     }
 }

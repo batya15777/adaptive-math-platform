@@ -97,6 +97,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         if (isCorrect) {
             question.setStatus(QuestionStatus.SOLVED);
             concluded = "SOLVED";
+            progress.setCurrentStreak(progress.getCurrentStreak() + 1);
             if (progress.getInSubLevel()) {
                 // Sub-level: easier practice. Stars but NO level-progress change (bar frozen).
                 user.setTotalStars(user.getTotalStars() + STARS_SUBLEVEL);
@@ -121,10 +122,14 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                 }
             }
             userRepository.save(user);
-        } else if (request.getAttemptNumber() >= MAX_ATTEMPTS_PER_QUESTION) {
-            question.setStatus(QuestionStatus.FAILED);
-            concluded = "FAILED";
-            onFailed(progress);
+        } else {
+            // Any wrong answer — reset streak immediately
+            progress.setCurrentStreak(0);
+            if (request.getAttemptNumber() >= MAX_ATTEMPTS_PER_QUESTION) {
+                question.setStatus(QuestionStatus.FAILED);
+                concluded = "FAILED";
+                onFailed(progress);
+            }
         }
         // wrong with attempts left → not concluded; the client lets the student retry
 
@@ -168,6 +173,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         response.setLevelProgressTarget(LEVEL_UP_THRESHOLD);
         response.setTotalStars(user.getTotalStars());
         response.setTotalAttempts(total);
+        response.setCurrentStreak(progress.getCurrentStreak());
         return response;
     }
 
@@ -198,6 +204,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
         onFailed(progress);
+        progress.setCurrentStreak(0);
         progressRepository.save(progress);
 
         long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
