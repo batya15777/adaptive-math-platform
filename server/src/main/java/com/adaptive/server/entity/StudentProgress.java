@@ -3,7 +3,8 @@ package com.adaptive.server.entity;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "student_progress")
+@Table(name = "student_progress",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "sub_subject_id"}))
 public class StudentProgress {
 
     @Id

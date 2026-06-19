@@ -11,7 +11,7 @@ public class Subject {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "topic_id", nullable = false)
+    @JoinColumn(name = "topic_id", referencedColumnName = "id", nullable = false)
     private Topic topic;
 
     @Column(nullable = false)
