@@ -13,6 +13,7 @@ import {ProfileSettings} from "./components/ProfileSettings/ProfileSettings.jsx"
 import { MathTraining } from "./pages/MathTraining/MathTraining.jsx";
 import { QuestionGame } from "./pages/QuestionGame/QuestionGame.jsx";
 import { LevelManagerPage } from "./pages/LevelManager/LevelManagerPage.jsx";
+import { AdminDashboard } from "./pages/Admin/AdminDashboard.jsx";
 // Lazy-loaded so the charts (recharts) + animations (framer-motion) only download
 // when a student actually opens the dashboard, keeping the main bundle lean.
 const StudentDashboard = lazy(() =>
@@ -31,7 +32,16 @@ const ProtectedRoute = ({ element }) => {
 const AuthRoute = ({ element }) => {
   const { user, authLoading } = useContext(AuthContext);
   if (authLoading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={user.role === "ADMIN" ? "/admin/dashboard" : "/"} replace />;
+  return element;
+};
+
+// Admin-only route — waits for session restore, then requires role ADMIN
+const AdminRoute = ({ element }) => {
+  const { user, authLoading } = useContext(AuthContext);
+  if (authLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "ADMIN") return <Navigate to="/" replace />;
   return element;
 };
 
@@ -48,6 +58,9 @@ function AppRoutes() {
 
         {/* Level survey — protected but outside DashboardLayout to avoid the survey gate loop */}
         <Route path="/level-survey" element={<ProtectedRoute element={<LevelManagerPage />} />} />
+
+        {/* Admin area (phase 0: single dashboard) */}
+        <Route path="/admin/dashboard" element={<AdminRoute element={<AdminDashboard />} />} />
 
         {/* Dashboard - only accessible when logged in */}
         <Route path="/" element={<ProtectedRoute element={<DashboardLayout />} />}>

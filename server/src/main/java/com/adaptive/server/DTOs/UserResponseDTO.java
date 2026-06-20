@@ -7,12 +7,14 @@ public class UserResponseDTO {
     private String email;
     private String username;
     private String gender;
+    private String role;
 
     public UserResponseDTO(User user) {
         this.id = user.getId();
         this.email = user.getEmail();
         this.username = user.getFullName();
         this.gender = user.getGender();
+        this.role = user.getRole();
     }
 
     public Long getId() {
@@ -29,5 +31,9 @@ public class UserResponseDTO {
 
     public String getGender() {
         return gender;
+    }
+
+    public String getRole() {
+        return role;
     }
 }
