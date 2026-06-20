@@ -1,6 +1,7 @@
 package com.adaptive.server.entity;
 
 import javax.persistence.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,12 +44,17 @@ public class QuestionArchive {
     @Column(name = "difficulty_level")
     private Integer difficultyLevel;
 
+    // When this question was archived (i.e. generated & shown to the student).
+    // Gives the archive a chronological history of the questions the student saw.
+    @Column(name = "answered_at")
+    private LocalDateTime answeredAt;
+
     public QuestionArchive() {
     }
 
     public QuestionArchive(User user, SubSubject subSubject, String expression, String correctAnswer,
                            List<String> solution, List<String> options,
-                           String language, Integer difficultyLevel) {
+                           String language, Integer difficultyLevel, LocalDateTime answeredAt) {
         this.user = user;
         this.subSubject = subSubject;
         this.expression = expression;
@@ -57,6 +63,7 @@ public class QuestionArchive {
         this.options = options != null ? options : new ArrayList<>();
         this.language = language;
         this.difficultyLevel = difficultyLevel;
+        this.answeredAt = answeredAt;
     }
 
     public Long getId() { return id; }
@@ -85,4 +92,7 @@ public class QuestionArchive {
 
     public Integer getDifficultyLevel() { return difficultyLevel; }
     public void setDifficultyLevel(Integer difficultyLevel) { this.difficultyLevel = difficultyLevel; }
+
+    public LocalDateTime getAnsweredAt() { return answeredAt; }
+    public void setAnsweredAt(LocalDateTime answeredAt) { this.answeredAt = answeredAt; }
 }

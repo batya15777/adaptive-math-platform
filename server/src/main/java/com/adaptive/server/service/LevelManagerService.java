@@ -553,10 +553,10 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                 ? new ArrayList<>(question.getOptions())
                 : new ArrayList<>();
 
-        // 2. בניית האובייקט עם הרשימות עצמן
+        // 2. בניית האובייקט עם הרשימות עצמן + חותמת זמן (מתי השאלה נשמרה/הוצגה)
         QuestionArchive archive = new QuestionArchive(user, subSubject, question.getExpression(),
                 question.getCorrectAnswer(), solutionCopy, optionsCopy ,// מעבירים List
-                question.getLanguage(), question.getDifficultyLevel());
+                question.getLanguage(), question.getDifficultyLevel(), LocalDateTime.now());
         archiveRepository.save(archive);
     }
 
