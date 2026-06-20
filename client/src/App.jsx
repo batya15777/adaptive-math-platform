@@ -8,51 +8,66 @@ import {Home} from "./pages/Home/Home.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { AuthContext } from "./context/AuthContextSetup.js";
 import { ProfileProvider } from "./contexts/ProfileContext.jsx";
-import { useContext } from "react";
+import { useContext, lazy, Suspense } from "react";
 import {ProfileSettings} from "./components/ProfileSettings/ProfileSettings.jsx";
+import { MathTraining } from "./pages/MathTraining/MathTraining.jsx";
+import { QuestionGame } from "./pages/QuestionGame/QuestionGame.jsx";
+import { LevelManagerPage } from "./pages/LevelManager/LevelManagerPage.jsx";
+// Lazy-loaded so the charts (recharts) + animations (framer-motion) only download
+// when a student actually opens the dashboard, keeping the main bundle lean.
+const StudentDashboard = lazy(() =>
+  import("./pages/Dashboard/StudentDashboard.jsx").then((m) => ({ default: m.StudentDashboard }))
+);
 
-// Protected Route component
+// Waits for session restore before deciding — prevents redirect on refresh
 const ProtectedRoute = ({ element }) => {
-  const { user } = useContext(AuthContext);
-
-  if (!user) {
-    return <Navigate to="/register" replace />;
-  }
-
+  const { user, authLoading } = useContext(AuthContext);
+  if (authLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
   return element;
 };
 
-// Auth routes (accessible only when NOT logged in)
+// Auth routes (login/register) — wait so a refreshed logged-in user isn't flashed the login page
 const AuthRoute = ({ element }) => {
-  const { user } = useContext(AuthContext);
-
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
-
+  const { user, authLoading } = useContext(AuthContext);
+  if (authLoading) return null;
+  if (user) return <Navigate to="/" replace />;
   return element;
 };
 
 function AppRoutes() {
-  const { user } = useContext(AuthContext);
+  const { user, authLoading } = useContext(AuthContext);
 
   return (
     <BrowserRouter>
-      {user && <Navbar/>}
+      {!authLoading && user && <Navbar/>}
       <Routes>
         {/* Auth pages - only accessible when not logged in */}
         <Route path="/login" element={<AuthRoute element={<LoginForm />} />} />
         <Route path="/register" element={<AuthRoute element={<RegisterForm />} />} />
 
+        {/* Level survey — protected but outside DashboardLayout to avoid the survey gate loop */}
+        <Route path="/level-survey" element={<ProtectedRoute element={<LevelManagerPage />} />} />
+
         {/* Dashboard - only accessible when logged in */}
         <Route path="/" element={<ProtectedRoute element={<DashboardLayout />} />}>
           <Route index element={<Navigate to="/home" replace />} />
           <Route path="home" element={<Home />} />
+          <Route
+            path="dashboard"
+            element={
+              <Suspense fallback={<div style={{ padding: 24, color: "#888" }}>Loading dashboard…</div>}>
+                <StudentDashboard />
+              </Suspense>
+            }
+          />
+          <Route path="math-training" element={<MathTraining />} />
+          <Route path="math-training/:subSubjectId/play" element={<QuestionGame />} />
           <Route path="profile-settings" element={<ProfileSettings />} />
         </Route>
 
         {/* Default redirect */}
-        <Route path="*" element={<Navigate to={user ? "/" : "/register"} replace />} />
+        <Route path="*" element={<Navigate to={!authLoading && user ? "/" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>
   );

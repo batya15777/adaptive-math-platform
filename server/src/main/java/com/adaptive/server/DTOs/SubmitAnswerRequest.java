@@ -4,19 +4,20 @@ public class SubmitAnswerRequest {
 
     private Long subSubjectId;
     private Long questionId;
-    private boolean correct;
+    private String userAnswer;
     private String questionType;
     private int currentDifficulty;
+    private int attemptNumber; // 1-based: which try this is for the current question
 
 
     public SubmitAnswerRequest() {
     }
 
     public SubmitAnswerRequest(Long subSubjectId, Long questionId,
-                               boolean correct, String questionType, int currentDifficulty) {
+                               String userAnswer, String questionType, int currentDifficulty) {
         this.subSubjectId = subSubjectId;
         this.questionId = questionId;
-        this.correct = correct;
+        this.userAnswer = userAnswer;
         this.questionType = questionType;
         this.currentDifficulty = currentDifficulty;
     }
@@ -28,12 +29,20 @@ public class SubmitAnswerRequest {
     public Long getQuestionId() { return questionId; }
     public void setQuestionId(Long questionId) { this.questionId = questionId; }
 
-    public boolean isCorrect() { return correct; }
-    public void setCorrect(boolean correct) { this.correct = correct; }
+    public String getUserAnswer() {
+        return userAnswer;
+    }
+
+    public void setUserAnswer(String userAnswer) {
+        this.userAnswer = userAnswer;
+    }
 
     public String getQuestionType() { return questionType; }
     public void setQuestionType(String questionType) { this.questionType = questionType; }
 
     public int getCurrentDifficulty() { return currentDifficulty; }
     public void setCurrentDifficulty(int currentDifficulty) { this.currentDifficulty = currentDifficulty; }
+
+    public int getAttemptNumber() { return attemptNumber; }
+    public void setAttemptNumber(int attemptNumber) { this.attemptNumber = attemptNumber; }
 }

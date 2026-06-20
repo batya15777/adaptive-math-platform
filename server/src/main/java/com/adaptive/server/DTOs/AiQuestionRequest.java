@@ -1,7 +1,9 @@
 package com.adaptive.server.DTOs;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AiQuestionRequest {
 
     private String topic;
@@ -15,6 +17,10 @@ public class AiQuestionRequest {
 
     @JsonProperty("multiple_choice")
     private boolean multipleChoice;
+
+    // Cluster-derived adaptation hints. Null (and omitted) for students with no cohort.
+    @JsonProperty("learning_profile")
+    private LearningProfile learningProfile;
 
     public AiQuestionRequest() {}
 
@@ -34,6 +40,9 @@ public class AiQuestionRequest {
     public UserInfo getUserInfo()        { return userInfo; }
     public String getLanguage()          { return language; }
     public boolean isMultipleChoice()    { return multipleChoice; }
+    public LearningProfile getLearningProfile() { return learningProfile; }
+
+    public void setLearningProfile(LearningProfile learningProfile) { this.learningProfile = learningProfile; }
 
     public static class UserInfo {
         private String name;
@@ -44,5 +53,33 @@ public class AiQuestionRequest {
 
         public String getName() { return name; }
         public int getAge()     { return age; }
+    }
+
+    /**
+     * Adaptive context forwarded to the LLM so it can gently target the student's
+     * cohort weakness and calibrate to their mastery.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class LearningProfile {
+
+        @JsonProperty("cluster_label")
+        private String clusterLabel;
+
+        @JsonProperty("focus_skill")
+        private String focusSkill;
+
+        private String mastery; // "struggling" | "developing" | "strong"
+
+        public LearningProfile() {}
+
+        public LearningProfile(String clusterLabel, String focusSkill, String mastery) {
+            this.clusterLabel = clusterLabel;
+            this.focusSkill = focusSkill;
+            this.mastery = mastery;
+        }
+
+        public String getClusterLabel() { return clusterLabel; }
+        public String getFocusSkill()   { return focusSkill; }
+        public String getMastery()      { return mastery; }
     }
 }

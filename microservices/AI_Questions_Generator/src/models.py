@@ -25,6 +25,19 @@ class UserInfo(BaseModel):
     age: int = Field(ge=4, le=18, description="Student's age in years")
 
 
+class LearningProfile(BaseModel):
+    """
+    Cluster-derived adaptation hints sent by the Java backend. Lets the generator
+    gently target the student's cohort weakness and calibrate to their mastery.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    cluster_label: str | None = Field(default=None, description="Human label of the student's ML cohort")
+    focus_skill: str | None = Field(default=None, description="Skill/weakness to gently practise")
+    mastery: str | None = Field(default=None, description="struggling | developing | strong")
+
+
 class GenerationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -49,6 +62,10 @@ class GenerationRequest(BaseModel):
     multiple_choice: bool = Field(
         default=False,
         description="When true, the response includes 4 answer options; the student picks one.",
+    )
+    learning_profile: LearningProfile | None = Field(
+        default=None,
+        description="Optional cluster-derived adaptation hints for personalising the question.",
     )
 
 

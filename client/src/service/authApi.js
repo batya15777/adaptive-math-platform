@@ -14,3 +14,5 @@ export const login = (data) => {
 export const logout = () => {
     return api.post("/auth/logout");
 }
+
+export const getMe = () => api.get("/auth/me");

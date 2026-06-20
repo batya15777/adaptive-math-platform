@@ -27,6 +27,26 @@ public class StudentProgress {
     @Column(name = "is_active")
     private Boolean isActive;
 
+    // Temporary easier-practice mode entered after repeated fails (level frozen meanwhile).
+    @Column(name = "in_sub_level")
+    private Boolean inSubLevel = false;
+
+    // FAILED questions in a row at the normal level — toward entering the sub-level.
+    @Column(name = "consecutive_fails")
+    private Integer consecutiveFails = 0;
+
+    // SOLVED questions inside the sub-level — toward returning to the normal level.
+    @Column(name = "sub_level_progress")
+    private Integer subLevelProgress = 0;
+
+    // Total attempt count marking the start of the current level-up window (refill point).
+    @Column(name = "level_up_baseline")
+    private Integer levelUpBaseline = 0;
+
+    // Consecutive correct answers in a row (resets to 0 on any wrong answer).
+    @Column(name = "current_streak")
+    private Integer currentStreak = 0;
+
     public StudentProgress() {
     }
 
@@ -84,5 +104,45 @@ public class StudentProgress {
 
     public void setActive(Boolean active) {
         isActive = active;
+    }
+
+    public Boolean getInSubLevel() {
+        return inSubLevel != null && inSubLevel;
+    }
+
+    public void setInSubLevel(Boolean inSubLevel) {
+        this.inSubLevel = inSubLevel;
+    }
+
+    public Integer getConsecutiveFails() {
+        return consecutiveFails == null ? 0 : consecutiveFails;
+    }
+
+    public void setConsecutiveFails(Integer consecutiveFails) {
+        this.consecutiveFails = consecutiveFails;
+    }
+
+    public Integer getSubLevelProgress() {
+        return subLevelProgress == null ? 0 : subLevelProgress;
+    }
+
+    public void setSubLevelProgress(Integer subLevelProgress) {
+        this.subLevelProgress = subLevelProgress;
+    }
+
+    public Integer getLevelUpBaseline() {
+        return levelUpBaseline == null ? 0 : levelUpBaseline;
+    }
+
+    public void setLevelUpBaseline(Integer levelUpBaseline) {
+        this.levelUpBaseline = levelUpBaseline;
+    }
+
+    public Integer getCurrentStreak() {
+        return currentStreak == null ? 0 : currentStreak;
+    }
+
+    public void setCurrentStreak(Integer currentStreak) {
+        this.currentStreak = currentStreak;
     }
 }

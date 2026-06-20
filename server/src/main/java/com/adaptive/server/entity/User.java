@@ -27,6 +27,12 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "total_stars", nullable = false)
+    private Integer totalStars = 0;
+
+    @Column(name = "role", nullable = false)
+    private String role = "STUDENT"; // ברירת מחדל: כל מי שנרשם הוא תלמיד
+
     public User() {
     }
 
@@ -83,11 +89,31 @@ public class User {
         this.age = age;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     public void setGender(String gender) {
         this.gender = gender;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getTotalStars() {
+        return totalStars == null ? 0 : totalStars;
+    }
+
+    public void setTotalStars(Integer totalStars) {
+        this.totalStars = (totalStars == null) ? 0 : totalStars;
     }
 }

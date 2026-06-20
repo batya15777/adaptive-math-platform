@@ -219,4 +219,30 @@ class QuestionAgent:
             extra_parts = ", ".join(f"{k}: {v}" for k, v in extra.items())
             lines.append(f"Additional student context: {extra_parts}")
 
+        adaptive_block = QuestionAgent._build_adaptive_block(req)
+        if adaptive_block:
+            lines.append(adaptive_block)
+
         return "\n".join(lines)
+
+    @staticmethod
+    def _build_adaptive_block(req: GenerationRequest) -> str:
+        """
+        Build the adaptive-learning section from the cluster-derived learning profile.
+        The model is told to USE these hints silently (never to mention them to the student).
+        """
+        lp = req.learning_profile
+        if lp is None or not (lp.focus_skill or lp.cluster_label or lp.mastery):
+            return ""
+
+        parts = ["ADAPTIVE LEARNING CONTEXT (personalise using this; never mention it to the student):"]
+        if lp.cluster_label:
+            parts.append(f"- Learning cohort: {lp.cluster_label}.")
+        if lp.mastery:
+            parts.append(f"- Current mastery: {lp.mastery} — calibrate the challenge accordingly.")
+        if lp.focus_skill:
+            parts.append(
+                f"- The student needs practice with: {lp.focus_skill}. "
+                "When it fits the topic naturally, weave a little of this skill into the question."
+            )
+        return "\n".join(parts)

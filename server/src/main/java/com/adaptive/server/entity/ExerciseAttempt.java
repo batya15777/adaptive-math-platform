@@ -36,22 +36,45 @@ public class ExerciseAttempt {
     @Column(name = "answered_at", nullable = false)
     private LocalDateTime answeredAt;
 
+    // שדות חדשים שהוספנו לאיסוף נתוני אדפטיביות ולמידת מכונה
+    @Column(name = "user_answer")
+    private String userAnswer;
+
+    @Column(name = "error_pattern")
+    private String errorPattern;
 
     public ExerciseAttempt() {
     }
 
-    public ExerciseAttempt(User user, SubSubject subSubject, Long questionId,
-                           Boolean isCorrect, Integer difficultyLevel,
-                           String questionType, LocalDateTime answeredAt){
+    public ExerciseAttempt(User user, SubSubject subSubject, Long questionId, Boolean isCorrect, Integer difficultyLevel,
+                           String questionType, String userAnswer, String errorPattern, LocalDateTime answeredAt) {
         this.user = user;
         this.subSubject = subSubject;
         this.questionId = questionId;
         this.isCorrect = isCorrect;
         this.difficultyLevel = difficultyLevel;
         this.questionType = questionType;
+        this.userAnswer = userAnswer;
+        this.errorPattern = errorPattern;
         this.answeredAt = answeredAt;
     }
 
+
+    public String getUserAnswer() {
+        return userAnswer;
+    }
+
+    public void setUserAnswer(String userAnswer) {
+        this.userAnswer = userAnswer;
+    }
+
+    public String getErrorPattern() {
+        return errorPattern;
+    }
+
+    public void setErrorPattern(String errorPattern) {
+        this.errorPattern = errorPattern;
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

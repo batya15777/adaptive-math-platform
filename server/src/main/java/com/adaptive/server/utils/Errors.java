@@ -20,6 +20,7 @@ public enum Errors {
     SESSION_TOKEN_INVALID("Invalid session token. Please log in again."),
     SESSION_TOKEN_EXPIRED("Session has expired. Please log in again."),
     ACCESS_DENIED_USER_MISMATCH("Access denied: token does not match the provided user ID."),
+    ACCESS_DENIED_ADMIN_REQUIRED("Access denied: Admin privileges required."),
     SUB_SUBJECT_NOT_FOUND("Sub-subject not found.");
 
 
