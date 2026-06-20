@@ -1,8 +1,10 @@
 package com.adaptive.server.service;
 
 import com.adaptive.server.DTOs.ConversationMessage;
+import com.adaptive.server.DTOs.TutorChatHistoryMessage;
 import com.adaptive.server.DTOs.TutorChatRequest;
 import com.adaptive.server.DTOs.TutorChatResponse;
+import com.adaptive.server.DTOs.TutorConversationSummary;
 import com.adaptive.server.DTOs.TutorMicroserviceRequest;
 import com.adaptive.server.DTOs.TutorMicroserviceResponse;
 import com.adaptive.server.DTOs.TutorQuestionContext;
@@ -85,6 +87,29 @@ public class TutorChatService {
         ));
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TutorChatHistoryMessage> getHistory(User user, Long questionId) {
+        List<TutorChatMessage> rows =
+                tutorChatMessageRepository.findByUserIdAndQuestionIdOrderByCreatedAtAsc(user.getId(), questionId);
+
+        List<TutorChatHistoryMessage> history = new ArrayList<>();
+        for (TutorChatMessage message : rows) {
+            history.add(new TutorChatHistoryMessage(
+                    message.getStudentMessage(),
+                    message.getTutorResponse(),
+                    message.getGuidanceLevel(),
+                    message.getAction(),
+                    message.getCreatedAt()
+            ));
+        }
+        return history;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TutorConversationSummary> getConversations(User user) {
+        return tutorChatMessageRepository.findConversationSummaries(user.getId());
     }
 
     private void validateRequest(TutorChatRequest request) {
