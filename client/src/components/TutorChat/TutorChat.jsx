@@ -1,20 +1,147 @@
-import { useState } from "react";
-import { askTutor } from "../../service/tutorChatApi.js";
+import { useState, useEffect, useCallback } from "react";
+import {
+    askTutor,
+    getTutorMessages,
+    getTutorConversations,
+} from "../../service/tutorChatApi.js";
+import {
+    DEFAULT_LANGUAGE,
+    getTutorChatStrings,
+    isRtlLanguage,
+    localeFor,
+} from "./tutorChatStrings.js";
 import "./TutorChat.css";
+
+// A saved exchange row -> two display turns (student + tutor).
+const expandRows = (rows) =>
+    (rows || []).flatMap((row) => [
+        { role: "student", content: row.studentMessage },
+        {
+            role: "tutor",
+            content: row.tutorResponse,
+            guidanceLevel: row.guidanceLevel,
+            action: row.action,
+        },
+    ]);
+
+const formatDate = (value, locale) => {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? ""
+        : date.toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
+};
+
+// Math expressions like "8 - 19 - 16 - 9" or negatives like "-5 - 3" get reordered
+// inside RTL (Hebrew) text because the signs are bidi-neutral. Wrap each math run in
+// an LTR-isolated span so it always reads left-to-right, while the surrounding text
+// keeps its own direction. Matches multi-operand expressions (with an optional
+// leading sign) and standalone negative numbers. The lookbehind skips a
+// Hebrew-prefixed hyphen (e.g. "ל-10", "ב-5"), so those connectors are NOT mistaken
+// for a math minus.
+const renderContent = (text) => {
+    const regex = /(?<![א-ת])-?\d+(?:\s*[-+*/×÷=]\s*-?\d+)+|(?<![א-ת])-\d+/g;
+    const parts = [];
+    let lastIndex = 0;
+    let key = 0;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            parts.push(text.slice(lastIndex, match.index));
+        }
+        parts.push(
+            <span key={`expr-${key++}`} className="tutor-chat__expr" dir="ltr">
+                {match[0]}
+            </span>,
+        );
+        lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) {
+        parts.push(text.slice(lastIndex));
+    }
+    return parts;
+};
 
 function TutorChat({
     questionId,
-    title = "AI Tutor",
-    placeholder = "כתבי שאלה על התרגיל...",
+    language = DEFAULT_LANGUAGE,
+    title,
+    placeholder,
     className = "",
     onResponse,
 }) {
+    const strings = getTutorChatStrings(language);
+    const dir = isRtlLanguage(language) ? "rtl" : "ltr";
+    const locale = localeFor(language);
+    const headerTitle = title ?? strings.title;
+    const inputPlaceholder = placeholder ?? strings.placeholder;
+
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
 
+    // mode: "chat" (live) | "list" (history list) | "viewing" (a past conversation, read-only)
+    const [mode, setMode] = useState("chat");
+    const [conversations, setConversations] = useState([]);
+    const [conversationsLoading, setConversationsLoading] = useState(false);
+    const [viewing, setViewing] = useState(null);
+
     const canSend = message.trim().length > 0 && questionId && !isLoading;
+
+    // Restore this question's saved conversation on mount (and whenever the question changes).
+    useEffect(() => {
+        if (!questionId) return undefined;
+        let active = true;
+        getTutorMessages(questionId)
+            .then((response) => {
+                if (active) setMessages(expandRows(response.data));
+            })
+            .catch(() => {
+                // No saved history yet, or it could not load — start with an empty chat.
+                if (active) setMessages([]);
+            });
+        return () => {
+            active = false;
+        };
+    }, [questionId]);
+
+    const openHistory = useCallback(() => {
+        setMode("list");
+        setConversationsLoading(true);
+        getTutorConversations()
+            .then((response) => setConversations(response.data || []))
+            .catch(() => setConversations([]))
+            .finally(() => setConversationsLoading(false));
+    }, []);
+
+    const openConversation = useCallback((conversation) => {
+        setViewing({
+            questionId: conversation.questionId,
+            expression: conversation.expression,
+            messages: [],
+            loading: true,
+            error: "",
+        });
+        setMode("viewing");
+        getTutorMessages(conversation.questionId)
+            .then((response) =>
+                setViewing((current) =>
+                    current ? { ...current, messages: expandRows(response.data), loading: false } : current,
+                ),
+            )
+            .catch(() =>
+                setViewing((current) =>
+                    current ? { ...current, loading: false, error: strings.errLoadConversation } : current,
+                ),
+            );
+    }, [strings.errLoadConversation]);
+
+    const handleHeaderButton = () => {
+        if (mode === "chat") openHistory();
+        else if (mode === "viewing") setMode("list");
+        else setMode("chat");
+    };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -65,72 +192,122 @@ function TutorChat({
             });
 
             if (status === 404) {
-                setError("לא נמצאה שאלה במערכת עבור הצ׳אט. צריך להוסיף שאלה לטבלה או להעביר מזהה שאלה קיים.");
+                setError(strings.errNotFound);
             } else if (status === 401 || status === 403) {
-                setError("צריך להתחבר מחדש כדי להשתמש בצ׳אט.");
+                setError(strings.errAuth);
             } else if (status === 400) {
-                setError("חסר מזהה שאלה או טקסט שאלה לצ׳אט.");
+                setError(strings.errBadRequest);
             } else {
-                setError(`לא הצלחתי לקבל תשובה כרגע${backendMessage ? `: ${backendMessage}` : ""}`);
+                setError(`${strings.errGeneric}${backendMessage ? `: ${backendMessage}` : ""}`);
             }
         } finally {
             setIsLoading(false);
         }
     };
 
+    const renderMessages = (list, emptyText) =>
+        list.length === 0 ? (
+            <div className="tutor-chat__empty">
+                <p>{emptyText}</p>
+            </div>
+        ) : (
+            list.map((chatMessage, index) => (
+                <article
+                    className={`tutor-chat__message tutor-chat__message--${chatMessage.role}`}
+                    key={`${chatMessage.role}-${index}`}
+                >
+                    <span className="tutor-chat__sender">
+                        {chatMessage.role === "student" ? strings.senderStudent : strings.senderTutor}
+                    </span>
+                    <p>{renderContent(chatMessage.content)}</p>
+                </article>
+            ))
+        );
+
     return (
-        <section className={`tutor-chat ${className}`} dir="rtl" aria-label="AI tutor chat">
+        <section className={`tutor-chat ${className}`} dir={dir} aria-label="AI tutor chat">
             <header className="tutor-chat__header">
                 <div>
-                    <p className="tutor-chat__eyebrow">עזרה בתרגיל</p>
-                    <h2>{title}</h2>
+                    <p className="tutor-chat__eyebrow">{strings.eyebrow}</p>
+                    <h2>{headerTitle}</h2>
                 </div>
+                <button type="button" className="tutor-chat__history-btn" onClick={handleHeaderButton}>
+                    {mode === "chat" ? strings.history : strings.back}
+                </button>
             </header>
 
-            <div className="tutor-chat__messages">
-                {messages.length === 0 ? (
-                    <div className="tutor-chat__empty">
-                        <p>נתקעת? שאלי אותי שאלה על התרגיל ואכוון אותך צעד אחרי צעד.</p>
+            {mode === "list" && (
+                <div className="tutor-chat__messages">
+                    {conversationsLoading ? (
+                        <p className="tutor-chat__loading-text">{strings.loadingConversations}</p>
+                    ) : conversations.length === 0 ? (
+                        <div className="tutor-chat__empty">
+                            <p>{strings.noConversations}</p>
+                        </div>
+                    ) : (
+                        <ul className="tutor-chat__conv-list">
+                            {conversations.map((conversation) => (
+                                <li key={conversation.questionId}>
+                                    <button
+                                        type="button"
+                                        className="tutor-chat__conv-item"
+                                        onClick={() => openConversation(conversation)}
+                                    >
+                                        <span className="tutor-chat__conv-expr" dir="ltr">{conversation.expression}</span>
+                                        <span className="tutor-chat__conv-meta">
+                                            {conversation.messageCount} {strings.messages} · {formatDate(conversation.lastMessageAt, locale)}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
+
+            {mode === "viewing" && viewing && (
+                <div className="tutor-chat__messages">
+                    <div className="tutor-chat__viewing-banner">{strings.viewingPrefix}{viewing.expression}</div>
+                    {viewing.loading ? (
+                        <p className="tutor-chat__loading-text">{strings.loading}</p>
+                    ) : viewing.error ? (
+                        <p className="tutor-chat__error">{viewing.error}</p>
+                    ) : (
+                        renderMessages(viewing.messages, strings.emptyConversation)
+                    )}
+                </div>
+            )}
+
+            {mode === "chat" && (
+                <>
+                    <div className="tutor-chat__messages">
+                        {renderMessages(messages, strings.emptyChat)}
+
+                        {isLoading && (
+                            <div className="tutor-chat__message tutor-chat__message--tutor">
+                                <span className="tutor-chat__sender">{strings.senderTutor}</span>
+                                <p>{strings.thinking}</p>
+                            </div>
+                        )}
                     </div>
-                ) : (
-                    messages.map((chatMessage, index) => (
-                        <article
-                            className={`tutor-chat__message tutor-chat__message--${chatMessage.role}`}
-                            key={`${chatMessage.role}-${index}`}
-                        >
-                            <span className="tutor-chat__sender">
-                                {chatMessage.role === "student" ? "אני" : "המדריך"}
-                            </span>
-                            <p>{chatMessage.content}</p>
-                        </article>
-                    ))
-                )}
 
-                {isLoading && (
-                    <div className="tutor-chat__message tutor-chat__message--tutor">
-                        <span className="tutor-chat__sender">המדריך</span>
-                        <p>רגע, אני חושב איך להדריך אותך...</p>
-                    </div>
-                )}
-            </div>
+                    {error && <p className="tutor-chat__error">{error}</p>}
 
-            {error && <p className="tutor-chat__error">{error}</p>}
+                    <form className="tutor-chat__form" onSubmit={handleSubmit}>
+                        <textarea
+                            value={message}
+                            placeholder={inputPlaceholder}
+                            onChange={(event) => setMessage(event.target.value)}
+                            disabled={!questionId || isLoading}
+                            rows={3}
+                        />
+                        <button type="submit" disabled={!canSend}>
+                            {strings.send}
+                        </button>
+                    </form>
 
-            <form className="tutor-chat__form" onSubmit={handleSubmit}>
-                <textarea
-                    value={message}
-                    placeholder={placeholder}
-                    onChange={(event) => setMessage(event.target.value)}
-                    disabled={!questionId || isLoading}
-                    rows={3}
-                />
-                <button type="submit" disabled={!canSend}>
-                    שלח
-                </button>
-            </form>
-
-            {!questionId && (
-                <p className="tutor-chat__hint">כדי להפעיל את הצ׳אט צריך להעביר לו מזהה שאלה.</p>
+                    {!questionId && <p className="tutor-chat__hint">{strings.noQuestion}</p>}
+                </>
             )}
         </section>
     );

@@ -8,6 +8,7 @@ const Lottie = typeof _LottieImport === 'function' ? _LottieImport : _LottieImpo
 import levelUpSound from '../../assets/sound/level-up.mp3';
 import trophyAnimation from '../../assets/bonusStars/Trophy.json';
 import './QuestionGame.css';
+import TutorChat from '../../components/TutorChat/TutorChat.jsx';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useProfile } from '../../contexts/useProfile.js';
 import {
@@ -425,6 +426,15 @@ export const QuestionGame = () => {
                     </p>
                 )}
             </div>
+
+            {/* AI tutor for the current exercise. Keyed by questionId so the chat
+                resets when the student moves to the next question. Hidden for bonus
+                questions, which are a separate high-stakes mode. */}
+            {question && !isBonus && (
+                <div style={{ marginTop: '24px' }}>
+                    <TutorChat key={question.questionId} questionId={question.questionId} language={language} />
+                </div>
+            )}
         </div>
         </>
     );
