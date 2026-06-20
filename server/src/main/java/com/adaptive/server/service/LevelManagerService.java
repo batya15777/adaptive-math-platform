@@ -11,6 +11,10 @@ import com.adaptive.server.responses.BonusQuestionResponse;
 import com.adaptive.server.responses.ProgressStatusResponse;
 import com.adaptive.server.responses.QuestionResponse;
 import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
+import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -47,6 +51,11 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
     static final int MAX_BONUS_GEN_ATTEMPTS = 5;//המערכת תנסה להגריל שאלה חדשה מקסימום 5 פעמים זה מונע לולאה אינסופית
 
+    private static final Logger log = LoggerFactory.getLogger(LevelManagerService.class);
+    private static final int AI_MIN_DIFFICULTY = 1;
+    private static final int AI_MAX_DIFFICULTY = 10;
+    private static final int AI_DEFAULT_AGE = 10;
+
     private final QuestionRepository questionRepository;
     private final QuestionArchiveRepository archiveRepository;
     private final ExerciseAttemptRepository attemptRepository;
@@ -54,11 +63,22 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private final UserRepository userRepository;
     private final SubSubjectRepository subSubjectRepository;
     private final CalculationGenerator calculationGenerator;
+    private final ClusterContextService clusterContextService;
+    private final AiQuestionService aiQuestionService;
+
+    // When true, the live next-question flow tries the AI generator first (with a safe
+    // fallback to the code generator). Off by default so behaviour is unchanged until enabled.
+    @Value("${questions.ai.enabled:false}")
+    private boolean aiQuestionsEnabled;
+
+    @Value("${questions.ai.theme:space}")
+    private String aiQuestionTheme;
 
     public LevelManagerService(ExerciseAttemptRepository attemptRepository, StudentProgressRepository progressRepository,
                                UserRepository userRepository, SubSubjectRepository subSubjectRepository,
                                CalculationGenerator calculationGenerator, QuestionRepository questionRepository,
-                               QuestionArchiveRepository archiveRepository) {
+                               QuestionArchiveRepository archiveRepository,
+                               ClusterContextService clusterContextService, AiQuestionService aiQuestionService) {
         this.attemptRepository = attemptRepository;
         this.progressRepository = progressRepository;
         this.userRepository = userRepository;
@@ -66,6 +86,8 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         this.calculationGenerator = calculationGenerator;
         this.questionRepository = questionRepository;
         this.archiveRepository = archiveRepository;
+        this.clusterContextService = clusterContextService;
+        this.aiQuestionService = aiQuestionService;
     }
 
 
@@ -262,12 +284,50 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         }
         boolean mc = difficultyLevel <= MC_MAX_DIFFICULTY;
 
-        Question question = calculationGenerator.createQuestion(subSubject, subSubjectLevel,
-                difficultyLevel, language, mc);
+        // Cluster-aware step: fetch the student's ML cohort BEFORE generating, so both
+        // generators can adapt the next question to the cohort's weakness / mastery.
+        ClusterContext cluster = clusterContextService.forUser(userId);
+
+        Question question = generateAdaptiveQuestion(user, subSubject, subSubjectLevel,
+                difficultyLevel, language, mc, cluster);
         question = questionRepository.save(question);
         // Archive so this question counts toward the student's history
         archiveQuestion(user, subSubject, question);
         return buildQuestionResponse(question, subSubjectId, null);
+    }
+
+    /**
+     * Picks the generation pipeline and feeds it the cluster context.
+     * When AI questions are enabled it tries the AI generator first (passing the full
+     * {@link ClusterContext}); on ANY failure (service down, no API key, bad output) it
+     * falls back to the code-based generator so the student always gets a question.
+     */
+    private Question generateAdaptiveQuestion(User user, SubSubject subSubject, int subSubjectLevel,
+                                              int difficultyLevel, String language, boolean mc,
+                                              ClusterContext cluster) {
+        if (aiQuestionsEnabled && aiQuestionService != null) {
+            try {
+                int aiDifficulty = clampAiDifficulty(subSubjectLevel + cluster.getDifficultyBias());
+                return aiQuestionService.generateQuestion(subSubject, aiQuestionTheme, aiDifficulty,
+                        safeName(user), safeAge(user), language, mc, cluster);
+            } catch (RuntimeException e) {
+                log.warn("AI generation failed ({}); falling back to the code-based generator.", e.getMessage());
+            }
+        }
+        return calculationGenerator.createQuestion(subSubject, subSubjectLevel, difficultyLevel, language, mc, cluster);
+    }
+
+    private int clampAiDifficulty(int difficulty) {
+        return Math.max(AI_MIN_DIFFICULTY, Math.min(difficulty, AI_MAX_DIFFICULTY));
+    }
+
+    private String safeName(User user) {
+        return (user.getFullName() == null || user.getFullName().isBlank()) ? "Student" : user.getFullName();
+    }
+
+    private int safeAge(User user) {
+        int age = user.getAge() == null ? AI_DEFAULT_AGE : user.getAge();
+        return Math.max(4, Math.min(age, 18)); // Python UserInfo validates age ∈ [4, 18]
     }
 
 

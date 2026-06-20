@@ -29,28 +29,34 @@ public class SessionValidationService {
                     Errors.ACCESS_DENIED_USER_MISMATCH.getMessage()
             );
         }
+        return sessionToken;
+    }
 
+    public SessionToken validateAdminOnly(String tokenCookie) {
+        SessionToken sessionToken = validateAndGetUser(tokenCookie);
+        if (!"ADMIN".equals(sessionToken.getUser().getRole())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    Errors.ACCESS_DENIED_ADMIN_REQUIRED.getMessage()
+            );
+        }
         return sessionToken;
     }
 
 
     public SessionToken validateAndGetUser(String tokenCookie) {
-
         if (tokenCookie == null || tokenCookie.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
                     Errors.SESSION_TOKEN_MISSING.getMessage()            );
         }
-
         Optional<SessionToken> optionalToken = sessionTokenRepository.findByToken(tokenCookie);
         if (!optionalToken.isPresent()) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
                     Errors.SESSION_TOKEN_INVALID.getMessage()            );
         }
-
         SessionToken sessionToken = optionalToken.get();
-
         if (Instant.now().isAfter(sessionToken.getExpiryDate())) {
             sessionTokenRepository.delete(sessionToken);
             throw new ResponseStatusException(

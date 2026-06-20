@@ -14,6 +14,7 @@ import {
     getStatus, getNextQuestion, submitAnswer, revealSolution,
     getBonusQuestion, submitBonusAnswer,
 } from '../../service/progressApi.js';
+import { getMyCluster } from '../../service/dashboardApi.js';
 
 const MAX_ATTEMPTS = 3;
 
@@ -36,6 +37,7 @@ export const QuestionGame = () => {
 
     const [question, setQuestion] = useState(null);
     const [isBonus,  setIsBonus]  = useState(false);
+    const [cluster,  setCluster]  = useState(null); // ML cohort, for the "adapted for you" badge
 
     const [answer,        setAnswer]        = useState('');
     const [attemptNumber, setAttemptNumber] = useState(1);
@@ -136,6 +138,15 @@ export const QuestionGame = () => {
         })();
         return () => { active = false; };
     }, [subSubjectId, applyProgress, loadRegularQuestion]);
+
+    // Fetch the student's ML cohort once, to show an "adapted for you" badge.
+    useEffect(() => {
+        let active = true;
+        getMyCluster()
+            .then(res => { if (active && res.data?.assigned) setCluster(res.data); })
+            .catch(() => {});
+        return () => { active = false; };
+    }, []);
 
     const options = question ? parseOptions(question.options) : [];
     const steps   = question ? parseSolution(question.solution) : [];
@@ -300,6 +311,11 @@ export const QuestionGame = () => {
                 </button>
                 <h2 style={{ margin: 0, color: '#333', textTransform: 'capitalize' }}>{subSubjectName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {cluster && (
+                        <span style={adaptedBadge} title={`Tailored to your learning group: ${cluster.label || ''}`}>
+                            🎯 Adapted for you
+                        </span>
+                    )}
                     {progress.currentStreak >= 10 && (
                         <span style={streakBadge}>🔥 {progress.currentStreak} Streak!</span>
                     )}
@@ -422,6 +438,11 @@ const page = { padding: '20px', maxWidth: '640px', margin: '0 auto', fontFamily:
 const topBar = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px' };
 
 const starBadge   = { fontSize: '15px', fontWeight: 'bold', color: '#f0ad4e' };
+const adaptedBadge = {
+    fontSize: '12px', fontWeight: 'bold', color: '#fff',
+    backgroundColor: '#007bff', borderRadius: '20px',
+    padding: '4px 10px', whiteSpace: 'nowrap',
+};
 const streakBadge = {
     fontSize: '14px', fontWeight: 'bold', color: '#fff',
     backgroundColor: '#fd7e14', borderRadius: '20px',

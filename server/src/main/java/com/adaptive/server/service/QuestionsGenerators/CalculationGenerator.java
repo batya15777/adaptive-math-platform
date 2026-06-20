@@ -39,6 +39,27 @@ public class CalculationGenerator extends QuestionGenerator {
     }
 
     /**
+     * Cluster-aware entry point. Applies the cohort's difficulty bias (from the ML
+     * clustering) to the requested difficulty, then generates as usual. This is how
+     * the code-based generator becomes "cluster-aware": a struggling cohort gets
+     * easier questions, a strong cohort gets harder ones — clamped to the seeded band.
+     */
+    public Question createQuestion(SubSubject subSubject, int subSubjectLevel, int difficultyLevel,
+                                   String language, boolean multipleChoice, ClusterContext cluster) {
+        int adjustedDifficulty = applyClusterBias(difficultyLevel, cluster);
+        return createQuestion(subSubject, subSubjectLevel, adjustedDifficulty, language, multipleChoice);
+    }
+
+    private int applyClusterBias(int difficultyLevel, ClusterContext cluster) {
+        if (cluster == null || !cluster.isAssigned() || cluster.getDifficultyBias() == 0) {
+            return difficultyLevel;
+        }
+        int adjusted = difficultyLevel + cluster.getDifficultyBias();
+        // Stay within the seeded template band so a template is always found.
+        return Math.max(1, Math.min(adjusted, MAX_TEMPLATE_LEVEL));
+    }
+
+    /**
      * Generates a single {@link Question} by:
      * <ol>
      *   <li>Selecting a template from the DB using the <strong>3-parameter query</strong>

@@ -8,11 +8,16 @@ import {Home} from "./pages/Home/Home.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { AuthContext } from "./context/AuthContextSetup.js";
 import { ProfileProvider } from "./contexts/ProfileContext.jsx";
-import { useContext } from "react";
+import { useContext, lazy, Suspense } from "react";
 import {ProfileSettings} from "./components/ProfileSettings/ProfileSettings.jsx";
 import { MathTraining } from "./pages/MathTraining/MathTraining.jsx";
 import { QuestionGame } from "./pages/QuestionGame/QuestionGame.jsx";
 import { LevelManagerPage } from "./pages/LevelManager/LevelManagerPage.jsx";
+// Lazy-loaded so the charts (recharts) + animations (framer-motion) only download
+// when a student actually opens the dashboard, keeping the main bundle lean.
+const StudentDashboard = lazy(() =>
+  import("./pages/Dashboard/StudentDashboard.jsx").then((m) => ({ default: m.StudentDashboard }))
+);
 
 // Waits for session restore before deciding — prevents redirect on refresh
 const ProtectedRoute = ({ element }) => {
@@ -48,6 +53,14 @@ function AppRoutes() {
         <Route path="/" element={<ProtectedRoute element={<DashboardLayout />} />}>
           <Route index element={<Navigate to="/home" replace />} />
           <Route path="home" element={<Home />} />
+          <Route
+            path="dashboard"
+            element={
+              <Suspense fallback={<div style={{ padding: 24, color: "#888" }}>Loading dashboard…</div>}>
+                <StudentDashboard />
+              </Suspense>
+            }
+          />
           <Route path="math-training" element={<MathTraining />} />
           <Route path="math-training/:subSubjectId/play" element={<QuestionGame />} />
           <Route path="profile-settings" element={<ProfileSettings />} />

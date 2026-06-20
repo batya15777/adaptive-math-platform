@@ -16,6 +16,7 @@ import com.adaptive.server.responses.BonusQuestionResponse;
 import com.adaptive.server.responses.ProgressStatusResponse;
 import com.adaptive.server.responses.QuestionResponse;
 import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
+import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,6 +40,8 @@ class LevelManagerServiceTest {
     private CalculationGenerator       calculationGenerator;
     private QuestionRepository         questionRepository;
     private QuestionArchiveRepository  archiveRepository;   // NEW
+    private ClusterContextService      clusterContextService; // NEW (cluster-aware generation)
+    private AiQuestionService          aiQuestionService;     // NEW (cluster-aware generation)
 
     private LevelManagerService service;
 
@@ -57,12 +60,16 @@ class LevelManagerServiceTest {
         calculationGenerator = mock(CalculationGenerator.class);
         questionRepository   = mock(QuestionRepository.class);
         archiveRepository    = mock(QuestionArchiveRepository.class);
+        clusterContextService = mock(ClusterContextService.class);
+        aiQuestionService     = mock(AiQuestionService.class);
+        // Default: students have no cluster, so generation behaves exactly as before.
+        when(clusterContextService.forUser(any())).thenReturn(ClusterContext.neutral());
 
         service = new LevelManagerService(
                 attemptRepository, progressRepository,
                 userRepository, subSubjectRepository,
                 calculationGenerator, questionRepository,
-                archiveRepository);                     // NEW arg
+                archiveRepository, clusterContextService, aiQuestionService); // NEW args
 
         testUser = mock(User.class);
         when(testUser.getId()).thenReturn(USER_ID);
@@ -98,9 +105,10 @@ class LevelManagerServiceTest {
     @DisplayName("evaluateSpaceshipStatus()")
     class EvaluateSpaceshipStatus {
 
-        @Test @DisplayName("Returns MOVING when total < LEVEL_UP_WINDOW")
-        void fewerThan30Attempts_isMoving() {
-            assertEquals(SpaceshipStatus.MOVING, service.evaluateSpaceshipStatus(29, 29, 10));
+        @Test @DisplayName("Returns MOVING when total < LEVEL_UP_WINDOW (16)")
+        void belowLevelUpWindow_isMoving() {
+            // 15 < 16 → not boosting; 15 ≥ 10 but 10 correct ≥ 6 → not stopped → MOVING
+            assertEquals(SpaceshipStatus.MOVING, service.evaluateSpaceshipStatus(15, 15, 10));
         }
 
         @Test @DisplayName("Returns BOOSTING when ≥30 attempts and ≥24 correct in last 30")
@@ -113,9 +121,10 @@ class LevelManagerServiceTest {
             assertEquals(SpaceshipStatus.BOOSTING, service.evaluateSpaceshipStatus(30, 24, 10));
         }
 
-        @Test @DisplayName("Returns MOVING when 30 attempts but only 23 correct")
+        @Test @DisplayName("Returns MOVING when window reached but correct < LEVEL_UP_THRESHOLD (12)")
         void justBelowBoostThreshold_isMoving() {
-            assertEquals(SpaceshipStatus.MOVING, service.evaluateSpaceshipStatus(30, 23, 8));
+            // 16 ≥ 16 but 11 correct < 12 → not boosting; 8 correct ≥ 6 → not stopped → MOVING
+            assertEquals(SpaceshipStatus.MOVING, service.evaluateSpaceshipStatus(16, 11, 8));
         }
 
         @Test @DisplayName("Returns STOPPED when ≥10 attempts and <6 correct in last 10")
@@ -263,51 +272,65 @@ class LevelManagerServiceTest {
     @DisplayName("submitAnswer()")
     class SubmitAnswer {
 
-        @Test @DisplayName("New student gets progress created at level 1 and returns MOVING status")
+        @Test @DisplayName("New student gets progress at level 1 and a correct answer is SOLVED")
         void newStudent_createsProgressAtLevelOne() {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(Optional.empty());
             when(progressRepository.save(any(StudentProgress.class))).thenAnswer(inv -> inv.getArgument(0));
             when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(1L);
-            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(List.of(attempt("SIMPLE_ADDITION", true)));
 
             ProgressStatusResponse r = service.submitAnswer(USER_ID, submitRequest(true));
             assertEquals(1, r.getCurrentLevel());
-            assertEquals(SpaceshipStatus.MOVING.name(), r.getSpaceshipStatus());
+            assertTrue(r.isAnswerCorrect());
+            assertEquals("SOLVED", r.getConcluded());
             assertTrue(r.isSuccess());
         }
 
-        @Test @DisplayName("30 correct answers triggers BOOSTING + bonusQuestionTriggered=true")
-        void thirtyAnswers_highAccuracy_reportsLevelUp() {
+        @Test @DisplayName("Reaching the level-up threshold levels up and triggers a bonus")
+        void reachingThreshold_levelsUpAndTriggersBonus() {
             StudentProgress p = progressAt(2);
+            p.setCurrentProgress(LevelManagerService.LEVEL_UP_THRESHOLD - 1); // one solve from leveling up
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(30L);
-            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(nCorrect(30, "SIMPLE_ADDITION"));
+            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(20L);
 
             ProgressStatusResponse r = service.submitAnswer(USER_ID, submitRequest(true));
             assertTrue(r.isLevelUp());
-            assertTrue(r.isBonusQuestionTriggered(), "bonus must be triggered on BOOSTING");
-            assertEquals(SpaceshipStatus.BOOSTING.name(), r.getSpaceshipStatus());
+            assertTrue(r.isBonusQuestionTriggered(), "bonus must trigger on level up");
             assertEquals(3, r.getCurrentLevel());
+            assertEquals("SOLVED", r.getConcluded());
         }
 
-        @Test @DisplayName("10 wrong answers returns STOPPED + inIntermediateLevel=true")
-        void tenAnswers_lowAccuracy_reportsIntermediateLevel() {
-            StudentProgress p = progressAt(4);
+        @Test @DisplayName("Third wrong attempt concludes the question as FAILED")
+        void thirdWrongAttempt_concludesFailed() {
+            StudentProgress p = progressAt(3);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(10L);
-            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(nWrong(10, "CARRYING_ADDITION"));
+            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(5L);
 
-            ProgressStatusResponse r = service.submitAnswer(USER_ID, submitRequest(false));
-            assertTrue(r.isInIntermediateLevel());
-            assertFalse(r.isBonusQuestionTriggered(), "bonus must NOT trigger on STOPPED");
-            assertEquals(SpaceshipStatus.STOPPED.name(), r.getSpaceshipStatus());
-            assertEquals(3, r.getCurrentLevel());
+            SubmitAnswerRequest req = submitRequest(false);
+            req.setAttemptNumber(LevelManagerService.MAX_ATTEMPTS_PER_QUESTION); // 3rd and final try
+            ProgressStatusResponse r = service.submitAnswer(USER_ID, req);
+
+            assertFalse(r.isAnswerCorrect());
+            assertEquals("FAILED", r.getConcluded());
+            assertFalse(r.isBonusQuestionTriggered());
+        }
+
+        @Test @DisplayName("Three FAILED questions in a row drop the student into the sub-level")
+        void threeFailsInARow_entersSubLevel() {
+            StudentProgress p = progressAt(3);
+            p.setConsecutiveFails(LevelManagerService.SUB_LEVEL_ENTER_FAILS - 1); // already failed twice
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(9L);
+
+            SubmitAnswerRequest req = submitRequest(false);
+            req.setAttemptNumber(LevelManagerService.MAX_ATTEMPTS_PER_QUESTION);
+            ProgressStatusResponse r = service.submitAnswer(USER_ID, req);
+
+            assertEquals("FAILED", r.getConcluded());
+            assertTrue(r.isInSubLevel(), "the third consecutive fail enters the sub-level");
         }
 
         @Test @DisplayName("STOPPED at level 1 keeps level at 1 (floor guard)")
@@ -322,18 +345,19 @@ class LevelManagerServiceTest {
             assertEquals(1, service.submitAnswer(USER_ID, submitRequest(false)).getCurrentLevel());
         }
 
-        @Test @DisplayName("Weakness is included in response when error rate is above threshold")
-        void weakness_populatedInResponse_whenHighErrorRate() {
+        @Test @DisplayName("A wrong answer with attempts remaining is not concluded")
+        void wrongAnswerWithAttemptsLeft_notConcluded() {
             StudentProgress p = progressAt(3);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(10L);
-            List<ExerciseAttempt> attempts = new ArrayList<>(nWrong(4, "CARRYING_ADDITION"));
-            attempts.addAll(nCorrect(6, "SIMPLE_ADDITION"));
-            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(attempts);
+            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(2L);
 
-            assertEquals("CARRYING_ADDITION", service.submitAnswer(USER_ID, submitRequest(false)).getWeaknessType());
+            SubmitAnswerRequest req = submitRequest(false);
+            req.setAttemptNumber(1); // first try — retries remain
+            ProgressStatusResponse r = service.submitAnswer(USER_ID, req);
+
+            assertFalse(r.isAnswerCorrect());
+            assertNull(r.getConcluded(), "must not be concluded while retries remain");
         }
 
         @Test @DisplayName("Throws 404 when user is not found")
@@ -404,24 +428,26 @@ class LevelManagerServiceTest {
     @DisplayName("getStatus()")
     class GetStatus {
 
-        @Test @DisplayName("Returns default status (level 1, MOVING) when no progress record exists")
+        @Test @DisplayName("Returns a default snapshot (level 1) when no progress record exists")
         void noProgress_returnsDefault() {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
 
             ProgressStatusResponse r = service.getStatus(USER_ID, SUB_SUBJECT_ID);
             assertEquals(1, r.getCurrentLevel());
-            assertEquals(SpaceshipStatus.MOVING.name(), r.getSpaceshipStatus());
             assertEquals(0, r.getTotalAttempts());
+            assertFalse(r.isInSubLevel());
+            assertEquals(LevelManagerService.LEVEL_UP_THRESHOLD, r.getLevelProgressTarget());
             assertTrue(r.isSuccess());
         }
 
-        @Test @DisplayName("Returns default status when progress record exists but is inactive")
-        void inactiveProgress_returnsDefault() {
+        @Test @DisplayName("Returns the stored level even if the progress record is inactive")
+        void inactiveProgress_returnsStoredLevel() {
             StudentProgress inactive = progressAt(5);
             inactive.setActive(false);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(inactive));
+            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(0L);
 
-            assertEquals(1, service.getStatus(USER_ID, SUB_SUBJECT_ID).getCurrentLevel());
+            assertEquals(5, service.getStatus(USER_ID, SUB_SUBJECT_ID).getCurrentLevel());
         }
 
         @Test @DisplayName("Returns correct currentLevel when active progress record exists")
@@ -444,20 +470,21 @@ class LevelManagerServiceTest {
     @DisplayName("getNextQuestion()")
     class GetNextQuestion {
 
-        @Test @DisplayName("Calls generator with correct 5-arg signature (SubSubject, ssl, diff, lang, mc)")
+        @Test @DisplayName("Calls cluster-aware generator with (SubSubject, ssl, diff, lang, mc, cluster)")
         void callsGeneratorWithCorrectSignature() {
             StudentProgress p = progressAt(5);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
                     .thenReturn(Collections.emptyList());
-            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
                     .thenReturn(stubQuestion(5));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(5));
 
             service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
 
+            // subSubjectLevel = 5 (raw), difficulty capped to the band (3).
             verify(calculationGenerator).createQuestion(
-                    any(SubSubject.class), eq(5), eq(5), eq("he"), eq(false));
+                    any(SubSubject.class), eq(5), eq(3), eq("he"), eq(false), any(ClusterContext.class));
         }
 
         @Test @DisplayName("New student gets a question at level 1")
@@ -466,13 +493,13 @@ class LevelManagerServiceTest {
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
                     .thenReturn(Collections.emptyList());
-            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
                     .thenReturn(stubQuestion(1));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(1));
 
             QuestionResponse r = service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
 
-            verify(calculationGenerator).createQuestion(any(), eq(1), eq(1), anyString(), anyBoolean());
+            verify(calculationGenerator).createQuestion(any(), eq(1), eq(1), anyString(), anyBoolean(), any(ClusterContext.class));
             assertEquals(1, r.getDifficultyLevel());
         }
 
@@ -482,7 +509,7 @@ class LevelManagerServiceTest {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
                     .thenReturn(Collections.emptyList());
-            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
                     .thenReturn(stubQuestion(3));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(3));
 
@@ -497,7 +524,7 @@ class LevelManagerServiceTest {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
                     .thenReturn(Collections.emptyList());
-            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
                     .thenReturn(stubQuestion(4));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(4));
 
@@ -521,7 +548,7 @@ class LevelManagerServiceTest {
             Question multiStep = new Question(testSubSubject, "5 + 7 * 3", "26",
                     List.of("7 * 3 = 21", "5 + 21 = 26"), null, "he", 2, QuestionStatus.CURRENT);
             multiStep.setId(77L);
-            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
                     .thenReturn(multiStep);
             when(questionRepository.save(any())).thenReturn(multiStep);
 
@@ -529,18 +556,19 @@ class LevelManagerServiceTest {
             assertEquals("7 * 3 = 21\n5 + 21 = 26", r.getSolution());
         }
 
-        @Test @DisplayName("Multiple-choice flag is forwarded to the generator")
+        @Test @DisplayName("Multiple-choice flag is derived and forwarded to the generator")
         void multipleChoiceFlag_forwardedToGenerator() {
             StudentProgress p = progressAt(2);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
             when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
                     .thenReturn(Collections.emptyList());
-            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), eq(true)))
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), eq(true), any(ClusterContext.class)))
                     .thenReturn(stubQuestion(2));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(2));
 
+            // difficulty 2 ≤ MC band, so the generator is asked for multiple-choice.
             service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "en", true);
-            verify(calculationGenerator).createQuestion(any(), anyInt(), anyInt(), eq("en"), eq(true));
+            verify(calculationGenerator).createQuestion(any(), anyInt(), anyInt(), eq("en"), eq(true), any(ClusterContext.class));
         }
     }
 
@@ -674,6 +702,7 @@ class LevelManagerServiceTest {
             when(spyUser.getTotalStars()).thenReturn(100);
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(spyUser));
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             service.submitBonusAnswer(USER_ID, SUB_SUBJECT_ID, true);
             verify(spyUser).setTotalStars(150);
@@ -683,6 +712,7 @@ class LevelManagerServiceTest {
         @Test @DisplayName("Incorrect bonus answer awards zero stars and does NOT save the user")
         void incorrectBonusAnswer_awardsNoStars() {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             service.submitBonusAnswer(USER_ID, SUB_SUBJECT_ID, false);
             verify(testUser, never()).setTotalStars(anyInt());
             verify(userRepository, never()).save(any(User.class));
@@ -695,6 +725,7 @@ class LevelManagerServiceTest {
             when(realUser.getTotalStars()).thenReturn(200).thenReturn(250);
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(realUser));
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             ProgressStatusResponse r = service.submitBonusAnswer(USER_ID, SUB_SUBJECT_ID, true);
             assertTrue(r.isSuccess());
@@ -704,6 +735,7 @@ class LevelManagerServiceTest {
         @Test @DisplayName("submitBonusAnswer returns a valid ProgressStatusResponse")
         void submitBonusAnswer_returnsProgressStatusResponse() {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             ProgressStatusResponse r = service.submitBonusAnswer(USER_ID, SUB_SUBJECT_ID, false);
             assertNotNull(r);
             assertTrue(r.isSuccess());
@@ -715,40 +747,32 @@ class LevelManagerServiceTest {
     @DisplayName("Adaptive progression scenario")
     class ProgressionScenario {
 
-        @Test @DisplayName("Full cycle: correct streak → level up → struggle → drop → recover")
+        @Test @DisplayName("Full cycle: level up → fail into sub-level → recover out of it")
         void fullProgressionCycle() {
             StudentProgress p = progressAt(2);
+            p.setCurrentProgress(LevelManagerService.LEVEL_UP_THRESHOLD - 1);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(30L);
-            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(nCorrect(30, "SIMPLE_ADDITION"));
+            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(12L);
 
-            ProgressStatusResponse boost = service.submitAnswer(USER_ID, submitRequest(true));
-            assertEquals(3, boost.getCurrentLevel());
-            assertTrue(boost.isLevelUp());
-            assertTrue(boost.isBonusQuestionTriggered());
+            // 1) One more correct answer crosses the threshold → level up to 3
+            ProgressStatusResponse up = service.submitAnswer(USER_ID, submitRequest(true));
+            assertTrue(up.isLevelUp());
+            assertEquals(3, up.getCurrentLevel());
 
-            p = progressAt(3);
-            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
-            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(10L);
-            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(nWrong(10, "CARRYING_ADDITION"));
+            // 2) Three FAILED questions in a row → enter the sub-level
+            for (int i = 0; i < LevelManagerService.SUB_LEVEL_ENTER_FAILS; i++) {
+                SubmitAnswerRequest fail = submitRequest(false);
+                fail.setAttemptNumber(LevelManagerService.MAX_ATTEMPTS_PER_QUESTION);
+                service.submitAnswer(USER_ID, fail);
+            }
+            assertTrue(p.getInSubLevel(), "should be in the sub-level after 3 fails");
 
-            ProgressStatusResponse stop = service.submitAnswer(USER_ID, submitRequest(false));
-            assertEquals(2, stop.getCurrentLevel());
-            assertTrue(stop.isInIntermediateLevel());
-            assertFalse(stop.isBonusQuestionTriggered());
-
-            p = progressAt(2);
-            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
-            when(attemptRepository.countByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(5L);
-            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
-                    .thenReturn(nCorrect(5, "SIMPLE_ADDITION"));
-
-            ProgressStatusResponse moving = service.submitAnswer(USER_ID, submitRequest(true));
-            assertEquals(SpaceshipStatus.MOVING.name(), moving.getSpaceshipStatus());
-            assertFalse(moving.isBonusQuestionTriggered());
+            // 3) Three SOLVED in the sub-level → recover back to the normal level
+            for (int i = 0; i < LevelManagerService.SUB_LEVEL_EXIT_SOLVES; i++) {
+                service.submitAnswer(USER_ID, submitRequest(true));
+            }
+            assertFalse(p.getInSubLevel(), "should leave the sub-level after 3 solves");
         }
     }
 
