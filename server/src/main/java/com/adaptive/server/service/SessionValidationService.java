@@ -64,6 +64,14 @@ public class SessionValidationService {
                     Errors.SESSION_TOKEN_EXPIRED.getMessage()
             );
         }
+        // Non-active accounts (BLOCKED or DELETED) are denied on the next request
+        // even with a live session.
+        if (!"ACTIVE".equals(sessionToken.getUser().getAccountStatus())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    Errors.ACCOUNT_INACTIVE.getMessage()
+            );
+        }
         return sessionToken;
     }
 }

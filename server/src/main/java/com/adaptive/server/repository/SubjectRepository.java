@@ -17,4 +17,13 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     List<Subject> findByTopicId(Long topicId);
 
     long countByTopicId(Long topicId);
+
+    // Admin list — all subjects of a topic (active + draft), ordered by name.
+    List<Subject> findByTopicIdOrderByNameAsc(Long topicId);
+
+    // Student read — only active subjects under an active topic.
+    List<Subject> findByTopicIdAndTopicActiveTrueAndActiveTrueOrderByNameAsc(Long topicId);
+
+    // Guards: topic-publish (needs an active subject) and subject last-active check.
+    long countByTopicIdAndActiveTrue(Long topicId);
 }

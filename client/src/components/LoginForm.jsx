@@ -50,7 +50,10 @@ function LoginForm() {
                     loginUser(loggedInUser);
                     navigate(loggedInUser?.role === "ADMIN" ? "/admin/dashboard" : "/");
                 } else {
-                    setErrors(t.invalidCreds)
+                    // Backend returns a distinct message for a non-active account (blocked
+                    // or deleted); show a dedicated localized message, generic one otherwise.
+                    const msg = response.data.message || "";
+                    setErrors(/not active|inactive/i.test(msg) ? t.accountInactive : t.invalidCreds);
                 }
             })
             .catch(error => {

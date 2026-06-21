@@ -17,6 +17,9 @@ import { AdminLayout } from "./pages/Admin/AdminLayout.jsx";
 import { AdminDashboard } from "./pages/Admin/AdminDashboard.jsx";
 import { AdminUsers } from "./pages/Admin/AdminUsers.jsx";
 import { AdminTopics } from "./pages/Admin/AdminTopics.jsx";
+import { AdminSubjects } from "./pages/Admin/AdminSubjects.jsx";
+import { AdminSubSubjects } from "./pages/Admin/AdminSubSubjects.jsx";
+import { AdminMLGroups } from "./pages/Admin/AdminMLGroups.jsx";
 // Lazy-loaded so the charts (recharts) + animations (framer-motion) only download
 // when a student actually opens the dashboard, keeping the main bundle lean.
 const StudentDashboard = lazy(() =>
@@ -68,6 +71,9 @@ function AppRoutes() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="topics" element={<AdminTopics />} />
+          <Route path="topics/:topicId/subjects" element={<AdminSubjects />} />
+          <Route path="subjects/:subjectId/sub-subjects" element={<AdminSubSubjects />} />
+          <Route path="ml-groups" element={<AdminMLGroups />} />
         </Route>
 
         {/* Dashboard - only accessible when logged in */}

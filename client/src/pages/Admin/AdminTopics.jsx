@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { getContentTopics, createTopic, updateTopic, setTopicActive } from "../../service/adminApi.js";
 import { TopicsTable } from "../../components/Admin/TopicsTable.jsx";
-import { TopicFormModal } from "../../components/Admin/TopicFormModal.jsx";
+import { NameFormModal } from "../../components/Admin/NameFormModal.jsx";
 import { getAdminStrings } from "../../components/Admin/adminStrings.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
 
@@ -10,6 +11,7 @@ import { useLanguage } from "../../i18n/useLanguage.js";
 export const AdminTopics = () => {
     const { language, dir } = useLanguage();
     const t = getAdminStrings(language);
+    const navigate = useNavigate();
 
     const [topics, setTopics] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -55,16 +57,25 @@ export const AdminTopics = () => {
             {loading ? (
                 <p style={{ color: "#888" }}>{t.loading}</p>
             ) : (
-                <TopicsTable topics={topics} onEdit={setEditing} onToggle={handleToggle} t={t} />
+                <TopicsTable
+                    topics={topics}
+                    onEdit={setEditing}
+                    onToggle={handleToggle}
+                    onManageSubjects={(topic) => navigate(`/admin/topics/${topic.id}/subjects`)}
+                    t={t}
+                />
             )}
 
-            <TopicFormModal
+            <NameFormModal
                 open={editing !== null}
                 initialName={editing?.name || ""}
                 onSubmit={handleSubmit}
                 onClose={() => setEditing(null)}
-                t={t}
                 dir={dir}
+                title={editing?.id ? t.editTopic : t.newTopic}
+                placeholder={t.topicNamePlaceholder}
+                saveLabel={t.save}
+                cancelLabel={t.cancel}
             />
         </div>
     );

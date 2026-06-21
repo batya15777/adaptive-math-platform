@@ -38,6 +38,8 @@ public class MLClusteringService {
 
     private static final Logger log = LoggerFactory.getLogger(MLClusteringService.class);
     private static final String RUN_ENDPOINT = "/clustering/run";
+    // Only cluster users whose current role is STUDENT.
+    private static final String STUDENT_ROLE = "STUDENT";
 
     private final RestTemplate restTemplate;
     private final ExerciseAttemptRepository attemptRepository;
@@ -90,9 +92,11 @@ public class MLClusteringService {
 
     // ── internals ──────────────────────────────────────────────────────────
 
-    /** Pulls all attempts and groups them per student into the request DTO. */
+    /** Pulls attempts (current students only) and groups them per student into the request DTO. */
     private List<MLStudentFeaturesDto> buildStudentFeatures() {
-        List<AttemptFeatureProjection> rows = attemptRepository.findAllAttemptFeatures();
+        // Only cluster users whose CURRENT role is STUDENT — ex-students who became
+        // admins must not be pulled into cohorts via their old attempts.
+        List<AttemptFeatureProjection> rows = attemptRepository.findAllAttemptFeaturesForRole(STUDENT_ROLE);
 
         // LinkedHashMap keeps a stable, deterministic student order in the payload.
         Map<Long, List<MLAttemptFeatureDto>> attemptsByUser = new LinkedHashMap<>();

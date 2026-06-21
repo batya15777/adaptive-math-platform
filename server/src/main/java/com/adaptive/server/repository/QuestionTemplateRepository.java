@@ -20,4 +20,8 @@ public interface QuestionTemplateRepository extends JpaRepository<QuestionTempla
     //שימוש בשליפת עמודה אחת בלבד הופך את זה ליעיל מאוד מבחינת ביצועים
     @Query("SELECT COALESCE(MAX(t.difficultyLevel), 1) FROM QuestionTemplate t WHERE t.subSubject = :subSubject")
     Integer findMaxDifficultyLevelBySubSubject(@Param("subSubject") SubSubject subSubject);
+
+    // Read-only count used by the admin sub-subject publish guard. Does not touch
+    // the generation/template flow.
+    long countBySubSubject_Id(Long subSubjectId);
 }

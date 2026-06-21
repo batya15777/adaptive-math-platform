@@ -6,7 +6,7 @@ exercise-attempt history; this service engineers features, clusters the students
 and returns a `user_id → cluster_id` mapping that the backend persists for the
 adaptive question generator and the (future) admin dashboard.
 
-Runs on **port 8001** — the AI question generator already owns 8000.
+Runs on **port 8002** — the AI question generator owns 8000 and the AI tutor chat owns 8001.
 
 ---
 
@@ -39,17 +39,17 @@ declared in `pyproject.toml`.
 ```bash
 # from microservices/student-clustering-service
 uv sync                                   # install deps into .venv
-uv run uvicorn main:app --reload --port 8001
+uv run uvicorn main:app --reload --port 8002
 ```
 
 Health check:
 
 ```bash
-curl http://localhost:8001/health
+curl http://localhost:8002/health
 # {"status":"ok","service":"Student Clustering Service"}
 ```
 
-Interactive API docs: <http://localhost:8001/docs>
+Interactive API docs: <http://localhost:8002/docs>
 
 ---
 
@@ -142,7 +142,7 @@ Each cluster gets a readable, data-driven `label` (e.g. *"High performers"*,
   them per student, POSTs to `${ml.clustering.url}/clustering/run` (a `RestTemplate`
   with connect/read timeouts so a down service fails fast), and **upserts** the
   result into the `student_cluster_assignments` table.
-- `ml.clustering.url` defaults to `http://localhost:8001` (overridable via the
+- `ml.clustering.url` defaults to `http://localhost:8002` (overridable via the
   `ML_CLUSTERING_URL` env var).
 - Trigger: `POST /ml/clustering/run` (optional `?k=` to force a fixed `k`).
 - If this service is unreachable, the backend returns `503` with a clear message.

@@ -33,7 +33,9 @@ public class AdminTopicService {
     public List<AdminTopicDto> getTopics() {
         return topicRepository.findAll(Sort.by(Sort.Direction.ASC, "name")).stream()
                 .map(t -> new AdminTopicDto(t.getId(), t.getName(),
-                        subjectRepository.countByTopicId(t.getId()), t.getActive()))
+                        subjectRepository.countByTopicId(t.getId()),
+                        subjectRepository.countByTopicIdAndActiveTrue(t.getId()),
+                        t.getActive()))
                 .collect(Collectors.toList());
     }
 
@@ -46,7 +48,7 @@ public class AdminTopicService {
         Topic topic = new Topic(name);
         topic.setActive(false); // new topics start as drafts, hidden from students
         Topic saved = topicRepository.save(topic);
-        return new AdminTopicDto(saved.getId(), saved.getName(), 0, saved.getActive());
+        return new AdminTopicDto(saved.getId(), saved.getName(), 0, 0, saved.getActive());
     }
 
     @Transactional
@@ -60,23 +62,25 @@ public class AdminTopicService {
         topic.setName(name);
         Topic saved = topicRepository.save(topic);
         return new AdminTopicDto(saved.getId(), saved.getName(),
-                subjectRepository.countByTopicId(id), saved.getActive());
+                subjectRepository.countByTopicId(id),
+                subjectRepository.countByTopicIdAndActiveTrue(id), saved.getActive());
     }
 
     @Transactional
     public AdminTopicDto setActive(Long id, boolean active) {
         Topic topic = topicRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Topic not found."));
-        long subjectCount = subjectRepository.countByTopicId(id);
-        // Disabling is always allowed; publishing an empty topic is not — students
-        // must never see a topic with no subjects.
-        if (active && subjectCount == 0) {
+        // Disabling is always allowed; publishing requires at least one PUBLISHED
+        // subject — otherwise students would see an active topic with no content.
+        if (active && subjectRepository.countByTopicIdAndActiveTrue(id) == 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Cannot publish a topic with no subjects. Add subjects first.");
+                    "Cannot publish a topic without a published subject.");
         }
         topic.setActive(active);
         Topic saved = topicRepository.save(topic);
-        return new AdminTopicDto(saved.getId(), saved.getName(), subjectCount, saved.getActive());
+        return new AdminTopicDto(saved.getId(), saved.getName(),
+                subjectRepository.countByTopicId(id),
+                subjectRepository.countByTopicIdAndActiveTrue(id), saved.getActive());
     }
 
     private String normalize(String name) {

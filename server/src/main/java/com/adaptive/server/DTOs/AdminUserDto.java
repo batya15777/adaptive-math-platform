@@ -17,6 +17,7 @@ public class AdminUserDto {
     private final String gender;
     private final Integer totalStars;
     private final LocalDateTime createdAt;
+    private final String accountStatus;
 
     public AdminUserDto(User user) {
         this.id = user.getId();
@@ -27,6 +28,7 @@ public class AdminUserDto {
         this.gender = user.getGender();
         this.totalStars = user.getTotalStars();
         this.createdAt = user.getCreatedAt();
+        this.accountStatus = user.getAccountStatus();
     }
 
     public Long getId() { return id; }
@@ -37,4 +39,5 @@ public class AdminUserDto {
     public String getGender() { return gender; }
     public Integer getTotalStars() { return totalStars; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public String getAccountStatus() { return accountStatus; }
 }

@@ -17,6 +17,11 @@ public class Subject {
     @Column(nullable = false)
     private String name;
 
+    // Soft-delete / draft flag (mirrors Topic). DB default TRUE so existing rows
+    // stay visible to students after the column is added under ddl-auto=update.
+    @Column(nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT TRUE")
+    private Boolean active = true;
+
     public Subject() {
     }
 
@@ -46,5 +51,13 @@ public class Subject {
 
     public void setTopic(Topic topic) {
         this.topic = topic;
+    }
+
+    public Boolean getActive() {
+        return active == null ? Boolean.TRUE : active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 }
