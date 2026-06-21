@@ -54,6 +54,7 @@ public class AdminSubjectService {
         List<AdminSubjectDto> subjects = subjectRepository.findByTopicIdOrderByNameAsc(topicId).stream()
                 .map(s -> new AdminSubjectDto(s.getId(), topicId, s.getName(),
                         subSubjectRepository.countBySubjectId(s.getId()),
+                        subSubjectRepository.countBySubjectIdAndActiveTrue(s.getId()),
                         s.getActive(), isProtected(s.getName())))
                 .collect(Collectors.toList());
 
@@ -74,7 +75,7 @@ public class AdminSubjectService {
         subject.setTopic(topic);
         subject.setActive(false); // new subjects start as drafts, hidden from students
         Subject saved = subjectRepository.save(subject);
-        return new AdminSubjectDto(saved.getId(), topicId, saved.getName(), 0,
+        return new AdminSubjectDto(saved.getId(), topicId, saved.getName(), 0, 0,
                 saved.getActive(), isProtected(saved.getName()));
     }
 
@@ -93,7 +94,9 @@ public class AdminSubjectService {
         subject.setName(name);
         Subject saved = subjectRepository.save(subject);
         return new AdminSubjectDto(saved.getId(), saved.getTopic().getId(), saved.getName(),
-                subSubjectRepository.countBySubjectId(id), saved.getActive(), isProtected(saved.getName()));
+                subSubjectRepository.countBySubjectId(id),
+                subSubjectRepository.countBySubjectIdAndActiveTrue(id),
+                saved.getActive(), isProtected(saved.getName()));
     }
 
     @Transactional
@@ -103,10 +106,10 @@ public class AdminSubjectService {
         Long topicId = subject.getTopic().getId();
 
         if (active) {
-            // A subject must have content before students can see it.
-            if (subSubjectRepository.countBySubjectId(id) == 0) {
+            // A subject needs at least one PUBLISHED sub-subject before students see it.
+            if (subSubjectRepository.countBySubjectIdAndActiveTrue(id) == 0) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Cannot publish a subject with no sub-subjects.");
+                        "Cannot publish a subject without a published sub-subject.");
             }
         } else {
             // Disabling.
@@ -127,7 +130,9 @@ public class AdminSubjectService {
         subject.setActive(active);
         Subject saved = subjectRepository.save(subject);
         return new AdminSubjectDto(saved.getId(), topicId, saved.getName(),
-                subSubjectRepository.countBySubjectId(id), saved.getActive(), isProtected(saved.getName()));
+                subSubjectRepository.countBySubjectId(id),
+                subSubjectRepository.countBySubjectIdAndActiveTrue(id),
+                saved.getActive(), isProtected(saved.getName()));
     }
 
     private String normalize(String name) {

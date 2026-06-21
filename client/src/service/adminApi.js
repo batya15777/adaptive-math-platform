@@ -17,3 +17,10 @@ export const createSubject = (topicId, name) => api.post(`/admin/content/topics/
 export const updateSubject = (id, name) => api.put(`/admin/content/subjects/${id}`, { name });
 export const setSubjectActive = (id, active) =>
     api.put(`/admin/content/subjects/${id}/active`, null, { params: { active } });
+
+// ── Content management: sub-subjects (under a subject) ──────
+export const getSubjectSubSubjects = (subjectId) => api.get(`/admin/content/subjects/${subjectId}/sub-subjects`);
+export const createSubSubject = (subjectId, name) => api.post(`/admin/content/subjects/${subjectId}/sub-subjects`, { name });
+export const updateSubSubject = (id, name) => api.put(`/admin/content/sub-subjects/${id}`, { name });
+export const setSubSubjectActive = (id, active) =>
+    api.put(`/admin/content/sub-subjects/${id}/active`, null, { params: { active } });

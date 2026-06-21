@@ -4,16 +4,18 @@ public class AdminSubjectDto {
     private final Long id;
     private final Long topicId;
     private final String name;
-    private final long subSubjectCount;
+    private final long subSubjectCount;        // total sub-subjects (active + draft), for display
+    private final long activeSubSubjectCount;  // active only — drives the publish guard/UI
     private final boolean active;
     private final boolean system; // protected (e.g. "Calculation") — rename/disable blocked
 
     public AdminSubjectDto(Long id, Long topicId, String name, long subSubjectCount,
-                           boolean active, boolean system) {
+                           long activeSubSubjectCount, boolean active, boolean system) {
         this.id = id;
         this.topicId = topicId;
         this.name = name;
         this.subSubjectCount = subSubjectCount;
+        this.activeSubSubjectCount = activeSubSubjectCount;
         this.active = active;
         this.system = system;
     }
@@ -32,6 +34,10 @@ public class AdminSubjectDto {
 
     public long getSubSubjectCount() {
         return subSubjectCount;
+    }
+
+    public long getActiveSubSubjectCount() {
+        return activeSubSubjectCount;
     }
 
     public boolean isActive() {

@@ -63,7 +63,8 @@ public class TrainingService {
 
     @Transactional(readOnly = true)
     public List<SubSubjectProgressResponse> getSubSubjects(Long userId, Long subjectId) {
-        List<SubSubject> subSubjects = subSubjectRepository.findBySubjectId(subjectId);
+        List<SubSubject> subSubjects = subSubjectRepository
+                .findActiveForStudentBySubjectId(subjectId);
         return subSubjects.stream()
                 .map(sub -> toProgressResponse(userId, sub))
                 .collect(Collectors.toList());

@@ -18,6 +18,11 @@ public class SubSubject {
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
 
+    // Soft-delete / draft flag (mirrors Topic and Subject). DB default TRUE so
+    // existing rows stay visible to students under ddl-auto=update.
+    @Column(nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT TRUE")
+    private Boolean active = true;
+
     public SubSubject() {
     }
 
@@ -48,5 +53,13 @@ public class SubSubject {
 
     public void setSubject(Subject subject) {
         this.subject = subject;
+    }
+
+    public Boolean getActive() {
+        return active == null ? Boolean.TRUE : active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 }

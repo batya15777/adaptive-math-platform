@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { getTopicSubjects, createSubject, updateSubject, setSubjectActive } from "../../service/adminApi.js";
 import { SubjectsTable } from "../../components/Admin/SubjectsTable.jsx";
 import { NameFormModal } from "../../components/Admin/NameFormModal.jsx";
@@ -14,6 +14,7 @@ export const AdminSubjects = () => {
     const { topicId } = useParams();
     const { language, dir } = useLanguage();
     const t = getAdminStrings(language);
+    const navigate = useNavigate();
 
     const [data, setData] = useState(null); // { topicName, topicActive, activeSubjectCount, subjects }
     const [loading, setLoading] = useState(true);
@@ -69,6 +70,7 @@ export const AdminSubjects = () => {
                     activeSubjectCount={data.activeSubjectCount}
                     onEdit={setEditing}
                     onToggle={handleToggle}
+                    onManageSubSubjects={(s) => navigate(`/admin/subjects/${s.id}/sub-subjects`)}
                     t={t}
                 />
             ) : null}

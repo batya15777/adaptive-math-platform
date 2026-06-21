@@ -4,7 +4,7 @@
 //  - "Publish" disabled for a subject with no sub-subjects.
 //  - Protected subject ("Calculation", system=true): edit + disable blocked.
 //  - "Disable" blocked for the last published subject of an active topic.
-export const SubjectsTable = ({ subjects, topicActive, activeSubjectCount, onEdit, onToggle, t }) => (
+export const SubjectsTable = ({ subjects, topicActive, activeSubjectCount, onEdit, onToggle, onManageSubSubjects, t }) => (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
             <tr>
@@ -28,6 +28,7 @@ export const SubjectsTable = ({ subjects, topicActive, activeSubjectCount, onEdi
                         </td>
                         <td style={cell}>{s.subSubjectCount}</td>
                         <td style={cell}>
+                            <button onClick={() => onManageSubSubjects(s)}>{t.manageSubSubjects}</button>{" "}
                             <button
                                 onClick={() => onEdit(s)}
                                 disabled={s.system}
@@ -46,8 +47,8 @@ export const SubjectsTable = ({ subjects, topicActive, activeSubjectCount, onEdi
                             ) : (
                                 <button
                                     onClick={() => onToggle(s)}
-                                    disabled={s.subSubjectCount === 0}
-                                    title={s.subSubjectCount === 0 ? t.cannotPublishSubjectEmpty : ""}
+                                    disabled={s.activeSubSubjectCount === 0}
+                                    title={s.activeSubSubjectCount === 0 ? t.cannotPublishSubjectEmpty : ""}
                                 >
                                     {t.publish}
                                 </button>
