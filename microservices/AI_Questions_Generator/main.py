@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from openai import OpenAI
 
 from src.models import GenerationRequest, MathProblem
 from src.orchestrator import QuestionGenerationOrchestrator
+from src.security import verify_api_key
 from src.settings import get_settings
 
 settings = get_settings()
@@ -19,7 +20,8 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/generate-question", response_model=MathProblem)
+@app.post("/generate-question", response_model=MathProblem,
+          dependencies=[Depends(verify_api_key)])
 def generate_question(req: GenerationRequest) -> MathProblem:
     try:
         return orchestrator.generate(req)

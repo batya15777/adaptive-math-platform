@@ -54,7 +54,6 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private static final Logger log = LoggerFactory.getLogger(LevelManagerService.class);
     private static final int AI_MIN_DIFFICULTY = 1;
     private static final int AI_MAX_DIFFICULTY = 10;
-    private static final int AI_DEFAULT_AGE = 10;
 
     private final QuestionRepository questionRepository;
     private final QuestionArchiveRepository archiveRepository;
@@ -309,7 +308,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
             try {
                 int aiDifficulty = clampAiDifficulty(subSubjectLevel + cluster.getDifficultyBias());
                 return aiQuestionService.generateQuestion(subSubject, aiQuestionTheme, aiDifficulty,
-                        safeName(user), safeAge(user), language, mc, cluster);
+                        language, mc, cluster);
             } catch (RuntimeException e) {
                 log.warn("AI generation failed ({}); falling back to the code-based generator.", e.getMessage());
             }
@@ -320,16 +319,6 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private int clampAiDifficulty(int difficulty) {
         return Math.max(AI_MIN_DIFFICULTY, Math.min(difficulty, AI_MAX_DIFFICULTY));
     }
-
-    private String safeName(User user) {
-        return (user.getFullName() == null || user.getFullName().isBlank()) ? "Student" : user.getFullName();
-    }
-
-    private int safeAge(User user) {
-        int age = user.getAge() == null ? AI_DEFAULT_AGE : user.getAge();
-        return Math.max(4, Math.min(age, 18)); // Python UserInfo validates age ∈ [4, 18]
-    }
-
 
     @Transactional
     public QuestionResponse getInitialAssessmentQuestion(Long userId, InitialAssessmentRequest request) {

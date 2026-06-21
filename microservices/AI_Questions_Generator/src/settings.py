@@ -13,6 +13,7 @@ class Settings:
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     moderation_model: str = os.getenv("OPENAI_MODERATION_MODEL", "omni-moderation-latest")
+    api_key: str | None = os.getenv("API_KEY")
 
 
 @lru_cache(maxsize=1)

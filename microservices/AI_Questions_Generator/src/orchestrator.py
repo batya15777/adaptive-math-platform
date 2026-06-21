@@ -40,7 +40,7 @@ class QuestionGenerationOrchestrator:
             )
 
         # --- Input guardrails: check topic + theme + student name ---
-        guard_text = f"{req.topic} {req.theme} {req.user_info.name}"
+        guard_text = f"{req.topic} {req.theme}"
         blocked = self._guardrail.check(guard_text, req.language)
         if blocked:
             raise ValueError(blocked)

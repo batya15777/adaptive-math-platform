@@ -33,9 +33,10 @@ RULES:
    5–6  → middle school (fractions, percentages, multi-step reasoning)
    7–8  → late middle / early high school (algebra, ratios, deeper analysis)
    9–10 → advanced high school (complex equations, proofs, advanced topics)
-   Use the student's AGE as a secondary guide, but DIFFICULTY takes priority.
 
-4. PERSONALISATION — Mention the student by NAME somewhere in the question.
+4. PERSONALISATION — Mention the student using the exact placeholder word NAME (always
+   written in English, uppercase, regardless of the output language). Do NOT substitute a
+   real name — write the literal string NAME so the question is reusable for any student.
 
 5. CORRECT ANSWER — Must be a minimal, directly-comparable value:
    • Numbers: digits only — write "26" not "26 apples"; fractions as "3/4"; decimals as "3.5"
@@ -198,26 +199,23 @@ class QuestionAgent:
 
     @staticmethod
     def _build_generation_prompt(req: GenerationRequest) -> str:
-        """
-        Build the user-turn prompt that feeds all request fields to the generator.
-        Extra ``user_info`` fields (beyond name/age) are forwarded automatically.
-        """
+        """Build the user-turn prompt that feeds all request fields to the generator."""
         mode = "multiple_choice" if req.multiple_choice else "open_answer"
 
         lines = [
             f"Topic: {req.topic}",
             f"Theme: {req.theme}",
             f"Difficulty: {req.difficulty}/10",
-            f"Student name: {req.user_info.name}",
-            f"Student age: {req.user_info.age} years old",
+        ]
+        if req.difficulty_band:
+            lines.append(
+                f"Difficulty band: {req.difficulty_band} "
+                "(supplementary hint — Difficulty above is authoritative)"
+            )
+        lines += [
             f"Output language: {LANGUAGE_NAMES.get(req.language, req.language)}",
             f"Mode: {mode}",
         ]
-
-        extra = req.user_info.model_extra or {}
-        if extra:
-            extra_parts = ", ".join(f"{k}: {v}" for k, v in extra.items())
-            lines.append(f"Additional student context: {extra_parts}")
 
         adaptive_block = QuestionAgent._build_adaptive_block(req)
         if adaptive_block:

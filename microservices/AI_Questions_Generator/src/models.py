@@ -1,28 +1,15 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LanguageCode(str, Enum):
     en = "en"
     he = "he"
     ru = "ru"
-
-
-class UserInfo(BaseModel):
-    """
-    Student information.
-    ``extra = "allow"`` means callers can pass any additional fields (e.g. grade,
-    learning_style, preferred_examples) and they will be forwarded to the LLM
-    as extra personalisation context.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    name: str = Field(min_length=1, description="Student's first name")
-    age: int = Field(ge=4, le=18, description="Student's age in years")
 
 
 class LearningProfile(BaseModel):
@@ -38,6 +25,9 @@ class LearningProfile(BaseModel):
     mastery: str | None = Field(default=None, description="struggling | developing | strong")
 
 
+BAND_MIDPOINTS: dict[str, int] = {"easy": 2, "medium": 5, "hard": 8}
+
+
 class GenerationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -49,12 +39,21 @@ class GenerationRequest(BaseModel):
         min_length=1,
         description="Creative narrative theme to wrap the question in (e.g. pirates, space, dinosaurs, wizards)",
     )
-    difficulty: int = Field(
+    difficulty: int | None = Field(
+        default=None,
         ge=1,
         le=10,
-        description="Difficulty level from 1 (kindergarten-easy) to 10 (advanced/high-school)",
+        description="Difficulty level from 1 (kindergarten-easy) to 10 (advanced/high-school). "
+                    "Takes precedence over difficulty_band when both are provided.",
     )
-    user_info: UserInfo = Field(description="Information about the student")
+    difficulty_band: Literal["easy", "medium", "hard"] | None = Field(
+        default=None,
+        description=(
+            "Coarse difficulty band. Maps to a midpoint when 'difficulty' is absent: "
+            "easy→2, medium→5, hard→8. When both are provided, 'difficulty' takes precedence "
+            "and the band is used as a supplementary prompt hint."
+        ),
+    )
     language: LanguageCode = Field(
         default=LanguageCode.en,
         description="Output language for the generated question",
@@ -67,6 +66,14 @@ class GenerationRequest(BaseModel):
         default=None,
         description="Optional cluster-derived adaptation hints for personalising the question.",
     )
+
+    @model_validator(mode="after")
+    def resolve_difficulty(self) -> "GenerationRequest":
+        if self.difficulty is None and self.difficulty_band is None:
+            raise ValueError("Provide either 'difficulty' (1–10) or 'difficulty_band' (easy/medium/hard).")
+        if self.difficulty is None:
+            self.difficulty = BAND_MIDPOINTS[self.difficulty_band]
+        return self
 
 
 class MathProblem(BaseModel):
