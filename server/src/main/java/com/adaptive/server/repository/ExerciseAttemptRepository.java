@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -43,4 +44,31 @@ public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt
            "WHERE a.user.id = :userId AND a.isCorrect = false AND a.errorPattern IS NOT NULL " +
            "GROUP BY a.errorPattern ORDER BY COUNT(a) DESC")
     List<ErrorPatternCountProjection> findErrorPatternCountsByUser(@Param("userId") Long userId);
+
+    // ── Admin Analytics (read-only) — scoped to attempts by users whose CURRENT
+    // role is the given one (so ex-students who became admins are excluded). ──────
+    @Query("SELECT COUNT(a) FROM ExerciseAttempt a WHERE a.user.role = :role")
+    long countAttemptsByUserRole(@Param("role") String role);
+
+    @Query("SELECT COUNT(a) FROM ExerciseAttempt a WHERE a.user.role = :role AND a.isCorrect = true")
+    long countCorrectAttemptsByUserRole(@Param("role") String role);
+
+    // Distinct active learners (current role = :role) with an attempt since :since.
+    @Query("SELECT COUNT(DISTINCT a.user.id) FROM ExerciseAttempt a " +
+           "WHERE a.user.role = :role AND a.answeredAt >= :since")
+    long countDistinctActiveStudentsSince(@Param("role") String role, @Param("since") LocalDateTime since);
+
+    // Per-sub-subject totals + correct counts across users with role = :role (one query).
+    // The min-attempts threshold + ordering are applied in the service.
+    @Query("SELECT a.subSubject.id AS subSubjectId, a.subSubject.name AS subSubjectName, " +
+           "COUNT(a) AS total, SUM(CASE WHEN a.isCorrect = true THEN 1L ELSE 0L END) AS correct " +
+           "FROM ExerciseAttempt a WHERE a.user.role = :role " +
+           "GROUP BY a.subSubject.id, a.subSubject.name")
+    List<TopicStatsProjection> findSubSubjectStatsForRole(@Param("role") String role);
+
+    // Most frequent error patterns across users with role = :role (wrong answers only).
+    @Query("SELECT a.errorPattern AS errorPattern, COUNT(a) AS occurrences FROM ExerciseAttempt a " +
+           "WHERE a.user.role = :role AND a.isCorrect = false AND a.errorPattern IS NOT NULL " +
+           "GROUP BY a.errorPattern ORDER BY COUNT(a) DESC")
+    List<ErrorPatternCountProjection> findErrorPatternCountsForRole(@Param("role") String role);
 }

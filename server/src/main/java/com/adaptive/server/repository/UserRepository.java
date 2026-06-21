@@ -14,5 +14,10 @@ public interface UserRepository extends JpaRepository<User,Long> {
 
     List<User> findTop10ByOrderByTotalStarsDesc();
 
+    // Admin analytics — role is a String column on User (default "STUDENT").
+    long countByRole(String role);
+
+    // Leaderboard scoped to a role, so admins (even ex-students) don't appear.
+    List<User> findTop10ByRoleOrderByTotalStarsDesc(String role);
 
 }

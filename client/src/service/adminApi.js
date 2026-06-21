@@ -4,6 +4,9 @@ import api from "./api";
 export const getUsers = (page = 0, size = 20) =>
     api.get("/admin/users", { params: { page, size } });
 
+// Read-only platform analytics for the admin dashboard.
+export const getAnalytics = () => api.get("/admin/analytics");
+
 // ── Content management: topics ──────────────────────────────
 export const getContentTopics = () => api.get("/admin/content/topics");
 export const createTopic = (name) => api.post("/admin/content/topics", { name });
