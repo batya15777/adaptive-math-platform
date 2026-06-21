@@ -1,7 +1,13 @@
 import {useState} from "react";
 import { useNavigate } from "react-router-dom";
 import {register, verifyCode} from "../service/authApi.js";
+import { useLanguage } from "../i18n/useLanguage.js";
+import { getAuthStrings } from "./authStrings.js";
+import { LanguageSwitcher } from "./LanguageSwitcher/LanguageSwitcher.jsx";
 function RegisterForm(){
+
+    const { language, dir } = useLanguage();
+    const t = getAuthStrings(language);
 
     const [fullName, setFullName] = useState("");
     const [password, setPassword] = useState("");
@@ -76,7 +82,7 @@ function RegisterForm(){
          })
          .catch(error=>{
              console.log(error);
-             setErrors("Registration failed");
+             setErrors(t.registerFailed);
          })
 
  }
@@ -87,12 +93,12 @@ function RegisterForm(){
         verifyCode(data).then((response)=>{
             if (response.data.success){
                 setShowCode(false);
-                setErrors("You have registered successfully. Please log in.")
+                setErrors(t.registerOk)
                 navigate("/login");
             }
         })
             .catch(error=>{
-                setErrors("Invalid code");
+                setErrors(t.invalidCode);
                 console.log(error);
             })
 
@@ -110,12 +116,14 @@ function RegisterForm(){
 
     return(
      <>
-         <form onSubmit={handleRegister} >
+         <form onSubmit={handleRegister} dir={dir}>
+
+             <div style={{ textAlign: "end", marginBottom: 8 }}><LanguageSwitcher /></div>
 
              <input
                  type="text"
                  value={fullName}
-                 placeholder="Enter full name"
+                 placeholder={t.fullNamePh}
                  onChange={(e) => setFullName(e.target.value)}
              />
 
@@ -123,14 +131,14 @@ function RegisterForm(){
                  <input
                      type={showPassword ? "text" : "password"}
                      value={password}
-                     placeholder="Enter password"
+                     placeholder={t.passwordPh}
                      onChange={(e) => setPassword(e.target.value)}
                  />
                  <button
                      type="button"
                      onClick={() => setShowPassword((currentValue) => !currentValue)}
                  >
-                     {showPassword ? "Hide" : "Show"}
+                     {showPassword ? t.hide : t.show}
                  </button>
              </div>
 
@@ -138,21 +146,21 @@ function RegisterForm(){
                  <input
                      type={showConfirmPassword ? "text" : "password"}
                      value={confirmPassword}
-                     placeholder="Confirm password"
+                     placeholder={t.confirmPh}
                      onChange={(e) => setConfirmPassword(e.target.value)}
                  />
                  <button
                      type="button"
                      onClick={() => setShowConfirmPassword((currentValue) => !currentValue)}
                  >
-                     {showConfirmPassword ? "Hide" : "Show"}
+                     {showConfirmPassword ? t.hide : t.show}
                  </button>
              </div>
 
              <input
                  type="email"
                  value={email}
-                 placeholder="Enter email"
+                 placeholder={t.emailPh}
                  onChange={(e) => setEmail(e.target.value)}
              />
 
@@ -161,7 +169,7 @@ function RegisterForm(){
                  value={age}
                  min="1"
                  max="120"
-                 placeholder="Enter age"
+                 placeholder={t.agePh}
                  onChange={(e) => setAge(e.target.value)}
              />
 
@@ -184,7 +192,7 @@ function RegisterForm(){
                  disabled={validation()}
                  type="submit">
 
-                 Register
+                 {t.register}
              </button>
 
 
@@ -200,12 +208,12 @@ function RegisterForm(){
                  <input
                      type="text"
                      value={code}
-                     placeholder="Enter Code"
+                     placeholder={t.codePh}
                      onChange={(e) => setCode(e.target.value)}
                  />
                  <button
                      onClick={handleVerify}
-                     disabled={code.trim().length ===0}>send
+                     disabled={code.trim().length ===0}>{t.send}
 
 
                  </button>

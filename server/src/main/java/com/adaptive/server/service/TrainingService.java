@@ -49,7 +49,7 @@ public class TrainingService {
 
     @Transactional(readOnly = true)
     public List<TopicResponse> getTopics() {
-        return topicRepository.findAll().stream()
+        return topicRepository.findByActiveTrueOrderByNameAsc().stream()
                 .map(TopicResponse::new)
                 .collect(Collectors.toList());
     }

@@ -2,20 +2,11 @@
 //
 // To add a new language:
 //   1. Add one entry to TUTOR_CHAT_STRINGS below (copy an existing block, translate).
-//   2. If the language is right-to-left, add its code to RTL_LANGUAGES.
-//   3. Optionally add a locale to LOCALE_BY_LANGUAGE for date formatting.
+//   2. Language direction/locale primitives are shared — see i18n/languages.js.
 // Missing keys automatically fall back to DEFAULT_LANGUAGE, so a partial
 // translation still renders without breaking.
 
-export const DEFAULT_LANGUAGE = "en";
-
-export const RTL_LANGUAGES = new Set(["he", "ar", "fa", "ur"]);
-
-export const LOCALE_BY_LANGUAGE = {
-    he: "he-IL",
-    en: "en-US",
-    ru: "ru-RU",
-};
+import { DEFAULT_LANGUAGE, isRtl, localeFor } from "../../i18n/languages.js";
 
 export const TUTOR_CHAT_STRINGS = {
     en: {
@@ -99,6 +90,7 @@ export const getTutorChatStrings = (language) => ({
     ...(TUTOR_CHAT_STRINGS[language] || {}),
 });
 
-export const isRtlLanguage = (language) => RTL_LANGUAGES.has(language);
-
-export const localeFor = (language) => LOCALE_BY_LANGUAGE[language] || LOCALE_BY_LANGUAGE[DEFAULT_LANGUAGE];
+// Re-export the shared primitives under the names tutor-chat already imports,
+// so behavior is identical while the single source of truth is i18n/languages.js.
+export { DEFAULT_LANGUAGE, localeFor };
+export const isRtlLanguage = isRtl;

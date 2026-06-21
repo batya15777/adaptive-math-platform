@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useProfile } from '../../contexts/useProfile.js';
 import { getTopics, getSubjects, getSubSubjects } from '../../service/trainingApi.js';
 import { initialAssessment } from '../../service/progressApi.js';
-
-const LANG_CODE = { HEBREW: 'he', ENGLISH: 'en', RUSSIAN: 'ru' };
+import { LANG_CODE } from '../../i18n/languages.js';
 
 const CONFIDENCE_OPTIONS = [
     { value: 'EASY',   icon: '🤔', title: 'Beginner',    desc: 'Math feels hard for me' },

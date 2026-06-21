@@ -16,10 +16,9 @@ import {
     getBonusQuestion, submitBonusAnswer,
 } from '../../service/progressApi.js';
 import { getMyCluster } from '../../service/dashboardApi.js';
+import { LANG_CODE } from '../../i18n/languages.js';
 
 const MAX_ATTEMPTS = 3;
-
-const LANG_CODE = { HEBREW: 'he', ENGLISH: 'en', RUSSIAN: 'ru' };
 
 // "5,7,9,11" → ["5","7","9","11"];  "" / null → []
 const parseOptions  = (s) => (s ? s.split(',').map(o => o.trim()).filter(Boolean) : []);
