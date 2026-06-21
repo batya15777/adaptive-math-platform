@@ -8,6 +8,9 @@ export const getUsers = (page = 0, size = 20, search = "", role = "") => {
     return api.get("/admin/users", { params });
 };
 
+// Change a user's role (STUDENT/ADMIN). Guarded server-side (validateAdminOnly).
+export const updateUserRole = (id, role) => api.patch(`/admin/users/${id}/role`, { role });
+
 // Read-only platform analytics for the admin dashboard.
 export const getAnalytics = () => api.get("/admin/analytics");
 

@@ -1,11 +1,11 @@
 // Presentational table for the admin user list. Receives data + strings (t) +
 // locale via props only — no data fetching, state, or i18n lookups — so it stays
 // reusable and easy to test.
-export const UsersTable = ({ users, t, locale }) => (
+export const UsersTable = ({ users, t, locale, onChangeRole, currentUserId }) => (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
             <tr>
-                {[t.colId, t.colName, t.colEmail, t.colRole, t.colAge, t.colGender, t.colStars, t.colCreated].map((h, i) => (
+                {[t.colId, t.colName, t.colEmail, t.colRole, t.colAge, t.colGender, t.colStars, t.colCreated, t.colActions].map((h, i) => (
                     <th key={i} style={th}>{h}</th>
                 ))}
             </tr>
@@ -21,6 +21,15 @@ export const UsersTable = ({ users, t, locale }) => (
                     <td style={cell}>{u.gender ?? "—"}</td>
                     <td style={cell}>⭐ {u.totalStars ?? 0}</td>
                     <td style={cell}>{u.createdAt ? new Date(u.createdAt).toLocaleString(locale) : "—"}</td>
+                    <td style={cell}>
+                        {u.id === currentUserId ? (
+                            <span style={selfTag}>{t.currentAccount}</span>
+                        ) : u.role === "ADMIN" ? (
+                            <button onClick={() => onChangeRole(u, "STUDENT")}>{t.makeStudent}</button>
+                        ) : (
+                            <button onClick={() => onChangeRole(u, "ADMIN")}>{t.makeAdmin}</button>
+                        )}
+                    </td>
                 </tr>
             ))}
         </tbody>
@@ -33,3 +42,4 @@ const roleBadge = (role) => ({
     padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 700,
     color: "#fff", background: role === "ADMIN" ? "#aa3bff" : "#6c757d",
 });
+const selfTag = { fontSize: 12, color: "#6c757d" };

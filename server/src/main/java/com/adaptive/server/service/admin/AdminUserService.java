@@ -62,6 +62,31 @@ public class AdminUserService {
         );
     }
 
+    @Transactional
+    public AdminUserDto changeRole(Long currentAdminId, Long targetId, String rawRole) {
+        String role = (rawRole == null) ? null : rawRole.trim().toUpperCase();
+        if (role == null || !VALID_ROLES.contains(role)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid role. Use STUDENT or ADMIN.");
+        }
+        User user = userRepository.findById(targetId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+
+        if (role.equals(user.getRole())) {
+            return new AdminUserDto(user); // no-op: already that role
+        }
+
+        boolean demotingFromAdmin = "ADMIN".equals(user.getRole()) && "STUDENT".equals(role);
+        if (demotingFromAdmin && targetId.equals(currentAdminId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot change your own admin role.");
+        }
+        if (demotingFromAdmin && userRepository.countByRole("ADMIN") <= 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot remove the last admin.");
+        }
+
+        user.setRole(role);
+        return new AdminUserDto(userRepository.save(user));
+    }
+
     // Returns the id when the search text is purely numeric, else null.
     private Long parseIdOrNull(String q) {
         if (q == null) {
