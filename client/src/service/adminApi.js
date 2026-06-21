@@ -10,6 +10,9 @@ export const getAnalytics = () => api.get("/admin/analytics");
 // Read-only ML cluster groups (existing clustering results).
 export const getMLGroups = () => api.get("/admin/ml-groups");
 
+// Admin-only: trigger a clustering run (POST /ml/clustering/run, guarded server-side).
+export const runClustering = () => api.post("/ml/clustering/run");
+
 // ── Content management: topics ──────────────────────────────
 export const getContentTopics = () => api.get("/admin/content/topics");
 export const createTopic = (name) => api.post("/admin/content/topics", { name });

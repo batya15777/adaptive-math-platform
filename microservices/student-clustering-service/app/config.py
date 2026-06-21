@@ -14,9 +14,9 @@ class Settings:
 
     app_name: str = "Student Clustering Service"
 
-    # Server — note port 8001: the AI question generator already owns 8000.
+    # Server — port 8002: 8000 is the AI question generator, 8001 the AI tutor chat.
     host: str = os.getenv("CLUSTERING_HOST", "127.0.0.1")
-    port: int = int(os.getenv("CLUSTERING_PORT", "8001"))
+    port: int = int(os.getenv("CLUSTERING_PORT", "8002"))
 
     # K-Means tuning
     random_state: int = int(os.getenv("KMEANS_RANDOM_STATE", "42"))
