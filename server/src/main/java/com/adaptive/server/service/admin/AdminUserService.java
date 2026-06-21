@@ -8,16 +8,20 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class AdminUserService {
 
     private static final int MAX_PAGE_SIZE = 100;
+    private static final Set<String> VALID_ROLES = Set.of("STUDENT", "ADMIN");
 
     private final UserRepository userRepository;
 
@@ -26,13 +30,24 @@ public class AdminUserService {
     }
 
     @Transactional(readOnly = true)
-    public PagedUsersResponse getUsers(int page, int size) {
+    public PagedUsersResponse getUsers(int page, int size, String search, String role) {
         // Guard against abuse / bad input — never load everything at once.
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
 
+        // Blank search → no text filter. Numeric search also matches an exact id.
+        String q = (search == null || search.trim().isEmpty()) ? null : search.trim();
+        Long idQ = parseIdOrNull(q);
+
+        // Blank role → All. Any other value must be a valid role, else 400.
+        String roleFilter = (role == null || role.trim().isEmpty()) ? null : role.trim().toUpperCase();
+        if (roleFilter != null && !VALID_ROLES.contains(roleFilter)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid role filter. Use STUDENT or ADMIN.");
+        }
+
         Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.ASC, "id"));
-        Page<User> result = userRepository.findAll(pageable);
+        Page<User> result = userRepository.searchUsers(q, idQ, roleFilter, pageable);
 
         List<AdminUserDto> users = result.getContent().stream()
                 .map(AdminUserDto::new)
@@ -45,5 +60,17 @@ public class AdminUserService {
                 result.getTotalElements(),
                 result.getTotalPages()
         );
+    }
+
+    // Returns the id when the search text is purely numeric, else null.
+    private Long parseIdOrNull(String q) {
+        if (q == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(q);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

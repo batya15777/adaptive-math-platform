@@ -1,8 +1,12 @@
 import api from "./api";
 
 // All admin-only calls live here. Uses the shared axios instance (withCredentials).
-export const getUsers = (page = 0, size = 20) =>
-    api.get("/admin/users", { params: { page, size } });
+export const getUsers = (page = 0, size = 20, search = "", role = "") => {
+    const params = { page, size };
+    if (search && search.trim()) params.search = search.trim();
+    if (role) params.role = role;          // "STUDENT" | "ADMIN" | "" (All)
+    return api.get("/admin/users", { params });
+};
 
 // Read-only platform analytics for the admin dashboard.
 export const getAnalytics = () => api.get("/admin/analytics");

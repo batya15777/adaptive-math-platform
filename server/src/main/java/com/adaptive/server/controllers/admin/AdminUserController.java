@@ -27,9 +27,11 @@ public class AdminUserController {
     public ResponseEntity<PagedUsersResponse> listUsers(
             @CookieValue(value = "session_token", required = false) String sessionToken,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role) {
 
         sessionValidationService.validateAdminOnly(sessionToken);
-        return ResponseEntity.ok(adminUserService.getUsers(page, size));
+        return ResponseEntity.ok(adminUserService.getUsers(page, size, search, role));
     }
 }
