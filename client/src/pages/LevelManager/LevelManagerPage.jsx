@@ -1,6 +1,8 @@
 import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContextSetup.js';
+import { useLanguage } from '../../i18n/useLanguage.js';
+import { getLevelManagerStrings } from './levelManagerStrings.js';
 import { SurveyForm } from './SurveyForm.jsx';
 import { AssessmentQuestion } from './AssessmentQuestion.jsx';
 
@@ -9,6 +11,8 @@ import { AssessmentQuestion } from './AssessmentQuestion.jsx';
 export const LevelManagerPage = () => {
     const { user }   = useContext(AuthContext);
     const navigate   = useNavigate();
+    const { language, dir } = useLanguage();
+    const t = getLevelManagerStrings(language);
 
     const [phase,              setPhase]              = useState('survey');
     const [assessmentQuestion, setAssessmentQuestion] = useState(null);
@@ -38,12 +42,12 @@ export const LevelManagerPage = () => {
     };
 
     return (
-        <div style={page}>
+        <div dir={dir} style={page}>
             {/* Step progress bar */}
             <div style={stepsRow}>
-                <StepDot num={1} label="About You"           active={phase === 'survey'}   done={phase !== 'survey'} />
+                <StepDot num={1} label={t.stepAboutYou}    active={phase === 'survey'}   done={phase !== 'survey'} />
                 <div style={stepConnector(phase !== 'survey')} />
-                <StepDot num={2} label="Assessment Question" active={phase === 'question'} done={phase === 'done'} />
+                <StepDot num={2} label={t.stepAssessment}  active={phase === 'question'} done={phase === 'done'} />
             </div>
 
             <div style={card}>
@@ -51,15 +55,15 @@ export const LevelManagerPage = () => {
                 <div style={cardHeader}>
                     <span style={headerEmoji}>📚</span>
                     <div>
-                        <h1 style={{ margin: 0, fontSize: '22px', color: '#222' }}>Level Assessment</h1>
+                        <h1 style={{ margin: 0, fontSize: '22px', color: '#222' }}>{t.pageTitle}</h1>
                         <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#777' }}>
-                            We'll place you at the right level so every question feels just right.
+                            {t.pageSubtitle}
                         </p>
                     </div>
                 </div>
 
                 {phase === 'survey' && (
-                    <SurveyForm onComplete={handleSurveyComplete} />
+                    <SurveyForm onComplete={handleSurveyComplete} t={t} />
                 )}
 
                 {phase === 'question' && assessmentQuestion && (
@@ -68,6 +72,7 @@ export const LevelManagerPage = () => {
                         subSubjectId={subSubjectId}
                         subSubjectName={subSubjectName}
                         onDone={() => setPhase('done')}
+                        t={t}
                     />
                 )}
             </div>

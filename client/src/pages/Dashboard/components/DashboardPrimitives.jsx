@@ -80,34 +80,36 @@ export const GaugeChart = ({ percent, color = COLORS.primary, size = 160, label 
 };
 
 // Maps an error-pattern code into a short, kid-friendly label for display.
-export const prettifyError = (code) => {
+// Localized: pulls the display text from the dashboard strings dictionary `t`.
+export const prettifyError = (code, t) => {
     if (!code) return '';
     const map = {
-        CONFUSED_SUB_WITH_ADD:   'Mixing plus and minus',
-        MINOR_CALCULATION_ERROR: 'Tiny slips',
-        EMPTY_ANSWER:            'Skipped questions',
-        INVALID_FORMAT_ERROR:    'Writing the answer',
+        CONFUSED_SUB_WITH_ADD:   t.errConfusedSubAdd,
+        MINOR_CALCULATION_ERROR: t.errMinorCalc,
+        EMPTY_ANSWER:            t.errEmptyAnswer,
+        INVALID_FORMAT_ERROR:    t.errInvalidFormat,
     };
     if (map[code]) return map[code];
     // Operation codes (e.g. GENERAL_ERROR_MULT → "Times tables") — plain words, no symbols.
     const op = code.replace(/^GENERAL_ERROR_/, '').toLowerCase();
     const opMap = {
-        mult: 'Times tables',
-        add:  'Adding',
-        sub:  'Subtracting',
-        div:  'Dividing',
+        mult: t.opMult,
+        add:  t.opAdd,
+        sub:  t.opSub,
+        div:  t.opDiv,
     };
     return opMap[op] || op.replace(/_/g, ' ');
 };
 
 // Turns the raw cluster label (e.g. "Developing - mainly MINOR_CALCULATION_ERROR")
 // into a fun, kid-friendly group name. The detailed focus areas show as chips below.
-export const prettifyClusterLabel = (label) => {
-    if (!label) return 'My group 🌟';
+// Localized via the dashboard strings dictionary `t`.
+export const prettifyClusterLabel = (label, t) => {
+    if (!label) return t.groupDefault;
     const base = label.split(' - mainly ')[0].trim().toLowerCase();
-    if (base.includes('high'))       return 'Math Star ⭐';
-    if (base.includes('needs'))      return 'Just Starting 🚀';
-    if (base.includes('developing')) return 'Rising Star 🌱';
+    if (base.includes('high'))       return t.groupMathStar;
+    if (base.includes('needs'))      return t.groupJustStarting;
+    if (base.includes('developing')) return t.groupRisingStar;
     return label.split(' - mainly ')[0]; // unknown label → show the base part only
 };
 

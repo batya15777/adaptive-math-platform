@@ -2,14 +2,13 @@ import { motion } from 'framer-motion';
 import { Card, GaugeChart, COLORS, prettifyError, prettifyClusterLabel, rateColor } from './DashboardPrimitives.jsx';
 
 // "Clustering Insights" — the student's ML cohort, with the group score gauge
-// and animated focus-area chips.
-export const ClusterCard = ({ cluster }) => {
+// and animated focus-area chips. Pure: receives the strings dictionary `t`.
+export const ClusterCard = ({ cluster, t }) => {
     if (!cluster || !cluster.assigned) {
         return (
-            <Card title="My learning group 🧩">
+            <Card title={t.clusterTitle}>
                 <p style={{ color: COLORS.muted, margin: 0, fontSize: 14 }}>
-                    We're still getting to know how you learn! Keep playing and we'll
-                    place you in a learning group. 🧩
+                    {t.clusterPending}
                 </p>
             </Card>
         );
@@ -19,30 +18,30 @@ export const ClusterCard = ({ cluster }) => {
     const patterns = cluster.topErrorPatterns || [];
 
     return (
-        <Card title="My learning group 🧩">
+        <Card title={t.clusterTitle}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 {accuracyPct != null && (
-                    <GaugeChart percent={accuracyPct} color={rateColor(accuracyPct)} size={120} label="our score" />
+                    <GaugeChart percent={accuracyPct} color={rateColor(accuracyPct)} size={120} label={t.ourScore} />
                 )}
                 <div style={{ flex: 1, minWidth: 180 }}>
-                    <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>You're in the group</div>
+                    <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>{t.youreInTheGroup}</div>
                     <motion.span
                         style={badge}
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 18 }}
                     >
-                        {prettifyClusterLabel(cluster.label)}
+                        {prettifyClusterLabel(cluster.label, t)}
                     </motion.span>
                     <p style={{ fontSize: 14, color: '#444', margin: '10px 0 0' }}>
-                        We pick the <b>perfect</b> questions just for you! 🎯
+                        {t.perfectQuestions}
                     </p>
                 </div>
             </div>
 
             {patterns.length > 0 && (
                 <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 6 }}>What we're practicing together:</div>
+                    <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 6 }}>{t.practicingTogether}</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                         {patterns.map((p, i) => (
                             <motion.span
@@ -52,7 +51,7 @@ export const ClusterCard = ({ cluster }) => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.2 + i * 0.1 }}
                             >
-                                {prettifyError(p)}
+                                {prettifyError(p, t)}
                             </motion.span>
                         ))}
                     </div>

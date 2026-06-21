@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { getTop10 } from '../../service/leaderboardApi.js';
+import { useLanguage } from '../../i18n/useLanguage.js';
+import { getLeaderboardStrings } from './leaderboardStrings.js';
 
 const MEDALS   = ['🥇', '🥈', '🥉'];
 const ROW_TINT = ['#fff8e1', '#f5f5f5', '#fff3e0']; // gold / silver / bronze tint for top 3
 
 export const Leaderboard = () => {
+    const { language, locale } = useLanguage();
+    const t = getLeaderboardStrings(language);
+
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error,   setError]   = useState('');
@@ -12,19 +17,19 @@ export const Leaderboard = () => {
     useEffect(() => {
         getTop10()
             .then(res => setEntries(res.data?.leaderboard || []))
-            .catch(() => setError('Could not load the leaderboard.'))
+            .catch(() => setError(t.loadError))
             .finally(() => setLoading(false));
-    }, []);
+    }, [t.loadError]);
 
     return (
         <div style={container}>
             <div style={headerBar}>
                 <span style={{ fontSize: '22px' }}>🏆</span>
-                <h2 style={headerTitle}>Top 10 Students</h2>
+                <h2 style={headerTitle}>{t.title}</h2>
             </div>
 
             {loading && (
-                <div style={centeredMsg}>Loading leaderboard...</div>
+                <div style={centeredMsg}>{t.loading}</div>
             )}
 
             {error && (
@@ -32,7 +37,7 @@ export const Leaderboard = () => {
             )}
 
             {!loading && !error && entries.length === 0 && (
-                <div style={centeredMsg}>No entries yet — be the first to earn stars!</div>
+                <div style={centeredMsg}>{t.empty}</div>
             )}
 
             {!loading && !error && entries.length > 0 && (
@@ -51,7 +56,7 @@ export const Leaderboard = () => {
 
                             {/* Stars */}
                             <span style={starsCell}>
-                                ⭐ {(entry.totalStars ?? 0).toLocaleString()}
+                                ⭐ {(entry.totalStars ?? 0).toLocaleString(locale)}
                             </span>
                         </div>
                     ))}

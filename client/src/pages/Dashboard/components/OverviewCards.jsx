@@ -2,35 +2,37 @@ import { motion } from 'framer-motion';
 import { Card, GaugeChart, AnimatedNumber, rateColor, COLORS } from './DashboardPrimitives.jsx';
 
 // Headline stats: an animated success-rate gauge plus four count-up stat tiles.
-export const OverviewCards = ({ overall, totalStars }) => {
+// Pure: receives the strings dictionary `t` and the active `locale` via props.
+export const OverviewCards = ({ overall, totalStars, t, locale }) => {
     const o = overall || {};
+    const fmtNum = (v) => Math.round(v).toLocaleString(locale);
     const tiles = [
-        { icon: '⭐', value: totalStars ?? 0,      label: 'Stars',             color: COLORS.warning },
-        { icon: '🧮', value: o.totalAttempts ?? 0, label: 'Questions answered', color: COLORS.primary },
-        { icon: '✅', value: o.totalCorrect ?? 0,  label: 'Correct answers',    color: COLORS.success },
+        { icon: '⭐', value: totalStars ?? 0,      label: t.stars,             color: COLORS.warning },
+        { icon: '🧮', value: o.totalAttempts ?? 0, label: t.questionsAnswered, color: COLORS.primary },
+        { icon: '✅', value: o.totalCorrect ?? 0,  label: t.correctAnswers,    color: COLORS.success },
     ];
 
     return (
-        <Card title="How am I doing? 📊">
+        <Card title={t.overviewTitle}>
             <div style={row}>
                 <div style={{ display: 'flex', justifyContent: 'center', minWidth: 170 }}>
-                    <GaugeChart percent={o.successRate ?? 0} color={rateColor(o.successRate ?? 0)} label="got it right" />
+                    <GaugeChart percent={o.successRate ?? 0} color={rateColor(o.successRate ?? 0)} label={t.gotItRight} />
                 </div>
                 <div style={statsGrid}>
-                    {tiles.map((t, i) => (
+                    {tiles.map((item, i) => (
                         <motion.div
-                            key={t.label}
+                            key={item.label}
                             style={tile}
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: 0.15 + i * 0.08, type: 'spring', stiffness: 280, damping: 20 }}
                             whileHover={{ scale: 1.04 }}
                         >
-                            <div style={{ fontSize: 20 }}>{t.icon}</div>
-                            <div style={{ fontSize: 24, fontWeight: 'bold', color: t.color }}>
-                                <AnimatedNumber value={t.value} />
+                            <div style={{ fontSize: 20 }}>{item.icon}</div>
+                            <div style={{ fontSize: 24, fontWeight: 'bold', color: item.color }}>
+                                <AnimatedNumber value={item.value} format={fmtNum} />
                             </div>
-                            <div style={{ fontSize: 12, color: COLORS.muted }}>{t.label}</div>
+                            <div style={{ fontSize: 12, color: COLORS.muted }}>{item.label}</div>
                         </motion.div>
                     ))}
                     <motion.div
@@ -41,8 +43,8 @@ export const OverviewCards = ({ overall, totalStars }) => {
                         whileHover={{ scale: 1.04 }}
                     >
                         <div style={{ fontSize: 20 }}>🏆</div>
-                        <div style={{ fontSize: 24, fontWeight: 'bold', color: COLORS.purple }}>Lv {o.masteryLevel ?? 1}</div>
-                        <div style={{ fontSize: 12, color: COLORS.muted }}>Top level reached</div>
+                        <div style={{ fontSize: 24, fontWeight: 'bold', color: COLORS.purple }}>{t.levelShort} {o.masteryLevel ?? 1}</div>
+                        <div style={{ fontSize: 12, color: COLORS.muted }}>{t.topLevelReached}</div>
                     </motion.div>
                 </div>
             </div>

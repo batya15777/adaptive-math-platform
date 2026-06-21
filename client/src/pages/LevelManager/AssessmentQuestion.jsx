@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { submitAnswer } from '../../service/progressApi.js';
+import { format } from '../../i18n/languages.js';
 
 // "5,7,9,11" → ["5","7","9","11"];  "" / null → []
 const parseOptions  = (s) => (s ? s.split(',').map(o => o.trim()).filter(Boolean) : []);
 // "a = 1\nb = 2" → ["a = 1","b = 2"]
 const parseSolution = (s) => (s ? s.split('\n').map(t => t.trim()).filter(Boolean) : []);
 
-export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onDone }) => {
+export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onDone, t }) => {
     const [answer,    setAnswer]    = useState('');
     const [feedback,  setFeedback]  = useState(null); // { type: 'correct'|'wrong', text }
     const [concluded, setConcluded] = useState(false);
@@ -35,16 +36,16 @@ export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onD
             });
             const data = res.data;
             if (data.answerCorrect) {
-                setFeedback({ type: 'correct', text: 'Correct! Great start!' });
+                setFeedback({ type: 'correct', text: t.feedbackCorrect });
             } else {
                 setFeedback({
                     type: 'wrong',
-                    text: `Not quite — the answer was ${question.correctAnswer}. No worries, we've noted your level!`,
+                    text: format(t.feedbackWrong, { answer: question.correctAnswer }),
                 });
             }
             setConcluded(true);
         } catch {
-            setError('Could not submit your answer. Please try again.');
+            setError(t.errSubmit);
         } finally {
             setLoading(false);
         }
@@ -52,18 +53,18 @@ export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onD
 
     return (
         <div>
-            <h2 style={sectionHeading}>Assessment Question</h2>
+            <h2 style={sectionHeading}>{t.questionHeading}</h2>
             <p style={subtext}>
-                Answer this question so we can set your starting level.
-                There's no wrong outcome — just answer honestly!
+                {t.questionSubtext}
             </p>
 
             {error && <p style={errorMsg}>{error}</p>}
 
             <div style={questionCard}>
-                <div style={diffTag}>Difficulty {question.difficultyLevel}</div>
+                <div style={diffTag}>{format(t.difficulty, { level: question.difficultyLevel })}</div>
 
-                <div style={expression}>{question.expression}</div>
+                {/* Math stays LTR even when the page is RTL (Hebrew). */}
+                <div dir="ltr" style={expression}>{question.expression}</div>
 
                 {isMultipleChoice ? (
                     <div style={optionGrid}>
@@ -87,7 +88,7 @@ export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onD
                             disabled={concluded || loading}
                             onChange={e => setAnswer(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') handleAnswer(); }}
-                            placeholder="Type your answer"
+                            placeholder={t.answerPlaceholder}
                             style={textInput}
                         />
                         <button
@@ -96,7 +97,7 @@ export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onD
                             onClick={() => handleAnswer()}
                             style={btn(concluded || !answer.trim() ? '#adb5bd' : '#28a745')}
                         >
-                            Submit
+                            {t.submit}
                         </button>
                     </div>
                 )}
@@ -123,7 +124,7 @@ export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onD
                     onClick={onDone}
                     style={{ ...btn('#007bff'), marginTop: '20px', width: '100%', padding: '14px', fontSize: '16px' }}
                 >
-                    Continue to practice →
+                    {t.continueToPractice}
                 </button>
             )}
         </div>

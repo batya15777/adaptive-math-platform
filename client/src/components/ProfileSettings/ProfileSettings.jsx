@@ -2,13 +2,19 @@ import { useState, useContext, useEffect } from 'react';
 import { useProfile } from '../../contexts/useProfile.js';
 import { AuthContext } from '../../context/AuthContextSetup.js';
 import { AVATARS } from '../../assets/avatars/index.js';
+import { useLanguage } from '../../i18n/useLanguage.js';
+import { format } from '../../i18n/languages.js';
+import { getProfileSettingsStrings } from './profileSettingsStrings.js';
 
 // Look up a label from a server-provided options list; fall back to the raw value.
 const labelFor = (list, value) => list.find(o => o.value === value)?.label ?? value;
 
+// Renders under DashboardLayout, which owns `dir` — so no dir on this root.
 export const ProfileSettings = () => {
     const { profileData, options, updateProfile, loading, error } = useProfile();
     const { user } = useContext(AuthContext);
+    const { language } = useLanguage();
+    const t = getProfileSettingsStrings(language);
 
     const [isEditing, setIsEditing]    = useState(false);
     const [formData,  setFormData]     = useState({});
@@ -24,7 +30,7 @@ export const ProfileSettings = () => {
     }, [profileData]);
 
     if (!user) {
-        return <div style={{ padding: '20px', textAlign: 'center' }}>Please log in to view your profile.</div>;
+        return <div style={{ padding: '20px', textAlign: 'center' }}>{t.pleaseLogIn}</div>;
     }
 
     const handleChange = (e) => {
@@ -40,11 +46,11 @@ export const ProfileSettings = () => {
         setSaveError('');
         try {
             await updateProfile(formData);
-            setSuccessMsg('Profile updated successfully!');
+            setSuccessMsg(t.saveSuccess);
             setIsEditing(false);
             setTimeout(() => setSuccessMsg(''), 3000);
         } catch {
-            setSaveError('Could not save. Please try again.');
+            setSaveError(t.saveFailed);
         }
     };
 
@@ -60,10 +66,10 @@ export const ProfileSettings = () => {
 
     return (
         <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
-            <h2 style={{ color: '#333', marginBottom: '20px' }}>Profile Settings</h2>
+            <h2 style={{ color: '#333', marginBottom: '20px' }}>{t.title}</h2>
 
-            {loading && <p style={{ color: '#888' }}>Loading...</p>}
-            {error   && <p style={{ color: '#dc3545' }}>{error}</p>}
+            {loading && <p style={{ color: '#888' }}>{t.loading}</p>}
+            {error   && <p style={{ color: '#dc3545' }}>{t.loadError}</p>}
 
             {successMsg && (
                 <div style={{ padding: '12px', marginBottom: '15px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '4px', border: '1px solid #c3e6cb' }}>
@@ -79,21 +85,21 @@ export const ProfileSettings = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
                         <img
                             src={AVATARS[profileData.pictureId] ?? AVATARS[0]}
-                            alt="Your avatar"
+                            alt={t.avatarAlt}
                             style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #ddd' }}
                         />
                         <div>
-                            <strong style={{ fontSize: '18px' }}>{profileData.name || 'Not set'}</strong>
+                            <strong style={{ fontSize: '18px' }}>{profileData.name || t.notSet}</strong>
                             <p style={{ margin: '4px 0', color: '#888', fontSize: '14px' }}>{profileData.email}</p>
                         </div>
                     </div>
 
                     <hr style={{ margin: '15px 0', borderColor: '#ddd' }} />
-                    <Field label="Theme">{labelFor(options.themes, profileData.theme)}</Field>
-                    <Field label="Language">{labelFor(options.languages, profileData.language)}</Field>
+                    <Field label={t.theme}>{labelFor(options.themes, profileData.theme)}</Field>
+                    <Field label={t.language}>{labelFor(options.languages, profileData.language)}</Field>
 
                     <button onClick={() => setIsEditing(true)} style={btn('#007bff')}>
-                        Edit Profile
+                        {t.editProfile}
                     </button>
                 </div>
             ) : (
@@ -102,7 +108,7 @@ export const ProfileSettings = () => {
 
                     {/* Avatar picker */}
                     <div style={{ marginBottom: '20px' }}>
-                        <label style={labelStyle}>Choose Avatar</label>
+                        <label style={labelStyle}>{t.chooseAvatar}</label>
                         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '8px' }}>
                             {AVATARS.map((src, index) => {
                                 const selected = formData.pictureId === index;
@@ -110,7 +116,7 @@ export const ProfileSettings = () => {
                                     <img
                                         key={index}
                                         src={src}
-                                        alt={`Avatar ${index}`}
+                                        alt={format(t.avatarAltN, { n: index })}
                                         onClick={() => handleAvatarSelect(index)}
                                         style={{
                                             width: '64px',
@@ -130,17 +136,17 @@ export const ProfileSettings = () => {
 
                     {/* Read-only identity */}
                     <div style={{ marginBottom: '15px' }}>
-                        <label style={labelStyle}>Full Name (read-only)</label>
+                        <label style={labelStyle}>{t.fullNameReadonly}</label>
                         <input value={profileData.name} disabled style={{ ...inputStyle, backgroundColor: '#e9ecef', cursor: 'not-allowed' }} />
                     </div>
                     <div style={{ marginBottom: '15px' }}>
-                        <label style={labelStyle}>Email (read-only)</label>
+                        <label style={labelStyle}>{t.emailReadonly}</label>
                         <input value={profileData.email} disabled style={{ ...inputStyle, backgroundColor: '#e9ecef', cursor: 'not-allowed' }} />
                     </div>
 
                     {/* Theme */}
                     <div style={{ marginBottom: '15px' }}>
-                        <label style={labelStyle}>Theme</label>
+                        <label style={labelStyle}>{t.theme}</label>
                         <select name="theme" value={formData.theme} onChange={handleChange} style={inputStyle}>
                             {options.themes.map(o => (
                                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -150,7 +156,7 @@ export const ProfileSettings = () => {
 
                     {/* Language */}
                     <div style={{ marginBottom: '20px' }}>
-                        <label style={labelStyle}>Language</label>
+                        <label style={labelStyle}>{t.language}</label>
                         <select name="language" value={formData.language} onChange={handleChange} style={inputStyle}>
                             {options.languages.map(o => (
                                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -162,10 +168,10 @@ export const ProfileSettings = () => {
 
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button onClick={handleSave}   disabled={loading} style={btn('#28a745')}>
-                            {loading ? 'Saving...' : 'Save Changes'}
+                            {loading ? t.saving : t.saveChanges}
                         </button>
                         <button onClick={handleCancel} disabled={loading} style={btn('#6c757d')}>
-                            Cancel
+                            {t.cancel}
                         </button>
                     </div>
                 </div>

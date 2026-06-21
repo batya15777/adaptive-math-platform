@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getTopics, getSubjects, getSubSubjects } from '../../service/trainingApi.js';
+import { useLanguage } from '../../i18n/useLanguage.js';
+import { getMathTrainingStrings } from './mathTrainingStrings.js';
 
 // Drill-down: topic → subject → sub-subjects (with the student's progress on each).
 // Clicking a sub-subject opens the question game for it.
+// Renders under DashboardLayout, which owns `dir` — so no dir on this root.
 export const MathTraining = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { language } = useLanguage();
+    const t = getMathTrainingStrings(language);
     const [topics,      setTopics]      = useState([]);
     const [subjects,    setSubjects]    = useState([]);
     const [subSubjects, setSubSubjects] = useState([]);
@@ -25,23 +30,27 @@ export const MathTraining = () => {
             const res = await fn();
             apply(res.data);
         } catch {
-            setError('Something went wrong. Please try again.');
+            setError(t.errGeneric);
         } finally {
             setLoading(false);
         }
+        // `t.errGeneric` is intentionally omitted: `load` should stay stable so
+        // changing language doesn't re-trigger the fetch effects below.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // On mount: load topics. If we arrived back from the game (state carries the topic +
     // subject), restore the sub-subjects view so "back" lands on that subject's tab.
     useEffect(() => {
-        const t = location.state?.topic;
-        const s = location.state?.subject;
-        if (t && s) {
-            setSelectedTopic(t);
-            setSelectedSubject(s);
-            getTopics().then(r => setTopics(r.data)).catch(() => {});        // for breadcrumb back
-            getSubjects(t.id).then(r => setSubjects(r.data)).catch(() => {}); // for breadcrumb back
-            load(() => getSubSubjects(s.id), setSubSubjects);                 // the restored view
+        // Local names avoid shadowing the strings dictionary `t` above.
+        const topic = location.state?.topic;
+        const subject = location.state?.subject;
+        if (topic && subject) {
+            setSelectedTopic(topic);
+            setSelectedSubject(subject);
+            getTopics().then(r => setTopics(r.data)).catch(() => {});              // for breadcrumb back
+            getSubjects(topic.id).then(r => setSubjects(r.data)).catch(() => {});  // for breadcrumb back
+            load(() => getSubSubjects(subject.id), setSubSubjects);                // the restored view
         } else {
             load(getTopics, setTopics);
         }
@@ -77,12 +86,12 @@ export const MathTraining = () => {
 
     return (
         <div style={page}>
-            <h2 style={{ color: '#333', marginBottom: '8px' }}>Math Training</h2>
+            <h2 style={{ color: '#333', marginBottom: '8px' }}>{t.title}</h2>
 
             {/* Breadcrumb */}
             <div style={crumbBar}>
                 <span style={selectedTopic ? crumbLink : crumbCurrent} onClick={selectedTopic ? goToTopics : undefined}>
-                    Topics
+                    {t.topics}
                 </span>
                 {selectedTopic && (
                     <>
@@ -100,7 +109,7 @@ export const MathTraining = () => {
                 )}
             </div>
 
-            {loading && <p style={{ color: '#888' }}>Loading...</p>}
+            {loading && <p style={{ color: '#888' }}>{t.loading}</p>}
             {error   && <p style={{ color: '#dc3545' }}>{error}</p>}
 
             {/* Level 1: topics */}
@@ -111,7 +120,7 @@ export const MathTraining = () => {
                             <span style={cardTitle}>{topic.name}</span>
                         </SelectCard>
                     ))}
-                    {topics.length === 0 && !error && <Empty>No topics available yet.</Empty>}
+                    {topics.length === 0 && !error && <Empty>{t.emptyTopics}</Empty>}
                 </Grid>
             )}
 
@@ -123,7 +132,7 @@ export const MathTraining = () => {
                             <span style={cardTitle}>{subject.name}</span>
                         </SelectCard>
                     ))}
-                    {subjects.length === 0 && !error && <Empty>No subjects under this topic yet.</Empty>}
+                    {subjects.length === 0 && !error && <Empty>{t.emptySubjects}</Empty>}
                 </Grid>
             )}
 
@@ -140,16 +149,16 @@ export const MathTraining = () => {
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={cardTitle}>{sub.name}</span>
-                                <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '14px' }}>Play ▶</span>
+                                <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '14px' }}>{t.play}</span>
                             </div>
                             <div style={statsRow}>
-                                <Stat label="Level"      value={sub.currentLevel} />
-                                <Stat label="Solved"     value={sub.questionsSolved} />
-                                <Stat label="Difficulty" value={sub.difficultyLevel} />
+                                <Stat label={t.statLevel}      value={sub.currentLevel} />
+                                <Stat label={t.statSolved}     value={sub.questionsSolved} />
+                                <Stat label={t.statDifficulty} value={sub.difficultyLevel} />
                             </div>
                         </div>
                     ))}
-                    {subSubjects.length === 0 && !error && <Empty>No sub-subjects under this subject yet.</Empty>}
+                    {subSubjects.length === 0 && !error && <Empty>{t.emptySubSubjects}</Empty>}
                 </Grid>
             )}
         </div>

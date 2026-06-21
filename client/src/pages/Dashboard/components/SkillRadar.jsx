@@ -3,14 +3,15 @@ import { Card, COLORS } from './DashboardPrimitives.jsx';
 
 // A "skill map" — success rate across topics as a radar/spider chart.
 // Only meaningful with a few topics, so the container renders it conditionally.
-export const SkillRadar = ({ topics }) => {
-    const data = (topics || []).map((t) => ({
-        topic: cap(t.name),
-        rate: t.successRate,
+// Pure: receives the strings dictionary `t`. (Topic names come from the backend.)
+export const SkillRadar = ({ topics, t }) => {
+    const data = (topics || []).map((topic) => ({
+        topic: cap(topic.name),
+        rate: topic.successRate,
     }));
 
     return (
-        <Card title="Your skill map 🕸️">
+        <Card title={t.skillMapTitle}>
             <ResponsiveContainer width="100%" height={280}>
                 <RadarChart data={data} outerRadius="72%">
                     <PolarGrid stroke="#e6e8ee" />
@@ -20,7 +21,7 @@ export const SkillRadar = ({ topics }) => {
                         dataKey="rate" stroke={COLORS.primary} fill={COLORS.primary} fillOpacity={0.35}
                         isAnimationActive animationDuration={900}
                     />
-                    <Tooltip formatter={(v) => [`${v}%`, 'Success']} />
+                    <Tooltip formatter={(v) => [`${v}%`, t.successLabel]} />
                 </RadarChart>
             </ResponsiveContainer>
         </Card>
