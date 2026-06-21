@@ -23,6 +23,7 @@ export const AdminUsers = () => {
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [role, setRole] = useState(""); // "" = All
+    const [status, setStatus] = useState(""); // "" = default (ACTIVE + BLOCKED)
     const [version, setVersion] = useState(0); // bump to refetch after a mutation
 
     // Debounce the search box (setState lives in the timer callback, not the effect body).
@@ -33,17 +34,18 @@ export const AdminUsers = () => {
 
     useEffect(() => {
         let active = true;
-        getUsers(page, PAGE_SIZE, debouncedSearch, role)
+        getUsers(page, PAGE_SIZE, debouncedSearch, role, status)
             .then((res) => { if (active) { setData(res.data); setError(""); } })
             .catch(() => { if (active) setError(t.usersLoadError); })
             .finally(() => { if (active) setLoading(false); });
         return () => { active = false; };
-    }, [page, debouncedSearch, role, version, t.usersLoadError]);
+    }, [page, debouncedSearch, role, status, version, t.usersLoadError]);
 
     // Page reset + loading flag live in the handlers (not in the effect body) for eslint.
     const goToPage = (next) => { setLoading(true); setPage(next); };
     const onSearch = (v) => { setSearch(v); setPage(0); setLoading(true); };
     const onRole = (v) => { setRole(v); setPage(0); setLoading(true); };
+    const onStatus = (v) => { setStatus(v); setPage(0); setLoading(true); };
 
     const onChangeRole = (u, nextRole) => {
         if (!window.confirm(t.changeRoleConfirm)) return;
@@ -55,7 +57,9 @@ export const AdminUsers = () => {
     };
 
     const onSetStatus = (u, nextStatus) => {
-        const confirmMsg = nextStatus === "BLOCKED" ? t.blockConfirm : t.unblockConfirm;
+        const confirmMsg = nextStatus === "DELETED" ? t.softDeleteConfirm
+            : nextStatus === "BLOCKED" ? t.blockConfirm
+            : t.unblockConfirm;
         if (!window.confirm(confirmMsg)) return;
         setNotice("");
         setError("");
@@ -84,6 +88,16 @@ export const AdminUsers = () => {
                         <option value="">{t.filterAll}</option>
                         <option value="STUDENT">{t.filterStudents}</option>
                         <option value="ADMIN">{t.filterAdmins}</option>
+                    </select>
+                </label>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 14, color: "#6c757d" }}>{t.filterStatus}:</span>
+                    <select value={status} onChange={(e) => onStatus(e.target.value)} style={{ padding: 6 }}>
+                        <option value="">{t.statusOptDefault}</option>
+                        <option value="ACTIVE">{t.statusOptActive}</option>
+                        <option value="BLOCKED">{t.statusOptBlocked}</option>
+                        <option value="DELETED">{t.statusOptDeleted}</option>
+                        <option value="ALL">{t.statusOptAll}</option>
                     </select>
                 </label>
             </div>

@@ -62,9 +62,9 @@ public class AuthService {
             return new LoginResponse(false , Errors.INVALID_CREDENTIALS.getMessage() , null);
         }//לוקחים סיסמא שלקוח הקליד נכניס לפונקציית HASH שלנו ונבדוק אם תוצאה שווה למה שיש בDB
 
-        // Blocked accounts cannot log in (admin soft-block via accountStatus).
+        // Non-active accounts (BLOCKED or DELETED) cannot log in.
         if (!"ACTIVE".equals(user.getAccountStatus())) {
-            return new LoginResponse(false , Errors.ACCOUNT_BLOCKED.getMessage() , null);
+            return new LoginResponse(false , Errors.ACCOUNT_INACTIVE.getMessage() , null);
         }
 
         //יצרתי ככה סשן שיהיה תקף בינתיים ליום ואז שומרת אותו

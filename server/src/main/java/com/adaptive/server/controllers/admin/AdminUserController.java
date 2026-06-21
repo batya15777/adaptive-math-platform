@@ -36,10 +36,11 @@ public class AdminUserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String role) {
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status) {
 
         sessionValidationService.validateAdminOnly(sessionToken);
-        return ResponseEntity.ok(adminUserService.getUsers(page, size, search, role));
+        return ResponseEntity.ok(adminUserService.getUsers(page, size, search, role, status));
     }
 
     @PatchMapping("/{id}/role")

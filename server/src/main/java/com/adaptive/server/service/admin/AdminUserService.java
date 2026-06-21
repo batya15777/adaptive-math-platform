@@ -22,7 +22,7 @@ public class AdminUserService {
 
     private static final int MAX_PAGE_SIZE = 100;
     private static final Set<String> VALID_ROLES = Set.of("STUDENT", "ADMIN");
-    private static final Set<String> VALID_STATUSES = Set.of("ACTIVE", "BLOCKED");
+    private static final Set<String> VALID_STATUSES = Set.of("ACTIVE", "BLOCKED", "DELETED");
 
     private final UserRepository userRepository;
 
@@ -31,7 +31,7 @@ public class AdminUserService {
     }
 
     @Transactional(readOnly = true)
-    public PagedUsersResponse getUsers(int page, int size, String search, String role) {
+    public PagedUsersResponse getUsers(int page, int size, String search, String role, String status) {
         // Guard against abuse / bad input — never load everything at once.
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
@@ -47,8 +47,10 @@ public class AdminUserService {
                     "Invalid role filter. Use STUDENT or ADMIN.");
         }
 
+        List<String> statuses = resolveStatuses(status);
+
         Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.ASC, "id"));
-        Page<User> result = userRepository.searchUsers(q, idQ, roleFilter, pageable);
+        Page<User> result = userRepository.searchUsers(q, idQ, roleFilter, statuses, pageable);
 
         List<AdminUserDto> users = result.getContent().stream()
                 .map(AdminUserDto::new)
@@ -101,18 +103,37 @@ public class AdminUserService {
             return new AdminUserDto(user); // no-op: already in that status
         }
 
-        if ("BLOCKED".equals(status)) {
+        // Any transition away from ACTIVE (BLOCKED or DELETED) removes the user's access.
+        boolean deactivating = !"ACTIVE".equals(status);
+        if (deactivating) {
             if (targetId.equals(currentAdminId)) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot block yourself.");
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot block or delete yourself.");
             }
             if ("ADMIN".equals(user.getRole())
                     && userRepository.countByRoleAndAccountStatus("ADMIN", "ACTIVE") <= 1) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot block the last active admin.");
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot block or delete the last active admin.");
             }
         }
 
         user.setAccountStatus(status);
         return new AdminUserDto(userRepository.save(user));
+    }
+
+    // Resolves the status filter to the set of account statuses to include.
+    // Blank → ACTIVE + BLOCKED (hide DELETED by default); ALL → everything.
+    private List<String> resolveStatuses(String status) {
+        String s = (status == null || status.trim().isEmpty()) ? null : status.trim().toUpperCase();
+        if (s == null) {
+            return List.of("ACTIVE", "BLOCKED");
+        }
+        if ("ALL".equals(s)) {
+            return List.of("ACTIVE", "BLOCKED", "DELETED");
+        }
+        if (VALID_STATUSES.contains(s)) {
+            return List.of(s);
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Invalid status filter. Use ACTIVE, BLOCKED, DELETED or ALL.");
     }
 
     // Returns the id when the search text is purely numeric, else null.

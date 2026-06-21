@@ -1,10 +1,11 @@
 import api from "./api";
 
 // All admin-only calls live here. Uses the shared axios instance (withCredentials).
-export const getUsers = (page = 0, size = 20, search = "", role = "") => {
+export const getUsers = (page = 0, size = 20, search = "", role = "", status = "") => {
     const params = { page, size };
     if (search && search.trim()) params.search = search.trim();
     if (role) params.role = role;          // "STUDENT" | "ADMIN" | "" (All)
+    if (status) params.status = status;    // "ACTIVE" | "BLOCKED" | "DELETED" | "ALL" | "" (default: active+blocked)
     return api.get("/admin/users", { params });
 };
 

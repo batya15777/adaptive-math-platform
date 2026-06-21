@@ -12,7 +12,9 @@ export const UsersTable = ({ users, t, locale, onChangeRole, onSetStatus, curren
         </thead>
         <tbody>
             {users.map((u) => {
-                const blocked = u.accountStatus === "BLOCKED";
+                const status = u.accountStatus;
+                const deleted = status === "DELETED";
+                const statusLabel = deleted ? t.userStatusDeleted : status === "BLOCKED" ? t.userStatusBlocked : t.userStatusActive;
                 return (
                     <tr key={u.id}>
                         <td style={cell}>{u.id}</td>
@@ -20,7 +22,7 @@ export const UsersTable = ({ users, t, locale, onChangeRole, onSetStatus, curren
                         <td style={cell}>{u.email}</td>
                         <td style={cell}><span style={roleBadge(u.role)}>{u.role}</span></td>
                         <td style={cell}>
-                            <span style={statusBadge(blocked)}>{blocked ? t.userStatusBlocked : t.userStatusActive}</span>
+                            <span style={statusBadge(status)}>{statusLabel}</span>
                         </td>
                         <td style={cell}>{u.age ?? "—"}</td>
                         <td style={cell}>{u.gender ?? "—"}</td>
@@ -29,6 +31,8 @@ export const UsersTable = ({ users, t, locale, onChangeRole, onSetStatus, curren
                         <td style={cell}>
                             {u.id === currentUserId ? (
                                 <span style={selfTag}>{t.currentAccount}</span>
+                            ) : deleted ? (
+                                <button onClick={() => onSetStatus(u, "ACTIVE")}>{t.restore}</button>
                             ) : (
                                 <span style={{ display: "inline-flex", gap: 6 }}>
                                     {u.role === "ADMIN" ? (
@@ -36,11 +40,12 @@ export const UsersTable = ({ users, t, locale, onChangeRole, onSetStatus, curren
                                     ) : (
                                         <button onClick={() => onChangeRole(u, "ADMIN")}>{t.makeAdmin}</button>
                                     )}
-                                    {blocked ? (
+                                    {status === "BLOCKED" ? (
                                         <button onClick={() => onSetStatus(u, "ACTIVE")}>{t.unblock}</button>
                                     ) : (
                                         <button onClick={() => onSetStatus(u, "BLOCKED")}>{t.block}</button>
                                     )}
+                                    <button onClick={() => onSetStatus(u, "DELETED")}>{t.softDelete}</button>
                                 </span>
                             )}
                         </td>
@@ -58,7 +63,7 @@ const roleBadge = (role) => ({
     color: "#fff", background: role === "ADMIN" ? "#aa3bff" : "#6c757d",
 });
 const selfTag = { fontSize: 12, color: "#6c757d" };
-const statusBadge = (blocked) => ({
-    padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 700,
-    color: "#fff", background: blocked ? "#dc3545" : "#28a745",
+const statusBadge = (status) => ({
+    padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 700, color: "#fff",
+    background: status === "DELETED" ? "#6c757d" : status === "BLOCKED" ? "#dc3545" : "#28a745",
 });
