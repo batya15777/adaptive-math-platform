@@ -104,6 +104,7 @@ export const AdminDashboard = () => {
 
             <p style={{ marginTop: 24 }}><Link to="/admin/users">{t.manageUsers}</Link></p>
             <p><Link to="/admin/topics">{t.manageTopics}</Link></p>
+            <p><Link to="/admin/ml-groups">{t.manageClusters}</Link></p>
         </div>
     );
 };
