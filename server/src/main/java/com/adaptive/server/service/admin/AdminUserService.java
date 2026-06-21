@@ -1,9 +1,11 @@
 package com.adaptive.server.service.admin;
 
 import com.adaptive.server.DTOs.AdminUserDto;
+import com.adaptive.server.DTOs.AdminUserUpdateRequest;
 import com.adaptive.server.DTOs.PagedUsersResponse;
 import com.adaptive.server.entity.User;
 import com.adaptive.server.repository.UserRepository;
+import com.adaptive.server.service.ValidationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,9 +27,11 @@ public class AdminUserService {
     private static final Set<String> VALID_STATUSES = Set.of("ACTIVE", "BLOCKED", "DELETED");
 
     private final UserRepository userRepository;
+    private final ValidationService validationService;
 
-    public AdminUserService(UserRepository userRepository) {
+    public AdminUserService(UserRepository userRepository, ValidationService validationService) {
         this.userRepository = userRepository;
+        this.validationService = validationService;
     }
 
     @Transactional(readOnly = true)
@@ -116,6 +120,44 @@ public class AdminUserService {
         }
 
         user.setAccountStatus(status);
+        return new AdminUserDto(userRepository.save(user));
+    }
+
+    @Transactional
+    public AdminUserDto updateDetails(Long targetId, AdminUserUpdateRequest req) {
+        User user = userRepository.findById(targetId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+
+        String fullName = req.getFullName() == null ? null : req.getFullName().trim();
+        String email = req.getEmail() == null ? null : req.getEmail().trim();
+        Integer age = req.getAge();
+        String gender = req.getGender();
+
+        if (!validationService.isValidFullName(fullName)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid full name.");
+        }
+        if (!validationService.isValidEmail(email)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email.");
+        }
+        if (!validationService.isValidAge(age)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid age.");
+        }
+        if (!validationService.isValidGender(gender)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid gender.");
+        }
+
+        // Email must be unique, but the user may keep their own email.
+        userRepository.findByEmail(email).ifPresent(other -> {
+            if (!other.getId().equals(targetId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use.");
+            }
+        });
+
+        user.setFullName(fullName);
+        user.setEmail(email);
+        user.setAge(age);
+        user.setGender(gender);
+        // role / accountStatus / totalStars / passwordHash — intentionally untouched
         return new AdminUserDto(userRepository.save(user));
     }
 

@@ -15,6 +15,9 @@ export const updateUserRole = (id, role) => api.patch(`/admin/users/${id}/role`,
 // Block/unblock a user via account status (ACTIVE/BLOCKED). Guarded server-side.
 export const setUserStatus = (id, accountStatus) => api.patch(`/admin/users/${id}/status`, { accountStatus });
 
+// Edit a user's basic details (fullName/email/age/gender). Guarded server-side.
+export const updateUser = (id, data) => api.patch(`/admin/users/${id}`, data);
+
 // Read-only platform analytics for the admin dashboard.
 export const getAnalytics = () => api.get("/admin/analytics");
 

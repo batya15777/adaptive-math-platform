@@ -1,7 +1,7 @@
 // Presentational table for the admin user list. Receives data + strings (t) +
 // locale via props only — no data fetching, state, or i18n lookups — so it stays
 // reusable and easy to test.
-export const UsersTable = ({ users, t, locale, onChangeRole, onSetStatus, currentUserId }) => (
+export const UsersTable = ({ users, t, locale, onChangeRole, onSetStatus, onEdit, currentUserId }) => (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
             <tr>
@@ -30,7 +30,10 @@ export const UsersTable = ({ users, t, locale, onChangeRole, onSetStatus, curren
                         <td style={cell}>{u.createdAt ? new Date(u.createdAt).toLocaleString(locale) : "—"}</td>
                         <td style={cell}>
                             {u.id === currentUserId ? (
-                                <span style={selfTag}>{t.currentAccount}</span>
+                                <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                                    <span style={selfTag}>{t.currentAccount}</span>
+                                    <button onClick={() => onEdit(u)}>{t.editUser}</button>
+                                </span>
                             ) : deleted ? (
                                 <button onClick={() => onSetStatus(u, "ACTIVE")}>{t.restore}</button>
                             ) : (
@@ -46,6 +49,7 @@ export const UsersTable = ({ users, t, locale, onChangeRole, onSetStatus, curren
                                         <button onClick={() => onSetStatus(u, "BLOCKED")}>{t.block}</button>
                                     )}
                                     <button onClick={() => onSetStatus(u, "DELETED")}>{t.softDelete}</button>
+                                    <button onClick={() => onEdit(u)}>{t.editUser}</button>
                                 </span>
                             )}
                         </td>

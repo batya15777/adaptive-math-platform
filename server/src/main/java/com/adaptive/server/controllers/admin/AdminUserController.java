@@ -3,6 +3,7 @@ package com.adaptive.server.controllers.admin;
 import com.adaptive.server.DTOs.AdminRoleUpdateRequest;
 import com.adaptive.server.DTOs.AdminUserDto;
 import com.adaptive.server.DTOs.AdminUserStatusUpdateRequest;
+import com.adaptive.server.DTOs.AdminUserUpdateRequest;
 import com.adaptive.server.DTOs.PagedUsersResponse;
 import com.adaptive.server.entity.SessionToken;
 import com.adaptive.server.service.SessionValidationService;
@@ -59,5 +60,14 @@ public class AdminUserController {
             @RequestBody AdminUserStatusUpdateRequest request) {
         SessionToken admin = sessionValidationService.validateAdminOnly(sessionToken);
         return ResponseEntity.ok(adminUserService.setStatus(admin.getUser().getId(), id, request.getAccountStatus()));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<AdminUserDto> updateDetails(
+            @CookieValue(value = "session_token", required = false) String sessionToken,
+            @PathVariable Long id,
+            @RequestBody AdminUserUpdateRequest request) {
+        sessionValidationService.validateAdminOnly(sessionToken);
+        return ResponseEntity.ok(adminUserService.updateDetails(id, request));
     }
 }

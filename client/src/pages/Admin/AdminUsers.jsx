@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from "react";
-import { getUsers, updateUserRole, setUserStatus } from "../../service/adminApi.js";
+import { getUsers, updateUserRole, setUserStatus, updateUser } from "../../service/adminApi.js";
 import { UsersTable } from "../../components/Admin/UsersTable.jsx";
+import { UserEditModal } from "../../components/Admin/UserEditModal.jsx";
 import { getAdminStrings } from "../../components/Admin/adminStrings.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
 import { format } from "../../i18n/languages.js";
@@ -11,7 +12,7 @@ const PAGE_SIZE = 20;
 // "Smart" page: owns data fetching, server-side search/filter/pagination and
 // loading/error state. The table itself is a separate presentational component.
 export const AdminUsers = () => {
-    const { language, locale } = useLanguage();
+    const { language, locale, dir } = useLanguage();
     const t = getAdminStrings(language);
     const { user } = useContext(AuthContext);
 
@@ -25,6 +26,8 @@ export const AdminUsers = () => {
     const [role, setRole] = useState(""); // "" = All
     const [status, setStatus] = useState(""); // "" = default (ACTIVE + BLOCKED)
     const [version, setVersion] = useState(0); // bump to refetch after a mutation
+    const [editing, setEditing] = useState(null); // null | user being edited
+    const [editError, setEditError] = useState("");
 
     // Debounce the search box (setState lives in the timer callback, not the effect body).
     useEffect(() => {
@@ -68,6 +71,18 @@ export const AdminUsers = () => {
             .catch((e) => setError(e.response?.status === 409 ? t.statusChangeBlocked : t.statusChangeError));
     };
 
+    const onEdit = (u) => { setEditError(""); setEditing(u); };
+
+    const onSubmitEdit = (values) => {
+        setEditError("");
+        updateUser(editing.id, values)
+            .then(() => { setEditing(null); setNotice(t.userUpdateSuccess); setVersion((v) => v + 1); })
+            .catch((e) => {
+                const s = e.response?.status;
+                setEditError(s === 409 ? t.emailInUse : s === 400 ? t.invalidDetails : t.userUpdateError);
+            });
+    };
+
     const hasResults = data.users.length > 0;
 
     return (
@@ -108,7 +123,7 @@ export const AdminUsers = () => {
                 <p style={{ color: "#888" }}>{t.loading}</p>
             ) : hasResults ? (
                 <>
-                    <UsersTable users={data.users} t={t} locale={locale} onChangeRole={onChangeRole} onSetStatus={onSetStatus} currentUserId={user?.id} />
+                    <UsersTable users={data.users} t={t} locale={locale} onChangeRole={onChangeRole} onSetStatus={onSetStatus} onEdit={onEdit} currentUserId={user?.id} />
 
                     <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "center" }}>
                         <button onClick={() => goToPage(page - 1)} disabled={page <= 0}>{t.prev}</button>
@@ -124,6 +139,18 @@ export const AdminUsers = () => {
                 </>
             ) : (
                 <p style={{ color: "#888" }}>{t.noResults}</p>
+            )}
+
+            {editing && (
+                <UserEditModal
+                    key={editing.id}
+                    initialUser={editing}
+                    onSubmit={onSubmitEdit}
+                    onClose={() => setEditing(null)}
+                    dir={dir}
+                    t={t}
+                    error={editError}
+                />
             )}
         </div>
     );
