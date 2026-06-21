@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 
 from openai import OpenAI
 
 from .i18n import LANGUAGE_NAMES
 from .models import EvaluationResult, GenerationRequest, MathProblem
+
+log = logging.getLogger("ai_questions.agent")
 
 
 # ---------------------------------------------------------------------------
@@ -119,15 +122,19 @@ class QuestionAgent:
 
     def generate(self, req: GenerationRequest) -> MathProblem:
         """Call the LLM to produce a rich, themed question from the request."""
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
-                {"role": "user", "content": self._build_generation_prompt(req)},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.85,
-        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
+                    {"role": "user", "content": self._build_generation_prompt(req)},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.85,
+            )
+        except Exception:
+            log.exception("    OpenAI generate() call FAILED (model=%s)", self.model)
+            raise
 
         raw: dict = json.loads(response.choices[0].message.content)
 
@@ -172,15 +179,19 @@ class QuestionAgent:
             f"Step-by-step solution:\n{steps_text}"
         )
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": EVALUATOR_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.0,
-        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": EVALUATOR_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.0,
+            )
+        except Exception:
+            log.exception("    OpenAI evaluate() call FAILED (model=%s)", self.model)
+            raise
 
         raw: dict = json.loads(response.choices[0].message.content)
         is_valid = bool(raw.get("is_correct", False))

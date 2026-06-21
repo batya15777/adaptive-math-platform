@@ -69,7 +69,8 @@ public class AiQuestionService {
     }
 
     /**
-     * @param subSubject     the sub-subject the question belongs to (its name becomes the AI topic)
+     * @param subSubject     the sub-subject the question belongs to
+     * @param aiTopic        explicit topic description for the LLM; falls back to {@code subSubject.getName()} when null
      * @param theme          narrative theme (e.g. "space", "pirates")
      * @param difficulty     1–10
      * @param language       "en", "he", or "ru"
@@ -77,7 +78,7 @@ public class AiQuestionService {
      * @param cluster        the student's ML cohort; pass {@link ClusterContext#neutral()} for none
      * @param userId         used to filter out questions this student has already seen
      */
-    public Question generateQuestion(SubSubject subSubject, String theme, int difficulty,
+    public Question generateQuestion(SubSubject subSubject, String aiTopic, String theme, int difficulty,
                                      String language, boolean multipleChoice,
                                      ClusterContext cluster, Long userId) {
 
@@ -85,30 +86,39 @@ public class AiQuestionService {
         Set<String> seenExpressions = questionArchiveRepository
                 .findSeenExpressionsByUserAndSubSubject(userId, subSubject.getId());
 
-        // 2. Cache lookup — find all cached templates for this key, then exclude seen ones
-        List<GeneratedQuestion> cached = generatedQuestionRepository
+        // 2. Cache lookup — all suitable cached questions for this key, excluding seen ones
+        List<GeneratedQuestion> available = generatedQuestionRepository
                 .findBySubSubjectIdAndLanguageAndDifficultyLevelAndMultipleChoice(
-                        subSubject.getId(), language, difficulty, multipleChoice);
-
-        List<GeneratedQuestion> unseen = cached.stream()
+                        subSubject.getId(), language, difficulty, multipleChoice)
+                .stream()
                 .filter(gq -> !seenExpressions.contains(gq.getExpression()))
                 .collect(Collectors.toList());
 
-        if (!unseen.isEmpty()) {
-            GeneratedQuestion gq = unseen.get(new Random().nextInt(unseen.size()));
-            log.debug("Cache hit — reusing generated_question id={} for user={} (subSubject={}, lang={}, diff={}, mc={})",
-                    gq.getId(), userId, subSubject.getId(), language, difficulty, multipleChoice);
-            return toQuestion(gq, subSubject, language);
+        // 3. Keep one spare ready: top up until at least 2 suitable unseen questions
+        //    exist (one to serve now, one spare) so the next request is instant.
+        //    0 unseen → generate 2; 1 unseen → generate 1.
+        int stopper = 3;
+        while (available.size() < 2 && stopper > 0) {
+            stopper--;
+            GeneratedQuestion generated = callMicroserviceAndSave(
+                    subSubject, aiTopic, theme, difficulty, language, multipleChoice, cluster);
+            available.add(generated);
         }
 
-        if (!cached.isEmpty()) {
-            log.debug("All {} cached variant(s) already seen by user={} — generating new question",
-                    cached.size(), userId);
-        }
+        // 4. Serve one of the available unseen questions
+        GeneratedQuestion chosen = available.get(new Random().nextInt(available.size()));
+        log.debug("Serving generated_question id={} for user={} ({} unseen available, subSubject={}, lang={}, diff={}, mc={})",
+                chosen.getId(), userId, available.size(), subSubject.getId(), language, difficulty, multipleChoice);
+        return toQuestion(chosen, subSubject, language);
+    }
 
-        // 3. Cache miss (or all variants exhausted) — call the Python microservice
+    /** Calls the Python microservice for a fresh question and persists it to the cache pool. */
+    private GeneratedQuestion callMicroserviceAndSave(SubSubject subSubject, String aiTopic, String theme,
+                                                      int difficulty, String language, boolean multipleChoice,
+                                                      ClusterContext cluster) {
+        String topic = (aiTopic != null && !aiTopic.isBlank()) ? aiTopic : subSubject.getName();
         AiQuestionRequest request = new AiQuestionRequest(
-                subSubject.getName(), theme, difficulty, language, multipleChoice);
+                topic, theme, difficulty, language, multipleChoice);
         applyClusterContext(request, cluster);
 
         HttpHeaders headers = new HttpHeaders();
@@ -133,7 +143,6 @@ public class AiQuestionService {
             throw new RuntimeException("AI microservice returned an empty response.");
         }
 
-        // 4. Persist to cache for future reuse by other students
         GeneratedQuestion toSave = new GeneratedQuestion(
                 subSubject,
                 response.getQuestionText(),
@@ -146,8 +155,7 @@ public class AiQuestionService {
         generatedQuestionRepository.save(toSave);
         log.debug("Saved new generated question to cache (subSubject={}, diff={}, mc={})",
                 subSubject.getId(), difficulty, multipleChoice);
-
-        return toQuestion(toSave, subSubject, language);
+        return toSave;
     }
 
     private Question toQuestion(GeneratedQuestion gq, SubSubject subSubject, String language) {

@@ -16,6 +16,7 @@ import com.adaptive.server.responses.BonusQuestionResponse;
 import com.adaptive.server.responses.ProgressStatusResponse;
 import com.adaptive.server.responses.QuestionResponse;
 import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
+import com.adaptive.server.service.QuestionsGenerators.PolynomialGenerator;
 import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +38,9 @@ class LevelManagerServiceTest {
     private StudentProgressRepository  progressRepository;
     private UserRepository             userRepository;
     private SubSubjectRepository       subSubjectRepository;
+    private SubSubjectAiConfigRepository subSubjectAiConfigRepository;
     private CalculationGenerator       calculationGenerator;
+    private PolynomialGenerator        polynomialGenerator;
     private QuestionRepository         questionRepository;
     private QuestionArchiveRepository  archiveRepository;   // NEW
     private ClusterContextService      clusterContextService; // NEW (cluster-aware generation)
@@ -57,7 +60,9 @@ class LevelManagerServiceTest {
         progressRepository   = mock(StudentProgressRepository.class);
         userRepository       = mock(UserRepository.class);
         subSubjectRepository = mock(SubSubjectRepository.class);
+        subSubjectAiConfigRepository = mock(SubSubjectAiConfigRepository.class);
         calculationGenerator = mock(CalculationGenerator.class);
+        polynomialGenerator = mock(PolynomialGenerator.class);
         questionRepository   = mock(QuestionRepository.class);
         archiveRepository    = mock(QuestionArchiveRepository.class);
         clusterContextService = mock(ClusterContextService.class);
@@ -68,7 +73,8 @@ class LevelManagerServiceTest {
         service = new LevelManagerService(
                 attemptRepository, progressRepository,
                 userRepository, subSubjectRepository,
-                calculationGenerator, questionRepository,
+                subSubjectAiConfigRepository,
+                calculationGenerator, polynomialGenerator, questionRepository,
                 archiveRepository, clusterContextService, aiQuestionService); // NEW args
 
         testUser = mock(User.class);
@@ -482,9 +488,10 @@ class LevelManagerServiceTest {
 
             service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
 
-            // subSubjectLevel = 5 (raw), difficulty capped to the band (3).
+            // subSubjectLevel = 5 (raw); difficulty now scales on the 1–10 scale (= level 5).
+            // mc is a coin flip at difficulty ≥ 3, so don't assert a fixed value here.
             verify(calculationGenerator).createQuestion(
-                    any(SubSubject.class), eq(5), eq(3), eq("he"), eq(false), any(ClusterContext.class));
+                    any(SubSubject.class), eq(5), eq(5), eq("he"), anyBoolean(), any(ClusterContext.class));
         }
 
         @Test @DisplayName("New student gets a question at level 1")
@@ -582,7 +589,6 @@ class LevelManagerServiceTest {
         void bonusQuestion_returnsCorrectFlags() {
             StudentProgress p = progressAt(3);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
-            when(calculationGenerator.getMaxDifficultyLevelForSubSubject(any())).thenReturn(3);
             when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(3));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(3));
@@ -597,7 +603,6 @@ class LevelManagerServiceTest {
         void bonusQuestion_usesCurrentSubSubject() {
             StudentProgress p = progressAt(2);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
-            when(calculationGenerator.getMaxDifficultyLevelForSubSubject(any())).thenReturn(3);
             when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(3));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(3));
@@ -606,24 +611,23 @@ class LevelManagerServiceTest {
             verify(calculationGenerator).createQuestion(eq(testSubSubject), anyInt(), anyInt(), anyString(), anyBoolean());
         }
 
-        @Test @DisplayName("Bonus difficulty uses max available difficulty for sub-subject")
-        void bonusDifficulty_usesMaxDifficulty() {
+        @Test @DisplayName("Bonus difficulty is one band above the student's current level")
+        void bonusDifficulty_isOneAboveCurrentLevel() {
             StudentProgress p = progressAt(3);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
-            when(calculationGenerator.getMaxDifficultyLevelForSubSubject(testSubSubject)).thenReturn(3);
             when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
-                    .thenReturn(stubQuestion(3));
-            when(questionRepository.save(any())).thenReturn(stubSavedQuestion(3));
+                    .thenReturn(stubQuestion(4));
+            when(questionRepository.save(any())).thenReturn(stubSavedQuestion(4));
 
             service.getBonusQuestion(USER_ID, SUB_SUBJECT_ID, "he");
-            verify(calculationGenerator).createQuestion(any(), eq(3), eq(3), anyString(), anyBoolean());
+            // currentLevel = 3 → bonus difficulty = min(3 + 1, 10) = 4; subSubjectLevel stays = currentLevel.
+            verify(calculationGenerator).createQuestion(any(), eq(3), eq(4), anyString(), anyBoolean());
         }
 
         @Test @DisplayName("Bonus question is always generated as multiple-choice")
         void bonusQuestion_isAlwaysMultipleChoice() {
             StudentProgress p = progressAt(4);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
-            when(calculationGenerator.getMaxDifficultyLevelForSubSubject(any())).thenReturn(3);
             when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(3));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(3));
@@ -636,7 +640,6 @@ class LevelManagerServiceTest {
         void bonusQuestion_archivesAfterGeneration() {
             StudentProgress p = progressAt(3);
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
-            when(calculationGenerator.getMaxDifficultyLevelForSubSubject(any())).thenReturn(3);
             when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(3));
             when(questionRepository.save(any())).thenReturn(stubSavedQuestion(3));
@@ -659,7 +662,6 @@ class LevelManagerServiceTest {
                     List.of("3 * 7 = 21", "21 + 2 = 23"), null, "he", 3, QuestionStatus.CURRENT);
             fresh.setId(100L);
 
-            when(calculationGenerator.getMaxDifficultyLevelForSubSubject(any())).thenReturn(3);
 
             // First call returns seen expression, second returns fresh
             when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
@@ -679,7 +681,6 @@ class LevelManagerServiceTest {
             when(archiveRepository.findSeenExpressionsByUserAndSubSubject(USER_ID, SUB_SUBJECT_ID))
                     .thenReturn(Set.of("10 + 5")); // all attempts will return "10 + 5"
 
-            when(calculationGenerator.getMaxDifficultyLevelForSubSubject(any())).thenReturn(3);
             when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean()))
                     .thenReturn(stubQuestion(3)); // always returns the seen expression
             when(questionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));

@@ -21,8 +21,9 @@ const MAX_ATTEMPTS = 3;
 
 const LANG_CODE = { HEBREW: 'he', ENGLISH: 'en', RUSSIAN: 'ru' };
 
-// "5,7,9,11" → ["5","7","9","11"];  "" / null → []
-const parseOptions  = (s) => (s ? s.split(',').map(o => o.trim()).filter(Boolean) : []);
+// "5|7|9|11" → ["5","7","9","11"];  "" / null → []
+// Pipe-delimited so an option may contain commas (e.g. "X1=5 , X2=10").
+const parseOptions  = (s) => (s ? s.split('|').map(o => o.trim()).filter(Boolean) : []);
 // "a = 1\nb = 2" → ["a = 1","b = 2"]
 const parseSolution = (s) => (s ? s.split('\n').map(t => t.trim()).filter(Boolean) : []);
 

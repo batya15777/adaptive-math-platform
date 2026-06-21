@@ -5,7 +5,9 @@ from functools import lru_cache
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# override=True so the project's .env is the single source of truth, even when a
+# stale OPENAI_API_KEY is already present in the OS/shell environment.
+load_dotenv(override=True)
 
 
 class Settings:

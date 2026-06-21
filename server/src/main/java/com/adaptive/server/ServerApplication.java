@@ -2,10 +2,12 @@ package com.adaptive.server;
 
 import com.adaptive.server.entity.QuestionTemplate;
 import com.adaptive.server.entity.SubSubject;
+import com.adaptive.server.entity.SubSubjectAiConfig;
 import com.adaptive.server.entity.Subject;
 import com.adaptive.server.entity.Topic;
 import com.adaptive.server.entity.User;
 import com.adaptive.server.repository.QuestionTemplateRepository;
+import com.adaptive.server.repository.SubSubjectAiConfigRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import com.adaptive.server.repository.SubjectRepository;
 import com.adaptive.server.repository.TopicRepository;
@@ -15,12 +17,14 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @SpringBootApplication
+@EnableAsync
 public class ServerApplication {
 
     public static void main(String[] args) {
@@ -42,6 +46,30 @@ public class ServerApplication {
                         hash,
                         testEmail,
                         10,
+                        "female",
+                        LocalDateTime.now()
+                );
+                userRepository.save(mockUser);
+                System.out.println("Mock user created successfully! Login with: " + testEmail + " / " + myPassword);
+            }
+        };
+    }
+
+    @Bean
+    CommandLineRunner createMockUser2(UserRepository userRepository) {
+        return args -> {
+            String testEmail = "a@a.aa";
+
+            if (!userRepository.existsByEmail(testEmail)) {
+                String myUsername = "דליה";
+                String myPassword = "aa";
+                String hash = GenerateHash.hashMd5(myUsername, myPassword);
+
+                User mockUser = new User(
+                        myUsername,
+                        hash,
+                        testEmail,
+                        12,
                         "female",
                         LocalDateTime.now()
                 );
@@ -151,6 +179,87 @@ public class ServerApplication {
                     new int[]{3, 3}, "X / X / X / X / X / X"
             ), subSubjectRepository, templateRepository);
         };
+    }
+
+    @Bean
+    CommandLineRunner createVerbalProblemsData(
+            TopicRepository topicRepository,
+            SubjectRepository subjectRepository,
+            SubSubjectRepository subSubjectRepository,
+            SubSubjectAiConfigRepository aiConfigRepository) {
+
+        return args -> {
+            Topic math = topicRepository.findByName("Math")
+                    .orElseGet(() -> topicRepository.save(new Topic("Math")));
+
+            Subject verbal = subjectRepository.findByName("Verbal Problems").orElse(null);
+            if (verbal == null) {
+                verbal = new Subject("Verbal Problems");
+                verbal.setTopic(math);
+                verbal = subjectRepository.save(verbal);
+            }
+
+            seedAiSubSubject(verbal, "Calculations",
+                    "arithmetic word problems: addition, subtraction, multiplication, division",
+                    false, subSubjectRepository, aiConfigRepository);
+
+            seedAiSubSubject(verbal, "Roads",
+                    "word problems about speed, distance and time",
+                    false, subSubjectRepository, aiConfigRepository);
+
+            seedAiSubSubject(verbal, "Percentages",
+                    "percentage word problems",
+                    true, subSubjectRepository, aiConfigRepository);
+        };
+    }
+
+    /**
+     * Seeds the "Polynomial" subject (under the Math topic) with a single code-generated
+     * "Linear Equations" sub-subject. No templates and no AI config — questions are produced
+     * procedurally by {@code PolynomialGenerator}.
+     */
+    @Bean
+    CommandLineRunner createPolynomialData(
+            TopicRepository topicRepository,
+            SubjectRepository subjectRepository,
+            SubSubjectRepository subSubjectRepository) {
+
+        return args -> {
+            Topic math = topicRepository.findByName("Math")
+                    .orElseGet(() -> topicRepository.save(new Topic("Math")));
+
+            Subject polynomial = subjectRepository.findByName("Polynomial").orElse(null);
+            if (polynomial == null) {
+                polynomial = new Subject("Polynomial");
+                polynomial.setTopic(math);
+                polynomial = subjectRepository.save(polynomial);
+            }
+
+            if (subSubjectRepository.findByNameAndSubject_Name("Linear Equations", "Polynomial") == null) {
+                subSubjectRepository.save(new SubSubject("Linear Equations", polynomial));
+                System.out.println("[Seed] Created sub-subject: Linear Equations");
+            }
+            if (subSubjectRepository.findByNameAndSubject_Name("Quadratic Equations", "Polynomial") == null) {
+                subSubjectRepository.save(new SubSubject("Quadratic Equations", polynomial));
+                System.out.println("[Seed] Created sub-subject: Quadratic Equations");
+            }
+        };
+    }
+
+    private void seedAiSubSubject(Subject subject, String name, String aiTopic, boolean forceMc,
+                                   SubSubjectRepository subRepo, SubSubjectAiConfigRepository configRepo) {
+        SubSubject sub = subRepo.findByNameAndSubject_Name(name, subject.getName());
+        if (sub == null) {
+            sub = subRepo.save(new SubSubject(name, subject));
+            System.out.println("[Seed] Created AI sub-subject: " + name);
+        }
+        // Upsert the AI config so re-running keeps it in sync
+        SubSubjectAiConfig config = configRepo.findBySubSubjectId(sub.getId())
+                .orElse(new SubSubjectAiConfig());
+        config.setSubSubject(sub);
+        config.setAiTopic(aiTopic);
+        config.setForceMultipleChoice(forceMc);
+        configRepo.save(config);
     }
 
     /**

@@ -11,6 +11,7 @@ import com.adaptive.server.responses.BonusQuestionResponse;
 import com.adaptive.server.responses.ProgressStatusResponse;
 import com.adaptive.server.responses.QuestionResponse;
 import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
+import com.adaptive.server.service.QuestionsGenerators.PolynomialGenerator;
 import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,9 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     static final int SUB_LEVEL_ENTER_FAILS = 3;      // FAILED in a row → enter sub-level
     static final int SUB_LEVEL_EXIT_SOLVES = 3;      // SOLVED in sub-level → leave it
     static final int MC_MAX_DIFFICULTY = 2;          // difficulty ≤ 2 → multiple choice
-    static final int MAX_DIFFICULTY_BAND = 3;        // difficulty cap
+    static final int MAX_DIFFICULTY_BAND = 3;        // structural template band cap (seeded 1–3)
+    static final int MAX_DIFFICULTY_LEVEL = 10;      // difficulty scale upper bound (1–10)
+    static final int MAX_DEDUP_ATTEMPTS = 3;         // regen tries to avoid a seen expression
     static final int STARS_NORMAL = 10;              // correct at normal level
     static final int STARS_SUBLEVEL = 5;             // correct inside the sub-level
 
@@ -61,9 +64,14 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private final StudentProgressRepository progressRepository;
     private final UserRepository userRepository;
     private final SubSubjectRepository subSubjectRepository;
+    private final SubSubjectAiConfigRepository subSubjectAiConfigRepository;
     private final CalculationGenerator calculationGenerator;
+    private final PolynomialGenerator polynomialGenerator;
     private final ClusterContextService clusterContextService;
     private final AiQuestionService aiQuestionService;
+
+    // Coin flip for the multiple-choice vs typed-answer decision at difficulty ≥ 3.
+    private final Random random = new Random();
 
     // When true, the live next-question flow tries the AI generator first (with a safe
     // fallback to the code generator). Off by default so behaviour is unchanged until enabled.
@@ -75,14 +83,18 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
     public LevelManagerService(ExerciseAttemptRepository attemptRepository, StudentProgressRepository progressRepository,
                                UserRepository userRepository, SubSubjectRepository subSubjectRepository,
-                               CalculationGenerator calculationGenerator, QuestionRepository questionRepository,
+                               SubSubjectAiConfigRepository subSubjectAiConfigRepository,
+                               CalculationGenerator calculationGenerator, PolynomialGenerator polynomialGenerator,
+                               QuestionRepository questionRepository,
                                QuestionArchiveRepository archiveRepository,
                                ClusterContextService clusterContextService, AiQuestionService aiQuestionService) {
         this.attemptRepository = attemptRepository;
         this.progressRepository = progressRepository;
         this.userRepository = userRepository;
         this.subSubjectRepository = subSubjectRepository;
+        this.subSubjectAiConfigRepository = subSubjectAiConfigRepository;
         this.calculationGenerator = calculationGenerator;
+        this.polynomialGenerator = polynomialGenerator;
         this.questionRepository = questionRepository;
         this.archiveRepository = archiveRepository;
         this.clusterContextService = clusterContextService;
@@ -282,10 +294,12 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
             difficultyLevel = 1;
             subSubjectLevel = 1;
         } else {
-            difficultyLevel = Math.min(progress.getCurrentLevel(), MAX_DIFFICULTY_BAND);
+            difficultyLevel = Math.min(progress.getCurrentLevel(), MAX_DIFFICULTY_LEVEL);
             subSubjectLevel = progress.getCurrentLevel();
         }
-        boolean mc = difficultyLevel <= MC_MAX_DIFFICULTY;
+        // Difficulty ≤ 2 is always multiple choice; from difficulty 3 up it's a
+        // fifty-fifty coin flip between multiple choice and a typed answer.
+        boolean mc = difficultyLevel <= MC_MAX_DIFFICULTY || random.nextBoolean();
 
         // Cluster-aware step: fetch the student's ML cohort BEFORE generating, so both
         // generators can adapt the next question to the cohort's weakness / mastery.
@@ -294,7 +308,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         if (activeId != null) {
             Optional<Question> active = questionRepository.findById(activeId);
             if (active.isPresent() && active.get().getStatus() == QuestionStatus.CURRENT) {
-                return buildQuestionResponse(active.get(), subSubjectId, null);
+                return buildQuestionResponse(active.get(), subSubjectId, null, displayNameOf(user));
             }
             // Stale pointer (question was resolved without clearing the field) — clear it.
             progress.setActiveQuestionId(null);
@@ -309,7 +323,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         progressRepository.save(progress);
         // Archive so this question counts toward the student's history
         archiveQuestion(user, subSubject, question);
-        return buildQuestionResponse(question, subSubjectId, null);
+        return buildQuestionResponse(question, subSubjectId, null, displayNameOf(user));
     }
 
     /**
@@ -321,16 +335,67 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private Question generateAdaptiveQuestion(User user, SubSubject subSubject, int subSubjectLevel,
                                               int difficultyLevel, String language, boolean mc,
                                               ClusterContext cluster) {
-        if (aiQuestionsEnabled && aiQuestionService != null) {
+        Optional<SubSubjectAiConfig> aiConfig = subSubjectAiConfigRepository
+                .findBySubSubjectId(subSubject.getId());
+
+        boolean forceAi     = aiConfig.isPresent();
+        boolean useAi       = forceAi || aiQuestionsEnabled;
+        boolean effectiveMc = mc || aiConfig.map(SubSubjectAiConfig::isForceMultipleChoice).orElse(false);
+        String  aiTopic     = aiConfig.map(SubSubjectAiConfig::getAiTopic).orElse(null);
+
+        if (useAi && aiQuestionService != null) {
             try {
                 int aiDifficulty = clampAiDifficulty(subSubjectLevel + cluster.getDifficultyBias());
-                return aiQuestionService.generateQuestion(subSubject, aiQuestionTheme, aiDifficulty,
-                        language, mc, cluster, user.getId());
+                return aiQuestionService.generateQuestion(subSubject, aiTopic, aiQuestionTheme,
+                        aiDifficulty, language, effectiveMc, cluster, user.getId());
             } catch (RuntimeException e) {
+                if (forceAi) throw e; // AI-only sub-subjects have no code fallback
                 log.warn("AI generation failed ({}); falling back to the code-based generator.", e.getMessage());
             }
         }
+        return generateUniqueCodeQuestion(user, subSubject, subSubjectLevel, difficultyLevel,
+                language, effectiveMc, cluster);
+    }
+
+    /**
+     * Code-based generation with light deduplication: regenerate (up to
+     * {@link #MAX_DEDUP_ATTEMPTS} times) until the expression is one the student hasn't
+     * already seen for this sub-subject. Falls back to the last attempt if all collide.
+     */
+    private Question generateUniqueCodeQuestion(User user, SubSubject subSubject, int subSubjectLevel,
+                                                int difficultyLevel, String language, boolean mc,
+                                                ClusterContext cluster) {
+        Set<String> seen = archiveRepository.findSeenExpressionsByUserAndSubSubject(
+                user.getId(), subSubject.getId());
+
+        Question question = createCodeQuestion(subSubject, subSubjectLevel, difficultyLevel, language, mc, cluster);
+        for (int attempt = 1; attempt < MAX_DEDUP_ATTEMPTS && seen.contains(question.getExpression()); attempt++) {
+            question = createCodeQuestion(subSubject, subSubjectLevel, difficultyLevel, language, mc, cluster);
+        }
+        return question;
+    }
+
+    /** Picks the code-based generator for the sub-subject's subject (Polynomial → algebra, else arithmetic). */
+    private Question createCodeQuestion(SubSubject subSubject, int subSubjectLevel, int difficultyLevel,
+                                        String language, boolean mc, ClusterContext cluster) {
+        if (isPolynomial(subSubject)) {
+            return polynomialGenerator.createQuestion(subSubject, subSubjectLevel, difficultyLevel, language, mc, cluster);
+        }
         return calculationGenerator.createQuestion(subSubject, subSubjectLevel, difficultyLevel, language, mc, cluster);
+    }
+
+    /** Generator routing without a cluster context (bonus / initial-assessment paths). */
+    private Question createCodeQuestion(SubSubject subSubject, int subSubjectLevel, int difficultyLevel,
+                                        String language, boolean mc) {
+        if (isPolynomial(subSubject)) {
+            return polynomialGenerator.createQuestion(subSubject, subSubjectLevel, difficultyLevel, language, mc);
+        }
+        return calculationGenerator.createQuestion(subSubject, subSubjectLevel, difficultyLevel, language, mc);
+    }
+
+    private boolean isPolynomial(SubSubject subSubject) {
+        return subSubject.getSubject() != null
+                && "Polynomial".equalsIgnoreCase(subSubject.getSubject().getName());
     }
 
     private int clampAiDifficulty(int difficulty) {
@@ -354,12 +419,11 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
         String language = request.getLanguage() != null ? request.getLanguage() : "he";
 
-        Question question = calculationGenerator.createQuestion(subSubject, subSubjectLevel, difficultyLevel,
-                language, true);
+        Question question = createCodeQuestion(subSubject, subSubjectLevel, difficultyLevel, language, true);
         question = questionRepository.save(question);
 
         archiveQuestion(user, subSubject, question);
-        return buildQuestionResponse(question, subSubject.getId(), null);
+        return buildQuestionResponse(question, subSubject.getId(), null, displayNameOf(user));
     }
 
     private int mapGradeToLevel(Integer grade) {//לפי כיתה
@@ -397,7 +461,9 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
 
         int currentLevel = progress.getCurrentLevel();
-        int bonusDifficulty = calculationGenerator.getMaxDifficultyLevelForSubSubject(subSubject);
+        // Bonus is meant to be harder than normal play: one difficulty band above the
+        // student's current level, capped at the top of the 1–10 scale.
+        int bonusDifficulty = Math.min(currentLevel + 1, MAX_DIFFICULTY_LEVEL);
 
         //Deduplication: fetch expressions already shown to this user
         Set<String> seenExpressions = archiveRepository.findSeenExpressionsByUserAndSubSubject(userId, subSubject.getId());
@@ -405,8 +471,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         //Generate, retrying until a fresh expression is found
         Question question = null;
         for (int attempt = 0; attempt < MAX_BONUS_GEN_ATTEMPTS; attempt++) {
-            Question candidate = calculationGenerator.createQuestion(subSubject, currentLevel,
-                    bonusDifficulty, language, true);
+            Question candidate = createCodeQuestion(subSubject, currentLevel, bonusDifficulty, language, true);
             if (!seenExpressions.contains(candidate.getExpression())) {
                 question = candidate;
                 break;
@@ -414,13 +479,12 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         }
         // Pool exhausted — accept the last candidate rather than blocking
         if (question == null) {
-            question = calculationGenerator.createQuestion(subSubject, currentLevel,
-                    bonusDifficulty, language, true);
+            question = createCodeQuestion(subSubject, currentLevel, bonusDifficulty, language, true);
         }
         question = questionRepository.save(question);
         // Archive so the next bonus call won't show the same expression again
         archiveQuestion(user, subSubject, question);
-        return buildBonusQuestionResponse(question, subSubjectId);
+        return buildBonusQuestionResponse(question, subSubjectId, displayNameOf(user));
     }
 
 
@@ -639,9 +703,10 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     }
 
 
-    private QuestionResponse buildQuestionResponse(Question question, Long subSubjectId, String weakness) {
+    private QuestionResponse buildQuestionResponse(Question question, Long subSubjectId,
+                                                   String weakness, String displayName) {
         QuestionResponse response = new QuestionResponse();
-        populateQuestionFields(response, question, subSubjectId);
+        populateQuestionFields(response, question, subSubjectId, displayName);
         response.setRecommendedQuestionType(weakness);
         response.setMessage(weakness != null
                 ? "נחש! אתה מתאמן על: " + formatQuestionType(weakness)
@@ -649,25 +714,46 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         return response;
     }
 
-    private BonusQuestionResponse buildBonusQuestionResponse(Question question, Long subSubjectId) {
+    private BonusQuestionResponse buildBonusQuestionResponse(Question question, Long subSubjectId,
+                                                             String displayName) {
         BonusQuestionResponse response = new BonusQuestionResponse();
-        populateQuestionFields(response, question, subSubjectId);
+        populateQuestionFields(response, question, subSubjectId, displayName);
         response.setMessage("🌟 שאלת בונוס! ענה נכון וקבל " + BonusQuestionResponse.BONUS_STARS + " כוכבים!");
         return response;
     }
 
-    private void populateQuestionFields(QuestionResponse response, Question question, Long subSubjectId) {
+    private void populateQuestionFields(QuestionResponse response, Question question,
+                                        Long subSubjectId, String displayName) {
         String solutionText = question.getSolution() == null
                 ? "" : question.getSolution().stream().collect(Collectors.joining("\n"));
 
         response.setSuccess(true);
         response.setQuestionId(question.getId());
-        response.setExpression(question.getExpression());
+        response.setExpression(personalize(question.getExpression(), displayName));
         response.setCorrectAnswer(question.getCorrectAnswer());
-        response.setSolution(solutionText);
-        response.setOptions(question.getOptions() == null ? null : String.join(",", question.getOptions()));
+        response.setSolution(personalize(solutionText, displayName));
+        // Join with '|' (not ',') so an option may itself contain commas, e.g. "X1=5 , X2=10".
+        response.setOptions(question.getOptions() == null ? null : String.join("|", question.getOptions()));
         response.setDifficultyLevel(question.getDifficultyLevel());
         response.setSubSubjectId(subSubjectId);
+    }
+
+    /**
+     * Replaces the reusable NAME placeholder with the student's display name.
+     * Applied only to the outgoing response — the stored/cached question keeps NAME
+     * so it stays reusable across students.
+     */
+    private String personalize(String text, String displayName) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        return text.replace("NAME", displayName);
+    }
+
+    /** Student's display name for personalising questions; falls back to a neutral default. */
+    private String displayNameOf(User user) {
+        return (user.getFullName() == null || user.getFullName().isBlank())
+                ? "Student" : user.getFullName().trim();
     }
 
     private String resolveMessage(SpaceshipStatus status, String weakness, boolean lastCorrect) {

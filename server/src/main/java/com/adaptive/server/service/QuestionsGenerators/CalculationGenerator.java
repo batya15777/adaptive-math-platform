@@ -16,15 +16,20 @@ import java.util.*;
 public class CalculationGenerator extends QuestionGenerator {
 
     private static final String SUBJECT_NAME = "Calculation";
-    private static final int    OPTIONS_COUNT     = 4;
-    private static final double DISTRACTOR_SPREAD = 0.15;
+    private static final int    OPTIONS_COUNT = 4;
+
+    /** Difficulty is a 1–10 scale. */
+    private static final int MAX_DIFFICULTY_LEVEL = 10;
 
     /**
-     * Highest {@code subSubjectLevel} value that is actually seeded in the DB.
-     * Students at higher levels are clamped to this value so the template query
-     * always finds rows.  Update this constant when new seed bands are added.
+     * Difficulty 1–{@value} is the "small numbers" regime: every operand AND the final
+     * result must stay below 100. Above it, numbers and operand counts grow freely.
      */
-    private static final int MAX_TEMPLATE_LEVEL = 3;
+    private static final int LOW_REGIME_MAX = 4;
+    private static final int LOW_REGIME_CEILING = 100;   // exclusive upper bound for the low regime
+
+    private static final int MAX_OPERANDS = 7;           // safety cap on expression length
+    private static final int MAX_FILL_ATTEMPTS = 40;     // retries to satisfy the low-regime constraint
 
     private final Random random = new Random();
 
@@ -40,9 +45,7 @@ public class CalculationGenerator extends QuestionGenerator {
 
     /**
      * Cluster-aware entry point. Applies the cohort's difficulty bias (from the ML
-     * clustering) to the requested difficulty, then generates as usual. This is how
-     * the code-based generator becomes "cluster-aware": a struggling cohort gets
-     * easier questions, a strong cohort gets harder ones — clamped to the seeded band.
+     * clustering) to the requested difficulty, then generates as usual.
      */
     public Question createQuestion(SubSubject subSubject, int subSubjectLevel, int difficultyLevel,
                                    String language, boolean multipleChoice, ClusterContext cluster) {
@@ -55,27 +58,25 @@ public class CalculationGenerator extends QuestionGenerator {
             return difficultyLevel;
         }
         int adjusted = difficultyLevel + cluster.getDifficultyBias();
-        // Stay within the seeded template band so a template is always found.
-        return Math.max(1, Math.min(adjusted, MAX_TEMPLATE_LEVEL));
+        return Math.max(1, Math.min(adjusted, MAX_DIFFICULTY_LEVEL));
     }
 
     /**
-     * Generates a single {@link Question} by:
-     * <ol>
-     *   <li>Selecting a template from the DB using the <strong>3-parameter query</strong>
-     *       (subSubject + difficultyLevel + subSubjectLevel).  The student's current level
-     *       is clamped to {@value #MAX_TEMPLATE_LEVEL} so we always find a seeded template.
-     *       A 2-parameter fallback (ignoring subSubjectLevel) guards against an un-seeded DB.
-     *   <li>Replacing every {@code X} placeholder with a random integer whose range is
-     *       derived from <em>both</em> {@code subSubjectLevel} and {@code difficultyLevel},
-     *       so numeric difficulty scales together with structural complexity.
-     *   <li>Evaluating the expression using standard operator precedence (* / before + -).
-     *   <li>Optionally building 4 shuffled multiple-choice distractors.
-     * </ol>
+     * Generates a single {@link Question}. Difficulty is a 1–10 scale that drives BOTH
+     * the number of operands and the size of the numbers:
+     * <ul>
+     *   <li><strong>Difficulty 1–4</strong> — small-number regime: every operand and the
+     *       final result are kept below {@value #LOW_REGIME_CEILING}.</li>
+     *   <li><strong>Difficulty 5–10</strong> — operands get larger and expressions get
+     *       longer; the combination with {@code subSubjectLevel} scales the magnitude.</li>
+     * </ul>
+     * The operator(s) come from the sub-subject's seeded templates (e.g. "add" → '+'),
+     * but the expression length is generated procedurally so difficulty can exceed the
+     * seeded template structures.
      *
      * @param subSubject      the sub-subject entity (add / sub / mult / div / mixed)
-     * @param subSubjectLevel the student's current progression level (from StudentProgress)
-     * @param difficultyLevel the desired structural complexity (1 = simple … 3 = complex)
+     * @param subSubjectLevel the student's current progression level
+     * @param difficultyLevel desired difficulty, 1 (easiest) … 10 (hardest)
      * @param language        preferred language tag (e.g. {@code "he"}, {@code "en"})
      * @param multipleChoice  if {@code true}, generate 4 shuffled answer options
      */
@@ -83,59 +84,159 @@ public class CalculationGenerator extends QuestionGenerator {
     public Question createQuestion(SubSubject subSubject, int subSubjectLevel, int difficultyLevel,
                                    String language, boolean multipleChoice) {
 
-        // ── Step 0: template lookup with full 3-param precision ───────────────
-        // Clamp so students above level 3 still get the hardest available templates.
-        int templateLevel = Math.min(subSubjectLevel, MAX_TEMPLATE_LEVEL);
+        int difficulty   = Math.max(1, Math.min(difficultyLevel, MAX_DIFFICULTY_LEVEL));
+        List<String> operators = deriveOperators(subSubject);
+        int operandCount = operandCount(difficulty, subSubjectLevel);
 
-        List<QuestionTemplate> templates = templateRepository
-                .findAllBySubSubjectAndDifficultyLevelAndSubSubjectLevel(
-                        subSubject, difficultyLevel, templateLevel);
+        String expression = null;
+        double answer = 0;
+        List<String> solutionSteps = null;
 
-        // Graceful fallback: if seeding is incomplete, try without the level constraint
-        if (templates.isEmpty()) {
-            templates = templateRepository
-                    .findAllBySubSubjectAndDifficultyLevel(subSubject, difficultyLevel);
-        }
-        if (templates.isEmpty()) {
-            throw new QuestionGenerationException(
-                    "No templates found for sub-subject '" + subSubject.getName()
-                    + "', difficultyLevel=" + difficultyLevel
-                    + ", subSubjectLevel=" + templateLevel
-                    + ". Start the server with SEED_DATA=true to initialise the template table.");
-        }
+        // Fill numbers; in the low regime, retry until operands + result stay below 100.
+        for (int attempt = 0; attempt < MAX_FILL_ATTEMPTS; attempt++) {
+            List<String> tokens = buildFilledTokens(operators, operandCount, difficulty, subSubjectLevel);
+            fixDivisions(tokens);                       // keep every division a multiple of 0.25
+            String candidate = String.join(" ", tokens);
 
-        String templateExpression = templates.get(random.nextInt(templates.size())).getExpression();
+            List<String> steps = new ArrayList<>();
+            double result = evaluate(tokens, steps);    // consumes a copy via the token list
 
-        // ── Step 1: replace every X with a scaled random integer ─────────────
-        List<String> tokens = new ArrayList<>(List.of(templateExpression.split(" ")));
-        for (int i = 0; i < tokens.size(); i++) {
-            if (tokens.get(i).equals("X")) {
-                String prevOp = (i > 0)                 ? tokens.get(i - 1) : "";
-                String nextOp = (i < tokens.size() - 1) ? tokens.get(i + 1) : "";
-                boolean nearMult = prevOp.equals("*") || nextOp.equals("*");
-
-                // Numbers near '*' stay small to avoid astronomically large products.
-                // Other positions scale with both subSubjectLevel and difficultyLevel
-                // so the total numeric difficulty rises as the student progresses.
-                // Each range keeps a real spread (min < max-1) so questions actually vary.
-                int val;
-                if (nearMult) {
-                    val = randomInt(2, 3 + difficultyLevel * 2);             // diff1: 2–4, diff2: 2–6, diff3: 2–8
-                } else {
-                    int upper = (subSubjectLevel + difficultyLevel) * 5;     // lvl1/diff1: up to 10, scales up
-                    val = randomInt(1, upper + 1);                           // 1 … upper (inclusive)
-                }
-                tokens.set(i, String.valueOf(val));
+            if (difficulty > LOW_REGIME_MAX || withinLowRegime(candidate, result)) {
+                expression = candidate;
+                answer = result;
+                solutionSteps = steps;
+                break;
             }
         }
-        // ── Step 1.5: make every division land on a multiple of 0.25 (e.g. 10 / 4 = 2.5) ──
-        // Done BEFORE capturing the expression so what the student sees matches the answer.
-        fixDivisions(tokens);
-        String expression = String.join(" ", tokens); // the string the student sees
 
-        List<String> solutionSteps = new ArrayList<>();
+        // Fallback: constraints somehow never satisfied — accept the last fresh attempt.
+        if (expression == null) {
+            List<String> tokens = buildFilledTokens(operators, operandCount, difficulty, subSubjectLevel);
+            fixDivisions(tokens);
+            expression = String.join(" ", tokens);
+            solutionSteps = new ArrayList<>();
+            answer = evaluate(tokens, solutionSteps);
+        }
 
-        // ── Step 2: evaluate * and / first (operator precedence), in decimals ──
+        String correctAnswer = fmt(answer);
+        List<String> options = multipleChoice ? buildOptions(answer) : null;
+
+        return new Question(subSubject, expression, correctAnswer,
+                solutionSteps, options, language, difficulty, QuestionStatus.CURRENT);
+    }
+
+    public int getMaxDifficultyLevelForSubSubject(SubSubject subSubject) {
+        Integer max = templateRepository.findMaxDifficultyLevelBySubSubject(subSubject);
+        return max != null ? max : 1;
+    }
+
+    // ── Difficulty model ──────────────────────────────────────────────────────
+
+    /**
+     * Number of operands, combining difficulty (primary driver) with the student's
+     * progression. Difficulty 1–2 → 2 operands, 3–4 → 3, 5–6 → 4, 7–8 → 5, 9–10 → 6,
+     * with one extra term for advanced students.
+     */
+    private int operandCount(int difficulty, int subSubjectLevel) {
+        int base = 2 + (difficulty - 1) / 2;
+        if (subSubjectLevel >= 7) {
+            base += 1;
+        }
+        return Math.min(base, MAX_OPERANDS);
+    }
+
+    /**
+     * Picks a value for one operand. Numbers next to '*' stay small to avoid runaway
+     * products. In the low regime numbers are bounded so the result can stay below 100;
+     * above it, magnitude scales with both difficulty and the student's level.
+     */
+    private int operandValue(int difficulty, int operandCount, int subSubjectLevel, boolean nearMult) {
+        if (nearMult) {
+            int max = difficulty <= LOW_REGIME_MAX ? 5 : (4 + difficulty);
+            return randomInt(2, max + 1);
+        }
+        int max;
+        if (difficulty <= LOW_REGIME_MAX) {
+            // Spread the budget across operands so an all-addition result stays under 100.
+            max = Math.max(2, (LOW_REGIME_CEILING - 10) / operandCount);
+        } else {
+            max = 30 * (difficulty - LOW_REGIME_MAX) + 10 * subSubjectLevel;
+        }
+        return randomInt(1, max + 1);
+    }
+
+    /** True when every operand and the result are below {@value #LOW_REGIME_CEILING}. */
+    private boolean withinLowRegime(String expression, double result) {
+        if (Math.abs(result) >= LOW_REGIME_CEILING) {
+            return false;
+        }
+        for (String tok : expression.split(" ")) {
+            if (tok.matches("-?\\d+(\\.\\d+)?")
+                    && Math.abs(Double.parseDouble(tok)) >= LOW_REGIME_CEILING) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // ── Expression building ───────────────────────────────────────────────────
+
+    /**
+     * The distinct operators this sub-subject uses, read from its seeded templates
+     * (e.g. "add" → ['+'], "mixed" → ['+','-','*','/']). Falls back to the operator
+     * implied by the sub-subject name when no templates are seeded.
+     */
+    private List<String> deriveOperators(SubSubject subSubject) {
+        Set<String> ops = new LinkedHashSet<>();
+        for (QuestionTemplate t : templateRepository.findAllBySubSubject_Name(subSubject.getName())) {
+            for (String tok : t.getExpression().split(" ")) {
+                if (isOperator(tok)) {
+                    ops.add(tok);
+                }
+            }
+        }
+        if (ops.isEmpty()) {
+            switch (subSubject.getName().toLowerCase()) {
+                case "sub":  return List.of("-");
+                case "mult": return List.of("*");
+                case "div":  return List.of("/");
+                default:     return List.of("+");
+            }
+        }
+        return new ArrayList<>(ops);
+    }
+
+    /** Builds a token list (operand, op, operand, …) of {@code operandCount} numbers. */
+    private List<String> buildFilledTokens(List<String> operators, int operandCount,
+                                           int difficulty, int subSubjectLevel) {
+        List<String> ops = new ArrayList<>();
+        for (int k = 0; k < operandCount - 1; k++) {
+            ops.add(operators.get(random.nextInt(operators.size())));
+        }
+
+        List<String> tokens = new ArrayList<>();
+        for (int idx = 0; idx < operandCount; idx++) {
+            boolean nearMult = (idx > 0 && ops.get(idx - 1).equals("*"))
+                    || (idx < ops.size() && ops.get(idx).equals("*"));
+            tokens.add(String.valueOf(operandValue(difficulty, operandCount, subSubjectLevel, nearMult)));
+            if (idx < ops.size()) {
+                tokens.add(ops.get(idx));
+            }
+        }
+        return tokens;
+    }
+
+    private boolean isOperator(String tok) {
+        return tok.equals("+") || tok.equals("-") || tok.equals("*") || tok.equals("/");
+    }
+
+    // ── Evaluation ────────────────────────────────────────────────────────────
+
+    /**
+     * Evaluates the token list honoring operator precedence (* / before + -), appending
+     * one solution step per operation. Mutates {@code tokens} down to the final value.
+     */
+    private double evaluate(List<String> tokens, List<String> solutionSteps) {
         while (tokens.contains("*") || tokens.contains("/")) {
             for (int i = 1; i < tokens.size() - 1; i++) {
                 String op = tokens.get(i);
@@ -151,8 +252,6 @@ public class CalculationGenerator extends QuestionGenerator {
                 }
             }
         }
-
-        // ── Step 3: evaluate + and - ──────────────────────────────────────────
         while (tokens.contains("+") || tokens.contains("-")) {
             for (int i = 1; i < tokens.size() - 1; i++) {
                 String op = tokens.get(i);
@@ -168,37 +267,28 @@ public class CalculationGenerator extends QuestionGenerator {
                 }
             }
         }
-
-        // ── Step 4: build multiple-choice options (if requested) ──────────────
-        double answer = Double.parseDouble(tokens.get(0));
-        String correctAnswer = fmt(answer);
-        List<String> options = null;
-        if (multipleChoice) {
-            // Distractor granularity matches the answer: whole answers get whole
-            // distractors; fractional answers (e.g. 2.5) get quarter-step distractors.
-            double step = (answer == Math.floor(answer)) ? 1.0 : 0.25;
-            Set<String> unique = new LinkedHashSet<>();
-            unique.add(correctAnswer);
-            for (int attempts = 0; attempts < 40 && unique.size() < OPTIONS_COUNT; attempts++) {
-                int k = randomInt(1, 5); // 1..4 steps away
-                double distractor = answer + k * step * (random.nextBoolean() ? 1 : -1);
-                unique.add(fmt(distractor));
-            }
-            // Guaranteed fallback so we always reach OPTIONS_COUNT
-            for (int k = 1; unique.size() < OPTIONS_COUNT; k++) {
-                unique.add(fmt(answer + k * step));
-            }
-            options = new ArrayList<>(unique);
-            Collections.shuffle(options, random);
-        }
-
-        return new Question(subSubject, expression, correctAnswer,
-                solutionSteps, options, language, difficultyLevel, QuestionStatus.CURRENT);
+        return Double.parseDouble(tokens.get(0));
     }
 
-    public int getMaxDifficultyLevelForSubSubject(SubSubject subSubject) {
-        Integer max = templateRepository.findMaxDifficultyLevelBySubSubject(subSubject);
-        return max != null ? max : 1;
+    // ── Multiple choice ───────────────────────────────────────────────────────
+
+    private List<String> buildOptions(double answer) {
+        // Distractor granularity matches the answer: whole answers get whole distractors;
+        // fractional answers (e.g. 2.5) get quarter-step distractors.
+        double step = (answer == Math.floor(answer)) ? 1.0 : 0.25;
+        Set<String> unique = new LinkedHashSet<>();
+        unique.add(fmt(answer));
+        for (int attempts = 0; attempts < 40 && unique.size() < OPTIONS_COUNT; attempts++) {
+            int k = randomInt(1, 5); // 1..4 steps away
+            double distractor = answer + k * step * (random.nextBoolean() ? 1 : -1);
+            unique.add(fmt(distractor));
+        }
+        for (int k = 1; unique.size() < OPTIONS_COUNT; k++) {
+            unique.add(fmt(answer + k * step));
+        }
+        List<String> options = new ArrayList<>(unique);
+        Collections.shuffle(options, random);
+        return options;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -209,10 +299,7 @@ public class CalculationGenerator extends QuestionGenerator {
 
     /**
      * Walks the token list honoring * / precedence and adjusts each '/' right operand
-     * (in place) so the quotient is a multiple of 0.25. Because seeded division templates
-     * are pure '/' chains, this also keeps every intermediate result nice.
-     * Editing the tokens here — before the expression is captured — keeps what the
-     * student sees consistent with the computed answer.
+     * (in place) so the quotient is a multiple of 0.25.
      */
     private void fixDivisions(List<String> tokens) {
         if (tokens.isEmpty()) return;

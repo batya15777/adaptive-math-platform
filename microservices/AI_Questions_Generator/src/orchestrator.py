@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,6 +11,8 @@ from .guardrails import ModerationGuardrail, check_output_guardrails
 from .i18n import EMPTY_RESPONSE_MESSAGES
 from .models import GenerationRequest, MathProblem
 from .settings import Settings
+
+log = logging.getLogger("ai_questions.orchestrator")
 
 _SAFETY_SENTINELS = frozenset(
     {
@@ -39,20 +42,28 @@ class QuestionGenerationOrchestrator:
                 "Set it in the container environment or pass --env-file .env when running Docker."
             )
 
-        # --- Input guardrails: check topic + theme + student name ---
+        # --- Input guardrails: check topic + theme ---
+        log.info("[1/4] Input guardrails…")
         guard_text = f"{req.topic} {req.theme}"
         blocked = self._guardrail.check(guard_text, req.language)
         if blocked:
+            log.warning("[1/4] Input BLOCKED by guardrails: %s", blocked)
             raise ValueError(blocked)
+        log.info("[1/4] Input guardrails passed.")
 
         # --- Generate + verify (with one automatic retry) ---
+        log.info("[2/4] Generating + verifying question…")
         problem = self._generate_and_verify(req)
+        log.info("[3/4] Generation + verification done.")
 
         # --- Output guardrails: final safety pass on the question text ---
+        log.info("[4/4] Output guardrails…")
         safe_text = check_output_guardrails(problem.question_text)
         if any(safe_text.startswith(sentinel) for sentinel in _SAFETY_SENTINELS):
+            log.warning("[4/4] Output BLOCKED by guardrails.")
             raise ValueError(EMPTY_RESPONSE_MESSAGES[req.language])
         problem.question_text = safe_text
+        log.info("[4/4] Output guardrails passed.")
 
         return problem
 
@@ -70,22 +81,27 @@ class QuestionGenerationOrchestrator:
         """
         last_error: str = ""
         for attempt in range(2):
+            log.info("  generate(): attempt %d/2 — calling OpenAI…", attempt + 1)
             try:
                 problem = self._agent.generate(req)
             except ValueError as exc:
                 # Malformed generation (e.g. wrong option count) — retry once
                 last_error = str(exc)
+                log.warning("  generate(): attempt %d rejected: %s", attempt + 1, last_error)
                 if attempt == 0:
                     continue
                 raise ValueError(
                     f"Question generation failed after 2 attempts. Last error: {last_error}"
                 ) from exc
 
+            log.info("  evaluate(): verifying answer with OpenAI…")
             evaluation = self._agent.evaluate(problem)
             if evaluation.is_valid:
+                log.info("  evaluate(): answer verified OK.")
                 return problem
 
             last_error = evaluation.feedback
+            log.warning("  evaluate(): attempt %d failed verification: %s", attempt + 1, last_error)
             if attempt == 0:
                 continue
 
