@@ -47,6 +47,12 @@ public class StudentProgress {
     @Column(name = "current_streak")
     private Integer currentStreak = 0;
 
+    // The question currently presented to this student for this sub-subject.
+    // Null once the question is resolved (SOLVED or FAILED). Used to resume
+    // the same question on page reload instead of generating a new one.
+    @Column(name = "active_question_id")
+    private Long activeQuestionId;
+
     public StudentProgress() {
     }
 
@@ -144,5 +150,13 @@ public class StudentProgress {
 
     public void setCurrentStreak(Integer currentStreak) {
         this.currentStreak = currentStreak;
+    }
+
+    public Long getActiveQuestionId() {
+        return activeQuestionId;
+    }
+
+    public void setActiveQuestionId(Long activeQuestionId) {
+        this.activeQuestionId = activeQuestionId;
     }
 }

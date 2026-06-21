@@ -7,6 +7,7 @@ import com.adaptive.server.entity.Question;
 import com.adaptive.server.entity.SubSubject;
 import com.adaptive.server.entity.enums.QuestionStatus;
 import com.adaptive.server.repository.GeneratedQuestionRepository;
+import com.adaptive.server.repository.QuestionArchiveRepository;
 import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +20,11 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Calls the Python AI microservice to generate a themed question and maps the response
@@ -28,8 +32,9 @@ import java.util.Random;
  *
  * Questions are stored in {@code generated_questions} as reusable templates (using the
  * NAME placeholder). Before calling the microservice, the service checks the cache by
- * (sub_subject_id, language, difficulty_level, multiple_choice); on a hit it returns a
- * random cached entry, avoiding unnecessary API calls.
+ * (sub_subject_id, language, difficulty_level, multiple_choice) and filters out questions
+ * the student has already seen. Only when every cached variant is exhausted for this student
+ * does it call the Python service to generate a fresh question.
  *
  * Cluster-aware: when a {@link ClusterContext} is supplied, the student's cohort weakness
  * and mastery are forwarded to the LLM (as a {@code learning_profile}) so the generated
@@ -47,6 +52,7 @@ public class AiQuestionService {
 
     private final RestTemplate restTemplate;
     private final GeneratedQuestionRepository generatedQuestionRepository;
+    private final QuestionArchiveRepository questionArchiveRepository;
 
     @Value("${ai.microservice.url:http://localhost:8000}")
     private String microserviceUrl;
@@ -55,9 +61,11 @@ public class AiQuestionService {
     private String aiApiKey;
 
     public AiQuestionService(RestTemplate restTemplate,
-                             GeneratedQuestionRepository generatedQuestionRepository) {
+                             GeneratedQuestionRepository generatedQuestionRepository,
+                             QuestionArchiveRepository questionArchiveRepository) {
         this.restTemplate = restTemplate;
         this.generatedQuestionRepository = generatedQuestionRepository;
+        this.questionArchiveRepository = questionArchiveRepository;
     }
 
     /**
@@ -67,22 +75,38 @@ public class AiQuestionService {
      * @param language       "en", "he", or "ru"
      * @param multipleChoice when true the response includes 4 answer options
      * @param cluster        the student's ML cohort; pass {@link ClusterContext#neutral()} for none
+     * @param userId         used to filter out questions this student has already seen
      */
     public Question generateQuestion(SubSubject subSubject, String theme, int difficulty,
-                                     String language, boolean multipleChoice, ClusterContext cluster) {
+                                     String language, boolean multipleChoice,
+                                     ClusterContext cluster, Long userId) {
 
-        // 1. Cache lookup — reuse an existing template question when available
+        // 1. Fetch what this student has already seen for this sub-subject
+        Set<String> seenExpressions = questionArchiveRepository
+                .findSeenExpressionsByUserAndSubSubject(userId, subSubject.getId());
+
+        // 2. Cache lookup — find all cached templates for this key, then exclude seen ones
         List<GeneratedQuestion> cached = generatedQuestionRepository
                 .findBySubSubjectIdAndLanguageAndDifficultyLevelAndMultipleChoice(
                         subSubject.getId(), language, difficulty, multipleChoice);
-        if (!cached.isEmpty()) {
-            GeneratedQuestion gq = cached.get(new Random().nextInt(cached.size()));
-            log.debug("Cache hit — reusing generated_question id={} (subSubject={}, lang={}, diff={}, mc={})",
-                    gq.getId(), subSubject.getId(), language, difficulty, multipleChoice);
+
+        List<GeneratedQuestion> unseen = cached.stream()
+                .filter(gq -> !seenExpressions.contains(gq.getExpression()))
+                .collect(Collectors.toList());
+
+        if (!unseen.isEmpty()) {
+            GeneratedQuestion gq = unseen.get(new Random().nextInt(unseen.size()));
+            log.debug("Cache hit — reusing generated_question id={} for user={} (subSubject={}, lang={}, diff={}, mc={})",
+                    gq.getId(), userId, subSubject.getId(), language, difficulty, multipleChoice);
             return toQuestion(gq, subSubject, language);
         }
 
-        // 2. Cache miss — call the Python microservice
+        if (!cached.isEmpty()) {
+            log.debug("All {} cached variant(s) already seen by user={} — generating new question",
+                    cached.size(), userId);
+        }
+
+        // 3. Cache miss (or all variants exhausted) — call the Python microservice
         AiQuestionRequest request = new AiQuestionRequest(
                 subSubject.getName(), theme, difficulty, language, multipleChoice);
         applyClusterContext(request, cluster);
@@ -109,7 +133,7 @@ public class AiQuestionService {
             throw new RuntimeException("AI microservice returned an empty response.");
         }
 
-        // 3. Persist to cache for future reuse
+        // 4. Persist to cache for future reuse by other students
         GeneratedQuestion toSave = new GeneratedQuestion(
                 subSubject,
                 response.getQuestionText(),

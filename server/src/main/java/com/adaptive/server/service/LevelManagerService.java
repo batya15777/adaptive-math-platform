@@ -154,6 +154,9 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         }
         // wrong with attempts left → not concluded; the client lets the student retry
 
+        if (concluded != null) {
+            progress.setActiveQuestionId(null);
+        }
         questionRepository.save(question);
         progressRepository.save(progress);
 
@@ -226,6 +229,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
         onFailed(progress);
         progress.setCurrentStreak(0);
+        progress.setActiveQuestionId(null);
         progressRepository.save(progress);
 
         long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
@@ -285,11 +289,24 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
         // Cluster-aware step: fetch the student's ML cohort BEFORE generating, so both
         // generators can adapt the next question to the cohort's weakness / mastery.
+        // Resume the same question on page reload — only generate a new one once resolved.
+        Long activeId = progress.getActiveQuestionId();
+        if (activeId != null) {
+            Optional<Question> active = questionRepository.findById(activeId);
+            if (active.isPresent() && active.get().getStatus() == QuestionStatus.CURRENT) {
+                return buildQuestionResponse(active.get(), subSubjectId, null);
+            }
+            // Stale pointer (question was resolved without clearing the field) — clear it.
+            progress.setActiveQuestionId(null);
+        }
+
         ClusterContext cluster = clusterContextService.forUser(userId);
 
         Question question = generateAdaptiveQuestion(user, subSubject, subSubjectLevel,
                 difficultyLevel, language, mc, cluster);
         question = questionRepository.save(question);
+        progress.setActiveQuestionId(question.getId());
+        progressRepository.save(progress);
         // Archive so this question counts toward the student's history
         archiveQuestion(user, subSubject, question);
         return buildQuestionResponse(question, subSubjectId, null);
@@ -308,7 +325,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
             try {
                 int aiDifficulty = clampAiDifficulty(subSubjectLevel + cluster.getDifficultyBias());
                 return aiQuestionService.generateQuestion(subSubject, aiQuestionTheme, aiDifficulty,
-                        language, mc, cluster);
+                        language, mc, cluster, user.getId());
             } catch (RuntimeException e) {
                 log.warn("AI generation failed ({}); falling back to the code-based generator.", e.getMessage());
             }
