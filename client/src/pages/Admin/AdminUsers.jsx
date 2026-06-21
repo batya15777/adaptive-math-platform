@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { getUsers, updateUserRole } from "../../service/adminApi.js";
+import { getUsers, updateUserRole, setUserStatus } from "../../service/adminApi.js";
 import { UsersTable } from "../../components/Admin/UsersTable.jsx";
 import { getAdminStrings } from "../../components/Admin/adminStrings.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
@@ -54,6 +54,16 @@ export const AdminUsers = () => {
             .catch((e) => setError(e.response?.status === 409 ? t.roleChangeBlocked : t.roleChangeError));
     };
 
+    const onSetStatus = (u, nextStatus) => {
+        const confirmMsg = nextStatus === "BLOCKED" ? t.blockConfirm : t.unblockConfirm;
+        if (!window.confirm(confirmMsg)) return;
+        setNotice("");
+        setError("");
+        setUserStatus(u.id, nextStatus)
+            .then(() => { setNotice(t.statusChangeSuccess); setVersion((v) => v + 1); })
+            .catch((e) => setError(e.response?.status === 409 ? t.statusChangeBlocked : t.statusChangeError));
+    };
+
     const hasResults = data.users.length > 0;
 
     return (
@@ -84,7 +94,7 @@ export const AdminUsers = () => {
                 <p style={{ color: "#888" }}>{t.loading}</p>
             ) : hasResults ? (
                 <>
-                    <UsersTable users={data.users} t={t} locale={locale} onChangeRole={onChangeRole} currentUserId={user?.id} />
+                    <UsersTable users={data.users} t={t} locale={locale} onChangeRole={onChangeRole} onSetStatus={onSetStatus} currentUserId={user?.id} />
 
                     <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "center" }}>
                         <button onClick={() => goToPage(page - 1)} disabled={page <= 0}>{t.prev}</button>

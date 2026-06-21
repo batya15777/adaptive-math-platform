@@ -64,6 +64,13 @@ public class SessionValidationService {
                     Errors.SESSION_TOKEN_EXPIRED.getMessage()
             );
         }
+        // Blocked accounts are denied on the next request even with a live session.
+        if (!"ACTIVE".equals(sessionToken.getUser().getAccountStatus())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    Errors.ACCOUNT_BLOCKED.getMessage()
+            );
+        }
         return sessionToken;
     }
 }

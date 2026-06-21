@@ -24,6 +24,9 @@ public interface UserRepository extends JpaRepository<User,Long> {
     // Leaderboard scoped to a role, so admins (even ex-students) don't appear.
     List<User> findTop10ByRoleOrderByTotalStarsDesc(String role);
 
+    // Guard: don't block the last ACTIVE admin.
+    long countByRoleAndAccountStatus(String role, String accountStatus);
+
     // Admin user management: optional text search (fullName/email, plus exact id when
     // the search is numeric) and optional role filter, server-side paginated.
     @Query(value = "SELECT u FROM User u WHERE " +

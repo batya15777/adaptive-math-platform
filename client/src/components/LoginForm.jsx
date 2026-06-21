@@ -50,7 +50,10 @@ function LoginForm() {
                     loginUser(loggedInUser);
                     navigate(loggedInUser?.role === "ADMIN" ? "/admin/dashboard" : "/");
                 } else {
-                    setErrors(t.invalidCreds)
+                    // Backend returns a distinct message for a blocked account; show a
+                    // dedicated localized message for it, generic one for bad credentials.
+                    const msg = response.data.message || "";
+                    setErrors(/blocked/i.test(msg) ? t.accountBlocked : t.invalidCreds);
                 }
             })
             .catch(error => {

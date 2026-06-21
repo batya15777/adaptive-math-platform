@@ -22,6 +22,7 @@ public class AdminUserService {
 
     private static final int MAX_PAGE_SIZE = 100;
     private static final Set<String> VALID_ROLES = Set.of("STUDENT", "ADMIN");
+    private static final Set<String> VALID_STATUSES = Set.of("ACTIVE", "BLOCKED");
 
     private final UserRepository userRepository;
 
@@ -84,6 +85,33 @@ public class AdminUserService {
         }
 
         user.setRole(role);
+        return new AdminUserDto(userRepository.save(user));
+    }
+
+    @Transactional
+    public AdminUserDto setStatus(Long currentAdminId, Long targetId, String rawStatus) {
+        String status = (rawStatus == null) ? null : rawStatus.trim().toUpperCase();
+        if (status == null || !VALID_STATUSES.contains(status)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status. Use ACTIVE or BLOCKED.");
+        }
+        User user = userRepository.findById(targetId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+
+        if (status.equals(user.getAccountStatus())) {
+            return new AdminUserDto(user); // no-op: already in that status
+        }
+
+        if ("BLOCKED".equals(status)) {
+            if (targetId.equals(currentAdminId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot block yourself.");
+            }
+            if ("ADMIN".equals(user.getRole())
+                    && userRepository.countByRoleAndAccountStatus("ADMIN", "ACTIVE") <= 1) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot block the last active admin.");
+            }
+        }
+
+        user.setAccountStatus(status);
         return new AdminUserDto(userRepository.save(user));
     }
 

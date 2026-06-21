@@ -33,6 +33,11 @@ public class User {
     @Column(name = "role", nullable = false)
     private String role = "STUDENT"; // ברירת מחדל: כל מי שנרשם הוא תלמיד
 
+    // Account lifecycle status: ACTIVE | BLOCKED (DELETED reserved for future soft-delete).
+    // DB default 'ACTIVE' so existing rows stay usable after the column is added (ddl-auto).
+    @Column(name = "account_status", nullable = false, columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'")
+    private String accountStatus = "ACTIVE";
+
     public User() {
     }
 
@@ -115,5 +120,13 @@ public class User {
 
     public void setTotalStars(Integer totalStars) {
         this.totalStars = (totalStars == null) ? 0 : totalStars;
+    }
+
+    public String getAccountStatus() {
+        return accountStatus == null ? "ACTIVE" : accountStatus;
+    }
+
+    public void setAccountStatus(String accountStatus) {
+        this.accountStatus = accountStatus;
     }
 }

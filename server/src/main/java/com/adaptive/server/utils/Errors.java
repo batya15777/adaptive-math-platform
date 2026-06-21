@@ -21,6 +21,7 @@ public enum Errors {
     SESSION_TOKEN_EXPIRED("Session has expired. Please log in again."),
     ACCESS_DENIED_USER_MISMATCH("Access denied: token does not match the provided user ID."),
     ACCESS_DENIED_ADMIN_REQUIRED("Access denied: Admin privileges required."),
+    ACCOUNT_BLOCKED("Account is blocked. Please contact the administrator."),
     SUB_SUBJECT_NOT_FOUND("Sub-subject not found.");
 
 
