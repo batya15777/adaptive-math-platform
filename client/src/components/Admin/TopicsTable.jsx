@@ -2,7 +2,7 @@
 // only. There is no delete action by design — topics are published/disabled, not
 // removed. "Publish" is disabled for empty topics (a topic with no subjects must
 // not reach students).
-export const TopicsTable = ({ topics, onEdit, onToggle, t }) => (
+export const TopicsTable = ({ topics, onEdit, onToggle, onManageSubjects, t }) => (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
             <tr>
@@ -23,14 +23,15 @@ export const TopicsTable = ({ topics, onEdit, onToggle, t }) => (
                     </td>
                     <td style={cell}>{topic.subjectCount}</td>
                     <td style={cell}>
+                        <button onClick={() => onManageSubjects(topic)}>{t.manageSubjects}</button>{" "}
                         <button onClick={() => onEdit(topic)}>{t.edit}</button>{" "}
                         {topic.active ? (
                             <button onClick={() => onToggle(topic)}>{t.disable}</button>
                         ) : (
                             <button
                                 onClick={() => onToggle(topic)}
-                                disabled={topic.subjectCount === 0}
-                                title={topic.subjectCount === 0 ? t.cannotPublishEmpty : ""}
+                                disabled={topic.activeSubjectCount === 0}
+                                title={topic.activeSubjectCount === 0 ? t.cannotPublishEmpty : ""}
                             >
                                 {t.publish}
                             </button>

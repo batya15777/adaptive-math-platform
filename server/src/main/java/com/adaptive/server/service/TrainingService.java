@@ -56,7 +56,7 @@ public class TrainingService {
 
     @Transactional(readOnly = true)
     public List<SubjectResponse> getSubjects(Long topicId) {
-        return subjectRepository.findByTopicId(topicId).stream()
+        return subjectRepository.findByTopicIdAndTopicActiveTrueAndActiveTrueOrderByNameAsc(topicId).stream()
                 .map(SubjectResponse::new)
                 .collect(Collectors.toList());
     }

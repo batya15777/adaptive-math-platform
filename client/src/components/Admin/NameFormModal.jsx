@@ -1,8 +1,18 @@
 import { useState } from "react";
 
-// Create/edit a topic. Controlled by the parent via `open`. Purely presentational:
-// it owns only the local input value and receives strings (t) + direction via props.
-export const TopicFormModal = ({ open, initialName = "", onSubmit, onClose, t, dir = "ltr" }) => {
+// Generic create/edit-name modal. Reused for Topics and Subjects. Purely
+// presentational: owns only the local input value; all labels come via props.
+export const NameFormModal = ({
+    open,
+    initialName = "",
+    onSubmit,
+    onClose,
+    dir = "ltr",
+    title,
+    placeholder,
+    saveLabel,
+    cancelLabel,
+}) => {
     const [name, setName] = useState(initialName);
 
     // Reset the input when the modal (re)opens — adjusting state during render is the
@@ -23,17 +33,17 @@ export const TopicFormModal = ({ open, initialName = "", onSubmit, onClose, t, d
     return (
         <div style={overlay} onClick={onClose}>
             <form style={{ ...box, direction: dir }} onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-                <h3 style={{ marginTop: 0 }}>{initialName ? t.editTopic : t.newTopic}</h3>
+                <h3 style={{ marginTop: 0 }}>{title}</h3>
                 <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder={t.topicNamePlaceholder}
+                    placeholder={placeholder}
                     autoFocus
                     style={{ width: "100%", padding: 10, boxSizing: "border-box", marginBottom: 16 }}
                 />
                 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                    <button type="button" onClick={onClose}>{t.cancel}</button>
-                    <button type="submit" disabled={!name.trim()} style={saveBtn}>{t.save}</button>
+                    <button type="button" onClick={onClose}>{cancelLabel}</button>
+                    <button type="submit" disabled={!name.trim()} style={saveBtn}>{saveLabel}</button>
                 </div>
             </form>
         </div>
