@@ -19,6 +19,9 @@ import java.util.stream.Collectors;
 @Service
 public class AdminMLClusteringService {
 
+    // Only show/count assignments for users whose current role is STUDENT.
+    private static final String STUDENT_ROLE = "STUDENT";
+
     private final StudentClusterAssignmentRepository assignmentRepository;
 
     public AdminMLClusteringService(StudentClusterAssignmentRepository assignmentRepository) {
@@ -27,7 +30,7 @@ public class AdminMLClusteringService {
 
     @Transactional(readOnly = true)
     public AdminMLGroupsResponse getGroups() {
-        List<AdminMLGroupDto> groups = assignmentRepository.findClusterGroups().stream()
+        List<AdminMLGroupDto> groups = assignmentRepository.findClusterGroupsForRole(STUDENT_ROLE).stream()
                 .map(p -> new AdminMLGroupDto(
                         p.getClusterId(),
                         p.getLabel(),
@@ -39,9 +42,9 @@ public class AdminMLClusteringService {
                 .collect(Collectors.toList());
 
         return new AdminMLGroupsResponse(
-                assignmentRepository.findLastRunAt(),       // null when empty
-                assignmentRepository.count(),               // 0 when empty
-                groups);                                    // [] when empty
+                assignmentRepository.findLastRunAtForRole(STUDENT_ROLE),   // null when none
+                assignmentRepository.countAssignedForRole(STUDENT_ROLE),  // 0 when none
+                groups);                                                  // [] when none
     }
 
     // Comma-joined error patterns → list; null/blank → empty list (no crash).

@@ -32,6 +32,14 @@ public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt
            "FROM ExerciseAttempt a ORDER BY a.user.id ASC, a.answeredAt ASC")
     List<AttemptFeatureProjection> findAllAttemptFeatures();
 
+    // Same ML-feature projection, but only for attempts by users whose CURRENT role
+    // is :role — so ex-students who became admins are excluded from clustering input.
+    @Query("SELECT a.user.id AS userId, a.errorPattern AS errorPattern, a.questionType AS questionType, " +
+           "a.difficultyLevel AS difficultyLevel, a.isCorrect AS isCorrect, a.userAnswer AS userAnswer, " +
+           "a.answeredAt AS answeredAt " +
+           "FROM ExerciseAttempt a WHERE a.user.role = :role ORDER BY a.user.id ASC, a.answeredAt ASC")
+    List<AttemptFeatureProjection> findAllAttemptFeaturesForRole(@Param("role") String role);
+
     // Dashboard: per-sub-subject totals + correct counts for one student, in one query.
     @Query("SELECT a.subSubject.id AS subSubjectId, a.subSubject.name AS subSubjectName, " +
            "COUNT(a) AS total, SUM(CASE WHEN a.isCorrect = true THEN 1L ELSE 0L END) AS correct " +
