@@ -26,10 +26,40 @@ export function bumpDailyStreak(userId) {
     return next.count;
 }
 
-// Today's practice progress toward a daily goal. `done` resets each day. (Currently a
-// local counter; can be incremented from the practice screen later.)
+// Today's practice progress toward a daily goal. `done` resets each day.
 export function getDailyProgress(userId, goal = 5) {
     const data = read(`mg_daily_${userId}`);
     const done = data && data.date === todayKey() ? (data.count || 0) : 0;
     return { done: Math.min(done, goal), goal };
+}
+
+// Record one correct answer toward today's daily goal (called from the daily practice
+// screen). Capped at `goal` and reset each day. Returns the new count.
+export function bumpDailyProgress(userId, goal = 5) {
+    const key = `mg_daily_${userId}`;
+    const data = read(key);
+    const today = todayKey();
+    const current = data && data.date === today ? (data.count || 0) : 0;
+    const next = { date: today, count: Math.min(current + 1, goal) };
+    write(key, next);
+    return next.count;
+}
+
+// Has the student already completed today's daily practice?
+export function isDailyComplete(userId, goal = 5) {
+    return getDailyProgress(userId, goal).done >= goal;
+}
+
+// ── Daily session persistence ──────────────────────────────────────────────────
+// Keeps the current daily-practice question across a page refresh, so the student
+// resumes exactly where they were (per user, valid only for today).
+export function readDailySession(userId) {
+    const data = read(`mg_daily_session_${userId}`);
+    return data && data.date === todayKey() ? data : null;
+}
+export function writeDailySession(userId, session) {
+    write(`mg_daily_session_${userId}`, { ...session, date: todayKey() });
+}
+export function clearDailySession(userId) {
+    write(`mg_daily_session_${userId}`, null);
 }

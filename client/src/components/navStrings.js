@@ -6,6 +6,7 @@ export const NAV_STRINGS = {
     en: {
         greeting: "Hello",
         logout: "Log out",
+        back: "Back",
         // student shell (DashboardLayout)
         brand: "Mathematics Game",
         home: "Home",
@@ -17,6 +18,7 @@ export const NAV_STRINGS = {
     he: {
         greeting: "שלום",
         logout: "התנתק",
+        back: "חזרה",
         // student shell (DashboardLayout)
         brand: "משחק המתמטיקה",
         home: "בית",
@@ -28,6 +30,7 @@ export const NAV_STRINGS = {
     ru: {
         greeting: "Привет",
         logout: "Выйти",
+        back: "Назад",
         // student shell (DashboardLayout)
         brand: "Математическая игра",
         home: "Главная",
