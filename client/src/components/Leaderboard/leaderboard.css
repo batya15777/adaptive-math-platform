@@ -15,5 +15,17 @@
 .lb-row--me { background: rgba(124, 77, 255, .15); border: 1px solid var(--mg-ring); }
 .lb-rank { min-width: 34px; text-align: center; font-weight: 700; color: var(--mg-tm); font-size: 14px; flex: none; font-variant-numeric: tabular-nums; }
 .lb-rank--medal { font-size: 22px; }
+/* Circular profile picture (image or default-icon fallback). */
+.lb-avatar {
+  width: 38px; height: 38px; flex: none; border-radius: 50%;
+  object-fit: cover; background: var(--mg-s2);
+  border: 2px solid var(--mg-bd);
+}
+.lb-avatar--fallback {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 18px; color: var(--mg-tm); line-height: 1;
+}
+.lb-row--top .lb-avatar { border-color: var(--mg-stars); }
+.lb-row--me  .lb-avatar { border-color: var(--mg-ring); }
 .lb-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--mg-ts); }
 .lb-stars { flex: none; font-weight: 700; color: var(--mg-stars); font-size: 14px; font-variant-numeric: tabular-nums; }
