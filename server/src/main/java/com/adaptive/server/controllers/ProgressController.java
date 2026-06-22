@@ -85,14 +85,13 @@ public class ProgressController {
     }
 
 
-    @PostMapping("/bonus-answer") //לענות על בונוס
+    @PostMapping("/bonus-answer") //לענות על בונוס — נשמר כ-attempt ומוזן ל-ML בדיוק כמו תשובה רגילה
     public ResponseEntity<ProgressStatusResponse> submitBonusAnswer(
             @CookieValue(value = "session_token", required = false) String sessionToken,
-            @RequestParam Long subSubjectId,
-            @RequestParam boolean correct) {
+            @RequestBody SubmitAnswerRequest request) {
         SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
-        ProgressStatusResponse result = levelManagerService.submitBonusAnswer(userId, subSubjectId, correct);
+        ProgressStatusResponse result = levelManagerService.submitBonusAnswer(userId, request);
         return ResponseEntity.ok(result);
     }
 

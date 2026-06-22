@@ -218,8 +218,16 @@ export const QuestionGame = () => {
     const handleBonusAnswer = async (given) => {
         setLoading(true); setError('');
         try {
-            const correct = given === (question.correctAnswer ?? '').toString().trim();
-            const res = await submitBonusAnswer(Number(subSubjectId), correct);
+            // Send the full answer so the server grades it AND records the attempt for the ML
+            // pipeline (same shape as a normal submit). Correctness comes back from the server.
+            const res = await submitBonusAnswer({
+                subSubjectId: Number(subSubjectId),
+                questionId: question.questionId,
+                userAnswer: given,
+                questionType: subSubjectName.toUpperCase(),
+                currentDifficulty: question.difficultyLevel,
+            });
+            const correct = res.data.answerCorrect;
 
             if (res.data.currentLevel > progress.currentLevel) {
                 clearTimeout(confettiTimerRef.current);
