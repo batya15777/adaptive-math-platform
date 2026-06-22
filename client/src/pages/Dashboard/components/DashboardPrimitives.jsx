@@ -1,3 +1,5 @@
+/* Shared primitives intentionally export both components and their visual constants. */
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect } from 'react';
 import { motion, animate, useMotionValue, useTransform } from 'framer-motion';
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
@@ -5,18 +7,17 @@ import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from '
 // Shared presentational primitives for the dashboard, built on recharts (charts)
 // and framer-motion (animations).
 
+// MathGalaxy palette — purple/blue only (no green/red) for the themed visuals.
 export const COLORS = {
-    primary: '#007bff',
-    success: '#28a745',
-    error:   '#dc3545',
-    warning: '#fd7e14',
+    primary: '#7C4DFF',
+    blue:    '#5B8CFF',
     purple:  '#7c3aed',
-    muted:   '#888',
-    track:   '#eef1f5',
+    muted:   'var(--mg-tm)',
+    track:   'rgba(124, 77, 255, .14)',
 };
 
-// Performance → colour scale shared by the bars/gauges.
-export const rateColor = (rate) => (rate >= 70 ? COLORS.success : rate >= 40 ? COLORS.warning : COLORS.error);
+// Gauge/bar colour — a calm purple→blue, never green/red. Stronger purple for high rates.
+export const rateColor = (rate) => ((rate ?? 0) >= 60 ? COLORS.primary : COLORS.blue);
 
 // framer-motion variants: the container staggers its children into view.
 export const containerVariants = {
@@ -70,10 +71,10 @@ export const GaugeChart = ({ percent, color = COLORS.primary, size = 160, label 
                 </RadialBarChart>
             </ResponsiveContainer>
             <div style={gaugeCenter}>
-                <span style={{ fontSize: 30, fontWeight: 'bold', color: '#222' }}>
+                <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--mg-ts)' }}>
                     <AnimatedNumber value={value} format={(v) => `${Math.round(v)}%`} />
                 </span>
-                {label && <span style={{ fontSize: 11, color: COLORS.muted }}>{label}</span>}
+                {label && <span style={{ fontSize: 11, color: 'var(--mg-tm)' }}>{label}</span>}
             </div>
         </div>
     );
@@ -114,16 +115,16 @@ export const prettifyClusterLabel = (label, t) => {
 };
 
 export const severityColor = (severity) => (
-    severity === 'high' ? COLORS.error : severity === 'medium' ? COLORS.warning : COLORS.primary
+    severity === 'high' ? COLORS.purple : severity === 'medium' ? COLORS.primary : COLORS.blue
 );
 
 // ── styles ──────────────────────────────────────────────────────────────────
 const cardStyle = {
-    border: '1px solid #ececf1', borderRadius: '16px', padding: '20px',
-    backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+    border: '1px solid var(--mg-bd)', borderRadius: '20px', padding: '22px',
+    background: 'var(--mg-card)', boxShadow: 'var(--mg-cardsh)',
 };
 const cardHeader = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' };
-const cardTitle  = { margin: 0, fontSize: '16px', color: '#2b2b35' };
+const cardTitle  = { margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--mg-ts)' };
 const gaugeCenter = {
     position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',

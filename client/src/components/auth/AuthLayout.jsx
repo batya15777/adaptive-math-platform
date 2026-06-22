@@ -2,22 +2,13 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useProfile } from "../../contexts/useProfile.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
-import { getAuthStrings } from "./authStrings.js";
 import { MathGalaxyLogo } from "../ui/MathGalaxyLogo.jsx";
+import { createStarfield } from "../../utils/starfield.js";
 import "./auth.css";
 
 // Deterministic starfield (stable across re-renders).
 function useStars(count = 60) {
-    return useMemo(() => {
-        let s = 7;
-        const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
-        return Array.from({ length: count }, () => ({
-            left: (rnd() * 100).toFixed(2) + "%",
-            top: (rnd() * 100).toFixed(2) + "%",
-            lg: rnd() < 0.12,
-            o: (0.3 + rnd() * 0.6).toFixed(2),
-        }));
-    }, [count]);
+    return useMemo(() => createStarfield(count), [count]);
 }
 
 // Polished language dropdown — persists to the profile. Opens below, Esc / outside click close.

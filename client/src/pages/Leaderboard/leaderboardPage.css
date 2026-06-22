@@ -1,4 +1,3 @@
 .lbp { min-height: 100vh; padding: 26px 18px 48px; }
-.lbp-inner { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
-.lbp-back { align-self: flex-start; color: var(--mg-accent); font-weight: 600; text-decoration: none; font-size: 14px; }
-.lbp-back:hover { text-decoration: underline; }
+.lbp-topbar { max-width: 1080px; margin: 0 auto; } /* wide: logo far right, controls far left */
+.lbp-inner { max-width: 560px; margin: 10px auto 0; display: flex; flex-direction: column; gap: 14px; }

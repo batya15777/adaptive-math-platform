@@ -28,6 +28,7 @@ export const HOME_STRINGS = {
         dailyTitle: "Daily practice",
         dailyMotivation: { male: "Spend a few minutes today and do even better tomorrow!", female: "Spend a few minutes today and do even better tomorrow!", neutral: "Spend a few minutes today and do even better tomorrow!" },
         dailyGoal: "{done}/{goal} questions",
+        dailyReward: "🌟 Solve {goal} and earn {bonus} stars!",
         dailyDoneBtn: "✅ Done today",
         startBtn: { male: "Start practice", female: "Start practice", neutral: "Start practice" },
 
@@ -72,6 +73,7 @@ export const HOME_STRINGS = {
         dailyTitle: "תרגול יומי",
         dailyMotivation: { male: "הקדש כמה דקות היום לעצמך ותצליח יותר מחר!", female: "הקדישי כמה דקות היום לעצמך ותצליחי יותר מחר!", neutral: "הקדישו כמה דקות היום לעצמכם ותצליחו יותר מחר!" },
         dailyGoal: "{done}/{goal} שאלות",
+        dailyReward: "🌟 פתרו {goal} וקבלו {bonus} כוכבים!",
         dailyDoneBtn: "✅ הושלם היום",
         startBtn: { male: "התחל תרגול", female: "התחילי תרגול", neutral: "התחילו תרגול" },
 
@@ -116,6 +118,7 @@ export const HOME_STRINGS = {
         dailyTitle: "Ежедневная практика",
         dailyMotivation: { male: "Уделите несколько минут сегодня — и завтра получится ещё лучше!", female: "Уделите несколько минут сегодня — и завтра получится ещё лучше!", neutral: "Уделите несколько минут сегодня — и завтра получится ещё лучше!" },
         dailyGoal: "{done}/{goal} задач",
+        dailyReward: "🌟 Решите {goal} и получите {bonus} звёзд!",
         dailyDoneBtn: "✅ Сделано сегодня",
         startBtn: { male: "Начать", female: "Начать", neutral: "Начать" },
 

@@ -1,0 +1,84 @@
+/* Rocket level-progress path — themed via the shared --mg-* tokens (light/dark).
+   The rocket glides along the rail with a smooth CSS transition on every correct answer. */
+
+.lrp { display: flex; flex-direction: column; gap: 12px; }
+
+.lrp-caption { text-align: center; font-size: 13px; font-weight: 700; color: var(--mg-tm); font-variant-numeric: tabular-nums; }
+
+.lrp-row { display: flex; align-items: center; gap: 12px; }
+
+/* level endpoints (planet → galaxy) */
+.lrp-endpoint { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 64px; }
+.lrp-endpoint-label { font-size: 12px; font-weight: 700; color: var(--mg-ts); white-space: nowrap; }
+
+.lrp-planet {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #b69bf0, #6a3fd6 72%);
+    box-shadow: 0 0 10px rgba(124, 77, 255, .45), inset -3px -3px 6px rgba(0, 0, 0, .25);
+}
+.lrp-galaxy {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #fff 4%, #c7b6ff 18%, #7c4dff 48%, #2a2050 80%);
+    box-shadow: 0 0 12px rgba(124, 77, 255, .5);
+    transition: box-shadow .4s var(--mg-ease), transform .4s var(--mg-ease);
+}
+.lrp-galaxy.is-reached { box-shadow: 0 0 22px 4px rgba(155, 232, 255, .8), 0 0 12px rgba(124, 77, 255, .7); transform: scale(1.12); }
+
+/* the travel track */
+.lrp-track { position: relative; flex: 1; height: 56px; }
+.lrp-rail {
+    position: absolute; inset-inline: 0; top: 50%; height: 4px; transform: translateY(-50%);
+    border-radius: 999px; background: var(--mg-s2); border: 1px solid var(--mg-bd);
+}
+.lrp-rail-fill {
+    position: absolute; inset-inline-start: 0; top: 50%; height: 4px; transform: translateY(-50%);
+    border-radius: 999px; background: linear-gradient(90deg, #7c4dff, #5b8cff);
+    transition: width .6s var(--mg-ease);
+}
+
+/* milestone dots — one per required correct answer */
+.lrp-dots { position: absolute; inset-inline: 0; top: 50%; transform: translateY(-50%); display: flex; justify-content: space-between; }
+.lrp-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mg-bd); transition: background .4s var(--mg-ease), box-shadow .4s var(--mg-ease); }
+.lrp-dot.is-filled { background: #9be8ff; box-shadow: 0 0 6px rgba(155, 232, 255, .9); }
+
+/* the rocket itself — nose points along the direction of travel (rotated 90°) */
+.lrp-rocket {
+    position: absolute; top: 50%; left: 0;
+    transform: translate(-50%, -50%);
+    transition: left .6s var(--mg-ease);
+    width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+}
+.lrp-rocket-svg { width: 44px; height: 44px; transform: rotate(90deg); filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .28)); }
+.lrp-rocket-glow {
+    position: absolute; inset-inline-end: 60%; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 16px; border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(143, 217, 255, .85), rgba(124, 77, 255, 0) 70%);
+    filter: blur(1px); pointer-events: none;
+}
+.lrp-rocket.is-reached { animation: lrp-pop .5s var(--mg-ease); }
+
+@keyframes lrp-pop {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.25); }
+    100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* sub-level paused + level-up cheer */
+.lrp-note { margin: 0; text-align: center; font-size: 12px; color: var(--mg-warning); }
+.lrp--sub .lrp-rocket-svg { opacity: .55; }
+.lrp-cheer {
+    margin: 0; text-align: center; font-size: 14px; font-weight: 800; color: var(--mg-accent);
+    animation: lrp-cheer-in .4s var(--mg-ease);
+}
+.mg-space[data-theme="dark"] .lrp-cheer { color: #CBBBFF; }
+
+@keyframes lrp-cheer-in {
+    0% { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    .lrp-rocket, .lrp-rail-fill { transition: none; }
+    .lrp-rocket.is-reached, .lrp-cheer { animation: none; }
+}

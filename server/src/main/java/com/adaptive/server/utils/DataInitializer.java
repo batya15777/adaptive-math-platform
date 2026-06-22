@@ -85,8 +85,8 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     // ── Geometry ─────────────────────────────────────────────────────────
-    // GeometryGenerator does not use DB templates (formulas are fixed),
-    // but the sub-subject rows must exist as FKs for the Question entity.
+    // Reserved geometry catalogue rows. Question generation is not enabled yet,
+    // but keeping the seed data allows the feature to be added without manual DB setup.
 
     private void seedGeometry(Topic topic) {
         Subject subject = getOrCreateSubject("Geometry", topic);
