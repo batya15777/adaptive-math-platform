@@ -104,6 +104,9 @@ public class StudentDashboardService {
     private OverallStats buildOverall(List<TopicProgress> topics, Map<Long, Integer> levelBySubSubject) {
         long totalAttempts = topics.stream().mapToLong(TopicProgress::getAttempts).sum();
         long totalCorrect = topics.stream().mapToLong(TopicProgress::getCorrect).sum();
+        // "Top level reached" = the highest progression level (current_level) the student has
+        // climbed to across their sub-subjects. This is a LEVEL, not a difficulty — it mirrors the
+        // cards' רמה stat (difficulty/קושי is the separate cluster-biased number).
         int masteryLevel = levelBySubSubject.values().stream().max(Integer::compareTo).orElse(DEFAULT_LEVEL);
         return new OverallStats(totalAttempts, totalCorrect, percent(totalCorrect, totalAttempts), masteryLevel);
     }

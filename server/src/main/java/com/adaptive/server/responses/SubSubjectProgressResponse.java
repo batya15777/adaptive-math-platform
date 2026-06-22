@@ -2,8 +2,9 @@ package com.adaptive.server.responses;
 
 /**
  * One sub-subject plus the logged-in student's progress in it, for the Math Training page.
- * currentLevel is the raw progression level; difficultyLevel is the capped band (1–3)
- * questions are actually generated at; questionsSolved counts correct answers only.
+ * currentLevel is the raw progression level; difficultyLevel is the highest difficulty the
+ * student has actually been served (cluster-biased above the raw level, read from recorded
+ * attempts) so it matches the in-game difficulty; questionsSolved counts correct answers only.
  */
 public class SubSubjectProgressResponse {
 

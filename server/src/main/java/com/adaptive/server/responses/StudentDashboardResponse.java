@@ -58,7 +58,7 @@ public class StudentDashboardResponse {
         private long totalAttempts;
         private long totalCorrect;
         private int successRate;   // 0–100
-        private int masteryLevel;  // highest level reached across sub-subjects
+        private int masteryLevel;  // highest progression level (current_level) reached across sub-subjects
 
         public OverallStats() {}
         public OverallStats(long totalAttempts, long totalCorrect, int successRate, int masteryLevel) {
