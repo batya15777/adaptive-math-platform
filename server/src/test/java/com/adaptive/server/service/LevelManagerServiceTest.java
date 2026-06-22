@@ -18,6 +18,10 @@ import com.adaptive.server.responses.QuestionResponse;
 import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
 import com.adaptive.server.service.QuestionsGenerators.PolynomialGenerator;
 import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
+import com.adaptive.server.service.errorpattern.ArithmeticErrorAnalyzer;
+import com.adaptive.server.service.errorpattern.ErrorPatternService;
+import com.adaptive.server.service.errorpattern.PolynomialErrorAnalyzer;
+import com.adaptive.server.service.errorpattern.VerbalErrorAnalyzer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -75,7 +79,10 @@ class LevelManagerServiceTest {
                 userRepository, subSubjectRepository,
                 subSubjectAiConfigRepository,
                 calculationGenerator, polynomialGenerator, questionRepository,
-                archiveRepository, clusterContextService, aiQuestionService); // NEW args
+                archiveRepository, clusterContextService, aiQuestionService,
+                new ErrorPatternService(
+                        List.of(new ArithmeticErrorAnalyzer(), new PolynomialErrorAnalyzer(), new VerbalErrorAnalyzer()),
+                        new ArithmeticErrorAnalyzer())); // NEW args
 
         testUser = mock(User.class);
         when(testUser.getId()).thenReturn(USER_ID);
@@ -696,6 +703,18 @@ class LevelManagerServiceTest {
     @DisplayName("submitBonusAnswer()")
     class SubmitBonusAnswer {
 
+        // A bonus question the student is answering; correctAnswer "42".
+        private Question bonusQuestion() {
+            Question q = new Question(testSubSubject, "6 * 7", "42", List.of(), null, "he", 3, QuestionStatus.CURRENT);
+            q.setId(77L);
+            when(questionRepository.findById(77L)).thenReturn(Optional.of(q));
+            return q;
+        }
+
+        private SubmitAnswerRequest bonusRequest(String userAnswer) {
+            return new SubmitAnswerRequest(SUB_SUBJECT_ID, 77L, userAnswer, "SIMPLE_MULTIPLICATION", 3);
+        }
+
         @Test @DisplayName("Correct bonus answer awards exactly 50 stars and persists the user")
         void correctBonusAnswer_awards50Stars() {
             User spyUser = mock(User.class);
@@ -704,8 +723,9 @@ class LevelManagerServiceTest {
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(spyUser));
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            bonusQuestion();
 
-            service.submitBonusAnswer(USER_ID, SUB_SUBJECT_ID, true);
+            service.submitBonusAnswer(USER_ID, bonusRequest("42"));
             verify(spyUser).setTotalStars(150);
             verify(userRepository).save(spyUser);
         }
@@ -714,9 +734,28 @@ class LevelManagerServiceTest {
         void incorrectBonusAnswer_awardsNoStars() {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            service.submitBonusAnswer(USER_ID, SUB_SUBJECT_ID, false);
+            bonusQuestion();
+
+            service.submitBonusAnswer(USER_ID, bonusRequest("99"));
             verify(testUser, never()).setTotalStars(anyInt());
             verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test @DisplayName("A bonus answer is recorded as an exercise attempt (feeds the ML pipeline)")
+        void bonusAnswer_recordsAttempt() {
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
+            when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            bonusQuestion();
+
+            service.submitBonusAnswer(USER_ID, bonusRequest("99"));
+
+            ArgumentCaptor<ExerciseAttempt> captor = ArgumentCaptor.forClass(ExerciseAttempt.class);
+            verify(attemptRepository).save(captor.capture());
+            ExerciseAttempt saved = captor.getValue();
+            assertEquals(77L, saved.getQuestionId());
+            assertEquals("99", saved.getUserAnswer());
+            assertFalse(saved.getIsCorrect());
+            assertNotNull(saved.getErrorPattern());
         }
 
         @Test @DisplayName("Response totalStars reflects the updated value after a correct answer")
@@ -727,8 +766,9 @@ class LevelManagerServiceTest {
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(realUser));
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            bonusQuestion();
 
-            ProgressStatusResponse r = service.submitBonusAnswer(USER_ID, SUB_SUBJECT_ID, true);
+            ProgressStatusResponse r = service.submitBonusAnswer(USER_ID, bonusRequest("42"));
             assertTrue(r.isSuccess());
             assertTrue(r.getTotalStars() >= 200);
         }
@@ -737,7 +777,9 @@ class LevelManagerServiceTest {
         void submitBonusAnswer_returnsProgressStatusResponse() {
             when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.empty());
             when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            ProgressStatusResponse r = service.submitBonusAnswer(USER_ID, SUB_SUBJECT_ID, false);
+            bonusQuestion();
+
+            ProgressStatusResponse r = service.submitBonusAnswer(USER_ID, bonusRequest("99"));
             assertNotNull(r);
             assertTrue(r.isSuccess());
         }

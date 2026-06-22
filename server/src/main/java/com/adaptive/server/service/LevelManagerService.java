@@ -13,6 +13,7 @@ import com.adaptive.server.responses.QuestionResponse;
 import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
 import com.adaptive.server.service.QuestionsGenerators.PolynomialGenerator;
 import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
+import com.adaptive.server.service.errorpattern.ErrorPatternService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -69,6 +70,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private final PolynomialGenerator polynomialGenerator;
     private final ClusterContextService clusterContextService;
     private final AiQuestionService aiQuestionService;
+    private final ErrorPatternService errorPatternService;
 
     // Coin flip for the multiple-choice vs typed-answer decision at difficulty ≥ 3.
     private final Random random = new Random();
@@ -87,7 +89,8 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                                CalculationGenerator calculationGenerator, PolynomialGenerator polynomialGenerator,
                                QuestionRepository questionRepository,
                                QuestionArchiveRepository archiveRepository,
-                               ClusterContextService clusterContextService, AiQuestionService aiQuestionService) {
+                               ClusterContextService clusterContextService, AiQuestionService aiQuestionService,
+                               ErrorPatternService errorPatternService) {
         this.attemptRepository = attemptRepository;
         this.progressRepository = progressRepository;
         this.userRepository = userRepository;
@@ -99,6 +102,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         this.archiveRepository = archiveRepository;
         this.clusterContextService = clusterContextService;
         this.aiQuestionService = aiQuestionService;
+        this.errorPatternService = errorPatternService;
     }
 
 
@@ -115,7 +119,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
         boolean isCorrect = question.getCorrectAnswer().equals(request.getUserAnswer());
         String errorPattern = !isCorrect
-                ? analyzeErrorPattern(question.getExpression(), question.getCorrectAnswer(),
+                ? errorPatternService.analyze(subSubject, question.getExpression(), question.getCorrectAnswer(),
                                       request.getUserAnswer(), request.getQuestionType())
                 : null;
         saveAttempt(user, subSubject, request.getQuestionId(), isCorrect, request.getCurrentDifficulty(),
@@ -489,15 +493,29 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
 
     @Transactional
-    public ProgressStatusResponse submitBonusAnswer(Long userId, Long subSubjectId, boolean correct) {
-        // Award the bonus stars (50) on a correct bonus answer, then return the snapshot.
+    public ProgressStatusResponse submitBonusAnswer(Long userId, SubmitAnswerRequest request) {
+        // Bonus answers now flow through the SAME tracking path as normal answers: correctness is
+        // graded server-side and the attempt is recorded into exercise_attempts, so the bonus question
+        // also feeds the ML clustering (and the +50 stars can't be claimed without actually answering).
         User user = resolveUser(userId);
+        SubSubject subSubject = resolveSubSubject(request.getSubSubjectId());
+        Question question = questionRepository.findById(request.getQuestionId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found"));
+
+        boolean correct = question.getCorrectAnswer().equals(request.getUserAnswer());
+        String errorPattern = !correct
+                ? errorPatternService.analyze(subSubject, question.getExpression(), question.getCorrectAnswer(),
+                                      request.getUserAnswer(), request.getQuestionType())
+                : null;
+        saveAttempt(user, subSubject, request.getQuestionId(), correct, request.getCurrentDifficulty(),
+                request.getQuestionType(), request.getUserAnswer(), errorPattern, LocalDateTime.now());
+
         if (correct) {
             user.setTotalStars(user.getTotalStars() + BonusQuestionResponse.BONUS_STARS);
             userRepository.save(user);
         }
-        StudentProgress progress = loadOrCreateProgress(user, resolveSubSubject(subSubjectId));
-        long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
+        StudentProgress progress = loadOrCreateProgress(user, subSubject);
+        long total = attemptRepository.countByUserIdAndSubSubjectId(userId, request.getSubSubjectId());
         ProgressStatusResponse response = buildGameResponse(user, progress, total);
         response.setAnswerCorrect(correct);
         response.setMessage(correct
@@ -789,28 +807,6 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         );
 
         attemptRepository.save(attempt);
-    }
-
-
-    private String analyzeErrorPattern(String expression, String correctAnswer, String userAnswer, String questionType) {
-        //מנסים להבין למה תלמיד טעה - זה יכול לעזור בעתיד לADMIN
-        if (userAnswer == null || userAnswer.trim().isEmpty()) return "EMPTY_ANSWER";
-        try {
-            int userVal = Integer.parseInt(userAnswer.trim());
-            int correctVal = Integer.parseInt(correctAnswer.trim());
-            if (questionType != null && questionType.contains("SUBTRACTION")) {
-                String[] parts = expression.split("-");
-                if (parts.length == 2) {
-                    int a = Integer.parseInt(parts[0].trim());
-                    int b = Integer.parseInt(parts[1].trim());
-                    if (userVal == (a + b)) return "CONFUSED_SUB_WITH_ADD";
-                }
-            }
-            if (Math.abs(userVal - correctVal) <= 2) return "MINOR_CALCULATION_ERROR";
-        } catch (NumberFormatException e) {
-            return "INVALID_FORMAT_ERROR";
-        }
-        return "GENERAL_ERROR_" + questionType;
     }
 
 
