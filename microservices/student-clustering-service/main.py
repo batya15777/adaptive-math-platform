@@ -24,6 +24,6 @@ def health() -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    # Run with:  uv run uvicorn main:app --reload --port 8001
+    # Run with:  uv run uvicorn main:app --reload --port 8002
     logger.info("Starting %s on %s:%d", settings.app_name, settings.host, settings.port)
     uvicorn.run(app, host=settings.host, port=settings.port)
