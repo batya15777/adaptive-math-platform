@@ -8,6 +8,7 @@
 
 .qc { display: flex; flex-direction: column; gap: 16px; }
 .qc-diff { font-size: 13px; color: var(--mg-tm); font-weight: 600; }
+.qc-diff-meta { color: var(--mg-tm); font-weight: 600; }
 .qc-expr {
   font-size: clamp(30px, 6vw, 46px); font-weight: 800; color: var(--mg-ts);
   text-align: center; letter-spacing: 1px; padding: 8px 0;
@@ -32,3 +33,11 @@
 .qc-feedback--correct { color: var(--mg-success); }
 .qc-feedback--wrong { color: var(--mg-danger); }
 .qc-feedback--failed { color: var(--mg-warning); }
+
+/* worked solution shown when the student is out of tries */
+.qc-solution {
+  margin: 0; padding: 14px 16px 14px 18px; list-style-position: inside;
+  background: var(--mg-s2); border: 1px solid var(--mg-bd); border-radius: 14px;
+  color: var(--mg-ts); font-size: 15px; line-height: 1.7;
+}
+.qc-solution li { margin: 2px 0; }

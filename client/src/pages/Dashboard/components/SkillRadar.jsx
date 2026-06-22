@@ -1,31 +1,29 @@
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Card, COLORS } from './DashboardPrimitives.jsx';
+import { Card } from './DashboardPrimitives.jsx';
+import { topicName } from '../dashboardI18n.js';
 
-// A "skill map" — success rate across topics as a radar/spider chart.
-// Only meaningful with a few topics, so the container renders it conditionally.
-// Pure: receives the strings dictionary `t`. (Topic names come from the backend.)
-export const SkillRadar = ({ topics, t }) => {
-    const data = (topics || []).map((topic) => ({
-        topic: cap(topic.name),
-        rate: topic.successRate,
-    }));
+// "Skill map" — success rate across topics as a translucent purple radar/spider chart.
+// Topic labels are localized. Pure: receives the strings dictionary `t` + active `theme`
+// (so the grid/axis adapt to light/dark). Only the student's own data is plotted — there
+// is no group-average series in the API, so none is invented.
+export const SkillRadar = ({ topics, t, theme }) => {
+    const data = (topics || []).map((tp) => ({ topic: topicName(tp.name, t), rate: tp.successRate }));
+    const grid = theme === 'dark' ? 'rgba(255,255,255,.14)' : '#e6e8ee';
+    const axisFill = theme === 'dark' ? '#CBBBFF' : '#555';
 
     return (
         <Card title={t.skillMapTitle}>
-            <ResponsiveContainer width="100%" height={280}>
-                <RadarChart data={data} outerRadius="72%">
-                    <PolarGrid stroke="#e6e8ee" />
-                    <PolarAngleAxis dataKey="topic" tick={{ fontSize: 12, fill: '#555' }} />
+            <p className="stat-radar-sub">{t.skillMapSubtitle}</p>
+            <ResponsiveContainer width="100%" height={260}>
+                <RadarChart data={data} outerRadius="70%">
+                    <PolarGrid stroke={grid} />
+                    <PolarAngleAxis dataKey="topic" tick={{ fontSize: 12, fill: axisFill }} />
                     <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                    <Radar
-                        dataKey="rate" stroke={COLORS.primary} fill={COLORS.primary} fillOpacity={0.35}
-                        isAnimationActive animationDuration={900}
-                    />
+                    <Radar dataKey="rate" stroke="#7C4DFF" fill="#7C4DFF" fillOpacity={0.32} isAnimationActive animationDuration={900} />
                     <Tooltip formatter={(v) => [`${v}%`, t.successLabel]} />
                 </RadarChart>
             </ResponsiveContainer>
+            <div className="stat-radar-legend"><span><i />{t.skillYou}</span></div>
         </Card>
     );
 };
-
-const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);

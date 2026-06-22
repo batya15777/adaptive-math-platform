@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { getNextQuestion, submitAnswer } from '../../service/progressApi.js';
+import { getNextQuestion, submitAnswer, claimDailyBonus } from '../../service/progressApi.js';
 import { format } from '../../i18n/languages.js';
 import {
     bumpDailyProgress, readDailySession, writeDailySession, clearDailySession,
@@ -36,6 +36,7 @@ export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOA
     const [feedback, setFeedback] = useState(null);
     const [busy, setBusy]         = useState(false);
     const [totalStars, setTotalStars] = useState(saved?.totalStars ?? null);
+    const [bonusAwarded, setBonusAwarded] = useState(null); // null=pending, true/false after the claim
     const [error, setError]       = useState('');
 
     const correctRef = useRef(saved?.correct ?? 0); // mirrors `correct` for the async submit closure
@@ -107,7 +108,19 @@ export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOA
                     setCorrect(nextCorrect);
                     if (userId != null) bumpDailyProgress(userId, goal); // persist partial progress
                     setFeedback({ type: 'correct', text: qt.correct });
-                    setPhase(nextCorrect >= goal ? 'done' : 'concluded');
+                    if (nextCorrect >= goal) {
+                        setPhase('done');
+                        // Claim the server-verified daily bonus (+100 stars, once/day). The
+                        // server re-checks "5 correct today", so this can't be forged.
+                        claimDailyBonus()
+                            .then(r => {
+                                if (r?.data?.totalStars != null) setTotalStars(r.data.totalStars);
+                                setBonusAwarded(!!r?.data?.awarded);
+                            })
+                            .catch(() => setBonusAwarded(false));
+                    } else {
+                        setPhase('concluded');
+                    }
                 } else if (data.concluded === 'FAILED') {
                     setFeedback({ type: 'failed', text: qt.outOfTries });
                     setPhase('concluded');
@@ -130,5 +143,5 @@ export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOA
         loadQuestion(i);
     }, [index, loadQuestion]);
 
-    return { question, topic, phase, feedback, busy, error, correct, totalStars, goal, answer, next };
+    return { question, topic, phase, feedback, busy, error, correct, totalStars, bonusAwarded, goal, answer, next };
 }

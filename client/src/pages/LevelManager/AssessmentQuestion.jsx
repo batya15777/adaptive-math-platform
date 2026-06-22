@@ -1,14 +1,10 @@
 import { useState } from 'react';
 import { submitAnswer, getNextQuestion } from '../../service/progressApi.js';
 import { format } from '../../i18n/languages.js';
+import { parseOptions } from '../../utils/questionFormat.js';
 
 // Number of placement questions (matches the sketch's "1 of 4").
 const TOTAL = 4;
-
-// "5|7|9|11" → ["5","7","9","11"];  "" / null → []
-// Pipe-delimited so an option may itself contain commas (e.g. "X1=5 , X2=10");
-// the backend joins options with '|' (see LevelManagerService).
-const parseOptions = (s) => (s ? String(s).split('|').map(o => o.trim()).filter(Boolean) : []);
 
 // Forward-only placement quiz: pick an answer → Continue submits it and loads the next
 // adaptive question. Each answer feeds the existing leveling logic (submitAnswer). After

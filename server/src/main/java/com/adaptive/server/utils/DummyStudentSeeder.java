@@ -9,6 +9,7 @@ import com.adaptive.server.repository.ExerciseAttemptRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import com.adaptive.server.repository.SubjectRepository;
 import com.adaptive.server.repository.UserRepository;
+import com.adaptive.server.service.PasswordService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -80,6 +81,7 @@ public class DummyStudentSeeder implements CommandLineRunner {
     private final ExerciseAttemptRepository attemptRepository;
     private final SubjectRepository subjectRepository;
     private final SubSubjectRepository subSubjectRepository;
+    private final PasswordService passwordService;
 
     /** Resolved once per run: the Calculation operation → its sub-subject FK row. */
     private Map<CalculationOperation, SubSubject> subByOp;
@@ -87,11 +89,13 @@ public class DummyStudentSeeder implements CommandLineRunner {
     public DummyStudentSeeder(UserRepository userRepository,
                               ExerciseAttemptRepository attemptRepository,
                               SubjectRepository subjectRepository,
-                              SubSubjectRepository subSubjectRepository) {
+                              SubSubjectRepository subSubjectRepository,
+                              PasswordService passwordService) {
         this.userRepository = userRepository;
         this.attemptRepository = attemptRepository;
         this.subjectRepository = subjectRepository;
         this.subSubjectRepository = subSubjectRepository;
+        this.passwordService = passwordService;
     }
 
     @Override
@@ -207,7 +211,7 @@ public class DummyStudentSeeder implements CommandLineRunner {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private User createStudent(String fullName, String email, int age, String gender) {
-        User u = new User(fullName, GenerateHash.hashMd5(fullName, PASSWORD), email, age, gender, LocalDateTime.now());
+        User u = new User(fullName, passwordService.hash(PASSWORD), email, age, gender, LocalDateTime.now());
         u.setRole("STUDENT");
         u.setAccountStatus("ACTIVE");
         return userRepository.save(u);

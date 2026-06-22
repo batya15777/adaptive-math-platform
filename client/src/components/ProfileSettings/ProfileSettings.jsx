@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect } from 'react';
+import { useState, useContext } from 'react';
 import { useProfile } from '../../contexts/useProfile.js';
 import { AuthContext } from '../../context/AuthContextSetup.js';
 import { AVATARS } from '../../assets/avatars/index.js';
@@ -21,13 +21,13 @@ export const ProfileSettings = () => {
     const [successMsg, setSuccessMsg]  = useState('');
     const [saveError,  setSaveError]   = useState('');
 
-    useEffect(() => {
+    const resetForm = () => {
         setFormData({
             theme:     profileData.theme,
             language:  profileData.language,
             pictureId: profileData.pictureId,
         });
-    }, [profileData]);
+    };
 
     if (!user) {
         return <div style={{ padding: '20px', textAlign: 'center' }}>{t.pleaseLogIn}</div>;
@@ -55,11 +55,7 @@ export const ProfileSettings = () => {
     };
 
     const handleCancel = () => {
-        setFormData({
-            theme:     profileData.theme,
-            language:  profileData.language,
-            pictureId: profileData.pictureId,
-        });
+        resetForm();
         setSaveError('');
         setIsEditing(false);
     };
@@ -98,7 +94,7 @@ export const ProfileSettings = () => {
                     <Field label={t.theme}>{labelFor(options.themes, profileData.theme)}</Field>
                     <Field label={t.language}>{labelFor(options.languages, profileData.language)}</Field>
 
-                    <button onClick={() => setIsEditing(true)} style={btn('#007bff')}>
+                    <button onClick={() => { resetForm(); setIsEditing(true); }} style={btn('#007bff')}>
                         {t.editProfile}
                     </button>
                 </div>

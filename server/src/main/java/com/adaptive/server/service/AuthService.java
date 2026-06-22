@@ -16,13 +16,11 @@ import com.adaptive.server.repository.UserRepository;
 import com.adaptive.server.responses.BasicResponse;
 import com.adaptive.server.responses.LoginResponse;
 import com.adaptive.server.utils.Errors;
-import com.adaptive.server.utils.GenerateHash;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 import java.time.LocalDateTime;
@@ -36,15 +34,22 @@ public class AuthService {
     private final SessionTokenRepository sessionTokenRepository;
     private final EmailService emailService;
     private final PasswordResetRepository passwordResetRepository;
+    private final PasswordService passwordService;
 
 
-    public AuthService(EmailService emailService ,UserRepository userRepository, EmailVerificationRepository emailVerificationRepository, ValidationService validationService , SessionTokenRepository sessionTokenRepository, PasswordResetRepository passwordResetRepository) {
+    public AuthService(EmailService emailService, UserRepository userRepository,
+                       EmailVerificationRepository emailVerificationRepository,
+                       ValidationService validationService,
+                       SessionTokenRepository sessionTokenRepository,
+                       PasswordResetRepository passwordResetRepository,
+                       PasswordService passwordService) {
         this.userRepository = userRepository;
         this.emailVerificationRepository = emailVerificationRepository;
         this.validationService = validationService;
         this.sessionTokenRepository = sessionTokenRepository;
         this.emailService = emailService;
         this.passwordResetRepository = passwordResetRepository;
+        this.passwordService = passwordService;
     }
 
 
@@ -61,10 +66,15 @@ public class AuthService {
         }//אם אימייל שלקוח הקליד לא קיים נחזיר שגיאה כללית
         User user = optionalUser.get();
 
-        String hashedPassword = GenerateHash.hashMd5(user.getFullName() , loginRequest.getPassword());
-        if (!hashedPassword.equals(user.getPasswordHash())) {
+        if (!passwordService.matches(loginRequest.getPassword(), user.getFullName(), user.getPasswordHash())) {
             return new LoginResponse(false , Errors.INVALID_CREDENTIALS.getMessage() , null);
-        }//לוקחים סיסמא שלקוח הקליד נכניס לפונקציית HASH שלנו ונבדוק אם תוצאה שווה למה שיש בDB
+        }
+
+        // Existing MD5 accounts are upgraded after their first successful login.
+        if (passwordService.needsUpgrade(user.getPasswordHash())) {
+            user.setPasswordHash(passwordService.hash(loginRequest.getPassword()));
+            userRepository.save(user);
+        }
 
         // Non-active accounts (BLOCKED or DELETED) cannot log in.
         if (!"ACTIVE".equals(user.getAccountStatus())) {
@@ -135,7 +145,7 @@ public class AuthService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        String passwordHash = GenerateHash.hashMd5(registerRequest.getFullName(), registerRequest.getPassword());
+        String passwordHash = passwordService.hash(registerRequest.getPassword());
         emailVerificationRepository.deleteByEmail(registerRequest.getEmail());
         emailVerificationRepository.flush();
         String verificationCode = generateVerificationCode();
@@ -252,7 +262,7 @@ public class AuthService {
             return new BasicResponse(false, Errors.USER_NOT_FOUND.getMessage());
         }
 
-        user.setPasswordHash(GenerateHash.hashMd5(user.getFullName(), newPassword));
+        user.setPasswordHash(passwordService.hash(newPassword));
         userRepository.save(user);
         passwordResetRepository.delete(reset);
 

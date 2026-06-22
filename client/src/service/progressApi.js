@@ -7,3 +7,5 @@ export const revealSolution    = (body)                    => api.post('/progres
 export const getBonusQuestion  = (subSubjectId, language)  => api.get('/progress/bonus-question', { params: { subSubjectId, language } });
 export const submitBonusAnswer = (subSubjectId, correct)   => api.post('/progress/bonus-answer', null, { params: { subSubjectId, correct } });
 export const initialAssessment = (body)                    => api.post('/progress/initial-assessment', body);
+// Claim the daily-practice bonus (server verifies "5 correct today" + once/day).
+export const claimDailyBonus   = ()                        => api.post('/progress/daily-bonus');

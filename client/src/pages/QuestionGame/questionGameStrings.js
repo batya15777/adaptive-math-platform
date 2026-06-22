@@ -25,6 +25,7 @@ export const QUESTION_GAME_STRINGS = {
         level: "Level {level}",
         subLevel: " · Sub-level (easier practice)",
         toNextLevel: "{current}/{target} to next level",
+        levelUpCelebrate: "Great job! You reached the next level",
         subLevelPaused: "Solve a few easier questions to get back to your level — the bar is paused.",
         loading: "Loading...",
         // feedback (fallbacks for the server message)
@@ -59,6 +60,7 @@ export const QUESTION_GAME_STRINGS = {
         level: "רמה {level}",
         subLevel: " · תת-רמה (תרגול קל יותר)",
         toNextLevel: "{current}/{target} לרמה הבאה",
+        levelUpCelebrate: "כל הכבוד! הגעת לרמה הבאה",
         subLevelPaused: "פתרו כמה שאלות קלות יותר כדי לחזור לרמה שלכם — הסרגל מושהה.",
         loading: "טוען...",
         // feedback (fallbacks for the server message)
@@ -93,6 +95,7 @@ export const QUESTION_GAME_STRINGS = {
         level: "Уровень {level}",
         subLevel: " · Подуровень (упрощённая практика)",
         toNextLevel: "{current}/{target} до следующего уровня",
+        levelUpCelebrate: "Отлично! Вы достигли следующего уровня",
         subLevelPaused: "Решите несколько более лёгких вопросов, чтобы вернуться на свой уровень — прогресс приостановлен.",
         loading: "Загрузка...",
         // feedback (fallbacks for the server message)

@@ -24,6 +24,10 @@ public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt
     // Correct answers only — used by the Math Training page for "questions solved".
     long countByUserIdAndSubSubjectIdAndIsCorrectTrue(Long userId, Long subSubjectId);
 
+    // Correct answers a student has made since a given moment (start of today) — the
+    // server-authoritative signal used to verify the daily-practice bonus was earned.
+    long countByUserIdAndIsCorrectTrueAndAnsweredAtGreaterThanEqual(Long userId, LocalDateTime since);
+
     // All attempts as a lightweight ML-feature projection, ordered by user then time
     // so the clustering service can group them per student and compute timing features.
     @Query("SELECT a.user.id AS userId, a.errorPattern AS errorPattern, a.questionType AS questionType, " +

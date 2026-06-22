@@ -5,8 +5,10 @@ import com.adaptive.server.DTOs.RevealSolutionRequest;
 import com.adaptive.server.DTOs.SubmitAnswerRequest;
 import com.adaptive.server.entity.SessionToken;
 import com.adaptive.server.responses.BonusQuestionResponse;
+import com.adaptive.server.responses.DailyBonusResponse;
 import com.adaptive.server.responses.ProgressStatusResponse;
 import com.adaptive.server.responses.QuestionResponse;
+import com.adaptive.server.service.DailyBonusService;
 import com.adaptive.server.service.LevelManagerService;
 import com.adaptive.server.service.SessionValidationService;
 import org.springframework.http.ResponseEntity;
@@ -18,11 +20,25 @@ public class ProgressController {
 
     private final LevelManagerService levelManagerService;
     private final SessionValidationService sessionValidationService;
+    private final DailyBonusService dailyBonusService;
 
     public ProgressController(LevelManagerService levelManagerService,
-                               SessionValidationService sessionValidationService) {
+                               SessionValidationService sessionValidationService,
+                               DailyBonusService dailyBonusService) {
         this.levelManagerService = levelManagerService;
         this.sessionValidationService = sessionValidationService;
+        this.dailyBonusService = dailyBonusService;
+    }
+
+    // Claim the daily-practice bonus (100 stars). The user is taken from the validated
+    // session — never the request — and DailyBonusService re-verifies "5 correct today"
+    // from the attempt log and enforces once-per-day, so this is safe to expose.
+    @PostMapping("/daily-bonus")
+    public ResponseEntity<DailyBonusResponse> claimDailyBonus(
+            @CookieValue(value = "session_token", required = false) String sessionToken) {
+        SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
+        Long userId = token.getUser().getId();
+        return ResponseEntity.ok(dailyBonusService.claimDailyBonus(userId));
     }
 
 

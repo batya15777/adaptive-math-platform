@@ -1,26 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { AuthContext } from '../../context/AuthContextSetup.js';
+import { useProfile } from '../../contexts/useProfile.js';
 import { getDashboardData } from '../../service/dashboardApi.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
-import { format } from '../../i18n/languages.js';
 import { getDashboardStrings } from './dashboardStrings.js';
-import { containerVariants, itemVariants } from './components/DashboardPrimitives.jsx';
+import { containerVariants } from './components/DashboardPrimitives.jsx';
 import { OverviewCards } from './components/OverviewCards.jsx';
 import { ClusterCard } from './components/ClusterCard.jsx';
-import { AdaptiveAlerts } from './components/AdaptiveAlerts.jsx';
 import { TopicProgressList } from './components/TopicProgressList.jsx';
 import { SkillRadar } from './components/SkillRadar.jsx';
 import { BadgeShelf } from './components/BadgeShelf.jsx';
+import { Stars } from '../../components/ui/Stars.jsx';
+import { AppTopBar } from '../../components/ui/AppTopBar.jsx';
+import '../../styles/spaceTokens.css';
+import './StudentDashboard.css';
 
 /**
- * Container for the Student Learning Dashboard. Owns data-fetching + loading/error,
- * then composes modular, animated sections (recharts visuals + framer-motion).
- * Each section is a pure presentational component receiving just its slice of data.
+ * Student Statistics — an analysis/progress view (NOT an action dashboard like Home).
+ * Owns data-fetching + loading/error, then composes modular themed sections. Each
+ * section is a pure presentational component receiving just its slice of data.
+ * Themed via the shared --mg-* tokens (light/dark), gender + language aware.
  */
-// Renders under DashboardLayout, which owns `dir` — so no dir on this root.
 export const StudentDashboard = () => {
-    const { language, locale } = useLanguage();
+    const { user } = useContext(AuthContext);
+    const { profileData } = useProfile();
+    const { language, dir, locale } = useLanguage();
     const t = getDashboardStrings(language);
+    const theme = (profileData.theme || 'LIGHT').toLowerCase();
+
+    const gk = user?.gender === 'male' ? 'male' : user?.gender === 'female' ? 'female' : 'neutral';
+    const g = (o) => (o && (o[gk] ?? o.neutral)) || '';
 
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -43,45 +53,42 @@ export const StudentDashboard = () => {
         return () => { active = false; };
     }, [t.loadError]);
 
-    if (loading) return <div style={page}><p style={{ color: '#888' }}>{t.loading}</p></div>;
-    if (error)   return <div style={page}><p style={{ color: '#dc3545' }}>{error}</p></div>;
-    if (!data)   return null;
-
-    const topics = data.topics || [];
+    const topics = data?.topics || [];
 
     return (
-        <motion.div style={page} variants={containerVariants} initial="hidden" animate="show">
-            <motion.header variants={itemVariants} style={{ marginBottom: 2 }}>
-                <h1 style={heading}>{format(t.greeting, { name: data.student?.name || t.greetingFallbackName })}</h1>
-                <p style={sub}>{t.subtitle}</p>
-            </motion.header>
+        <div className="mg-space stat-root" data-theme={theme} dir={dir}>
+            <Stars />
+            {/* Wide top bar: logo far right, controls (theme/language/logout) far left. */}
+            <div className="sc-content stat-topbar"><AppTopBar /></div>
 
-            <OverviewCards overall={data.overall} totalStars={data.student?.totalStars} t={t} locale={locale} />
+            <div className="sc-content stat-inner">
+                <header className="stat-head">
+                    <h1 className="stat-title">{t.statsTitle}</h1>
+                    <p className="stat-sub">{g(t.subtitle)}</p>
+                </header>
 
-            <div style={twoCol}>
-                <ClusterCard cluster={data.cluster} t={t} />
-                <AdaptiveAlerts recommendations={data.recommendations} t={t} />
+                {loading && <p className="stat-msg">{t.loading}</p>}
+                {error && <p className="stat-msg stat-msg--err">{error}</p>}
+
+                {!loading && !error && data && (
+                    <motion.div className="stat-sections" variants={containerVariants} initial="hidden" animate="show">
+                        <OverviewCards overall={data.overall} t={t} locale={locale} />
+
+                        <TopicProgressList topics={topics} t={t} />
+
+                        {topics.length >= 3 ? (
+                            <div className="stat-two">
+                                <ClusterCard cluster={data.cluster} t={t} />
+                                <SkillRadar topics={topics} t={t} theme={theme} />
+                            </div>
+                        ) : (
+                            <ClusterCard cluster={data.cluster} t={t} />
+                        )}
+
+                        <BadgeShelf badges={data.badges} t={t} gk={gk} />
+                    </motion.div>
+                )}
             </div>
-
-            {topics.length >= 3 ? (
-                <div style={twoCol}>
-                    <TopicProgressList topics={topics} t={t} />
-                    <SkillRadar topics={topics} t={t} />
-                </div>
-            ) : (
-                <TopicProgressList topics={topics} t={t} />
-            )}
-
-            <BadgeShelf badges={data.badges} t={t} />
-        </motion.div>
+        </div>
     );
 };
-
-// ── styles ──────────────────────────────────────────────────────────────────
-const page = {
-    padding: '24px', maxWidth: '960px', margin: '0 auto',
-    fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column', gap: 18,
-};
-const heading = { margin: '0 0 4px', fontSize: 26, color: '#222' };
-const sub = { margin: 0, fontSize: 14, color: '#888' };
-const twoCol = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 };

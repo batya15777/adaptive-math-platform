@@ -5,10 +5,10 @@ import _LottieImport from 'lottie-react';
 // the default export. This unwrap handles both the pre-bundled case (function) and the
 // not-yet-pre-bundled case (object with .default).
 const Lottie = typeof _LottieImport === 'function' ? _LottieImport : _LottieImport.default;
-import levelUpSound from '../../assets/sound/level-up.mp3';
 import trophyAnimation from '../../assets/bonusStars/Trophy.json';
 import './QuestionGame.css';
-import TutorChat from '../../components/TutorChat/TutorChat.jsx';
+import '../../styles/spaceTokens.css';
+import { TutorChatLauncher } from '../../components/TutorChat/TutorChatLauncher.jsx';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
     getStatus, getNextQuestion, submitAnswer, revealSolution,
@@ -16,24 +16,25 @@ import {
 } from '../../service/progressApi.js';
 import { getMyCluster } from '../../service/dashboardApi.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
+import { useProfile } from '../../contexts/useProfile.js';
 import { format } from '../../i18n/languages.js';
 import { getQuestionGameStrings } from './questionGameStrings.js';
+import { parseSolution } from '../../utils/questionFormat.js';
+import { Stars } from '../../components/ui/Stars.jsx';
+import { AppTopBar } from '../../components/ui/AppTopBar.jsx';
+import { QuestionCard } from '../../components/practice/QuestionCard.jsx';
+import { LevelRocketProgress } from '../../components/practice/LevelRocketProgress.jsx';
+import { playLevelUpSound } from '../../utils/sound.js';
 
 const MAX_ATTEMPTS = 3;
-
-const LANG_CODE = { HEBREW: 'he', ENGLISH: 'en', RUSSIAN: 'ru' };
-
-// "5|7|9|11" → ["5","7","9","11"];  "" / null → []
-// Pipe-delimited so an option may contain commas (e.g. "X1=5 , X2=10").
-const parseOptions  = (s) => (s ? s.split('|').map(o => o.trim()).filter(Boolean) : []);
-// "a = 1\nb = 2" → ["a = 1","b = 2"]
-const parseSolution = (s) => (s ? s.split('\n').map(t => t.trim()).filter(Boolean) : []);
 
 export const QuestionGame = () => {
     const { subSubjectId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const { language } = useLanguage();
+    const { language, dir } = useLanguage();
+    const { profileData } = useProfile();
+    const theme = (profileData.theme || 'LIGHT').toLowerCase();
     // Memoized so it stays stable across renders (only changes with language),
     // which keeps the useCallback/effect dependency chains below from re-firing.
     const t = useMemo(() => getQuestionGameStrings(language), [language]);
@@ -73,13 +74,6 @@ export const QuestionGame = () => {
         clearTimeout(confettiTimerRef.current);
         clearTimeout(shakeTimerRef.current);
         clearTimeout(trophyTimerRef.current);
-    }, []);
-
-    // Create a fresh Audio object on every call — avoids browser autoplay-policy issues
-    // that can block a stored Audio ref from playing after an async gap.
-    const playLevelUpAudio = useCallback(() => {
-        const audio = new Audio(levelUpSound);
-        audio.play().catch(() => {});
     }, []);
 
     // Merge a server status into the bar. The server preserves level progress during the
@@ -154,9 +148,8 @@ export const QuestionGame = () => {
         return () => { active = false; };
     }, []);
 
-    const options = question ? parseOptions(question.options) : [];
-    const steps   = question ? parseSolution(question.solution) : [];
-    const isMultipleChoice = options.length > 0;
+    // Hint/solution steps still parsed here — QuestionCard parses the options itself.
+    const steps = question ? parseSolution(question.solution) : [];
 
     // ── answering ─────────────────────────────────────────────────────────────
     const handleAnswer = async (value) => {
@@ -183,7 +176,7 @@ export const QuestionGame = () => {
                 clearTimeout(confettiTimerRef.current);
                 setShowLevelUpConfetti(true);
                 confettiTimerRef.current = setTimeout(() => setShowLevelUpConfetti(false), 4500);
-                playLevelUpAudio();
+                playLevelUpSound();
             }
 
             applyProgress(data);
@@ -225,7 +218,7 @@ export const QuestionGame = () => {
                 clearTimeout(confettiTimerRef.current);
                 setShowLevelUpConfetti(true);
                 confettiTimerRef.current = setTimeout(() => setShowLevelUpConfetti(false), 4500);
-                playLevelUpAudio();
+                playLevelUpSound();
             }
 
             applyProgress(res.data);
@@ -282,233 +275,118 @@ export const QuestionGame = () => {
     // hint button is disabled with ≤1 step, or once only the final step is left unrevealed
     const hintDisabled = steps.length <= 1 || revealedHints >= steps.length - 1 || concluded;
 
-    const barPct = Math.min(100, Math.round(
-        (progress.levelProgressCurrent / Math.max(1, progress.levelProgressTarget)) * 100));
-
     // ── render ──────────────────────────────────────────────────────────────
-    return (
+    // Extra controls under the shared QuestionCard (staged hints, solution, next) —
+    // passed through the card's `footer` slot so the card itself stays generic.
+    const cardFooter = question && (
         <>
-        {showLevelUpConfetti && (
-            <Confetti
-                width={window.innerWidth}
-                height={window.innerHeight}
-                recycle={false}
-                numberOfPieces={400}
-                gravity={0.22}
-                style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, pointerEvents: 'none' }}
-            />
-        )}
-        {showTrophy && (
-            <div style={trophyOverlay}>
-                <Lottie
-                    animationData={trophyAnimation}
-                    loop={false}
-                    style={{ width: 320, height: 320 }}
+            {!isBonus && (
+                <div className="qg-actions">
+                    <button type="button" className="sc-btn sc-btn--ghost" onClick={() => setRevealedHints(n => n + 1)} disabled={hintDisabled}>
+                        {t.hint}
+                    </button>
+                    <button type="button" className="sc-btn sc-btn--ghost" onClick={handleRevealSolution} disabled={concluded || loading}>
+                        {t.showSolution}
+                    </button>
+                </div>
+            )}
+
+            {(revealedHints > 0 || showSolution) && steps.length > 0 && (
+                <ol className="qc-solution qc-math">
+                    {(showSolution ? steps : steps.slice(0, revealedHints)).map((step, i) => (
+                        <li key={i}>{step}</li>
+                    ))}
+                </ol>
+            )}
+
+            {concluded && (
+                <button type="button" className="sc-btn qg-next" onClick={handleNext} disabled={loading}>
+                    {pendingBonus ? t.goToBonus : t.nextQuestion}
+                </button>
+            )}
+        </>
+    );
+
+    return (
+        <div className="mg-space qg-root" data-theme={theme} dir={dir}>
+            <Stars />
+
+            {showLevelUpConfetti && (
+                <Confetti
+                    width={window.innerWidth}
+                    height={window.innerHeight}
+                    recycle={false}
+                    numberOfPieces={400}
+                    gravity={0.22}
+                    style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, pointerEvents: 'none' }}
+                />
+            )}
+            {showTrophy && (
+                <div className="qg-trophy">
+                    <Lottie animationData={trophyAnimation} loop={false} style={{ width: 320, height: 320 }} />
+                </div>
+            )}
+
+            <div className="sc-content qg-topbar">
+                <AppTopBar onBack={() => navigate('/math-training', { state: { topic: backTopic, subject: backSubject } })} />
+            </div>
+
+            <div className="sc-content qg-inner">
+                <div className="qg-head">
+                    <h1 className="qg-title">{subSubjectName}</h1>
+                    <div className="qg-badges">
+                        {cluster && (
+                            <span className="qg-badge qg-badge--adapt" title={format(t.adaptedTitle, { label: cluster.label || '' })}>
+                                {t.adaptedForYou}
+                            </span>
+                        )}
+                        {progress.currentStreak >= 10 && (
+                            <span className="qg-badge qg-badge--streak">{format(t.streak, { count: progress.currentStreak })}</span>
+                        )}
+                        <span className="qg-badge qg-badge--star" dir="ltr">⭐ {progress.totalStars}</span>
+                    </div>
+                </div>
+
+                {isBonus && <div className="qg-bonus-banner">{t.bonusBanner}</div>}
+                {error && <p className="qg-msg qg-msg--err">{error}</p>}
+
+                <div className={`sc-card qg-card${shaking ? ' shake' : ''}`}>
+                    {question ? (
+                        <QuestionCard
+                            key={question.questionId}
+                            question={question}
+                            t={t}
+                            feedback={feedback}
+                            locked={concluded || loading}
+                            onAnswer={handleAnswer}
+                            meta={!isBonus && !concluded ? format(t.attempt, { current: attemptNumber, max: MAX_ATTEMPTS }) : null}
+                            showSolution={false}
+                            footer={cardFooter}
+                        />
+                    ) : (
+                        loading && <p className="qg-msg">{t.loading}</p>
+                    )}
+                </div>
+
+                {/* Rocket journey to the next level — advances only on correct answers. */}
+                <LevelRocketProgress
+                    currentLevel={progress.currentLevel}
+                    current={progress.levelProgressCurrent}
+                    target={progress.levelProgressTarget}
+                    inSubLevel={progress.inSubLevel}
+                    celebrate={showLevelUpConfetti}
+                    t={t}
                 />
             </div>
-        )}
-        <div style={page}>
-            <div style={topBar}>
-                <button
-                    onClick={() => navigate('/math-training', { state: { topic: backTopic, subject: backSubject } })}
-                    style={btn('#6c757d')}
-                >
-                    ← {backSubject?.name || t.back}
-                </button>
-                <h2 style={{ margin: 0, color: '#333', textTransform: 'capitalize' }}>{subSubjectName}</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {cluster && (
-                        <span style={adaptedBadge} title={format(t.adaptedTitle, { label: cluster.label || '' })}>
-                            {t.adaptedForYou}
-                        </span>
-                    )}
-                    {progress.currentStreak >= 10 && (
-                        <span style={streakBadge}>{format(t.streak, { count: progress.currentStreak })}</span>
-                    )}
-                    <span style={starBadge}>⭐ {progress.totalStars}</span>
-                </div>
-            </div>
 
-            {error && <p style={{ color: '#dc3545' }}>{error}</p>}
-
-            {isBonus && (
-                <div style={bonusBanner}>{t.bonusBanner}</div>
-            )}
-
-            {question ? (
-                <div style={card} className={shaking ? 'shake' : ''}>
-                    <div style={{ fontSize: '13px', color: '#888', marginBottom: '6px' }}>
-                        {format(t.difficulty, { level: question.difficultyLevel })}
-                        {!isBonus && !concluded && ` · ${format(t.attempt, { current: attemptNumber, max: MAX_ATTEMPTS })}`}
-                    </div>
-
-                    {/* Math stays LTR even when the page is RTL (Hebrew). */}
-                    <div dir="ltr" style={expression}>{question.expression}</div>
-
-                    {/* answer area */}
-                    {isMultipleChoice ? (
-                        <div style={optionGrid}>
-                            {options.map((opt) => (
-                                <button
-                                    key={opt}
-                                    disabled={concluded || loading}
-                                    onClick={() => handleAnswer(opt)}
-                                    style={optionBtn(concluded)}
-                                >
-                                    {opt}
-                                </button>
-                            ))}
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-                            <input
-                                type="text"
-                                value={answer}
-                                disabled={concluded || loading}
-                                onChange={e => setAnswer(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter') handleAnswer(); }}
-                                placeholder={t.answerPlaceholder}
-                                style={input}
-                            />
-                            <button
-                                disabled={concluded || loading || !answer.trim()}
-                                onClick={() => handleAnswer()}
-                                style={btn('#28a745')}
-                            >
-                                {t.submit}
-                            </button>
-                        </div>
-                    )}
-
-                    {feedback && (
-                        <p style={{ marginTop: '12px', fontWeight: 'bold', color: feedbackColor(feedback.type) }}>
-                            {feedback.text}
-                        </p>
-                    )}
-
-                    {/* hints / solution */}
-                    {!isBonus && (
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
-                            <button onClick={() => setRevealedHints(n => n + 1)} disabled={hintDisabled} style={btn(hintDisabled ? '#adb5bd' : '#007bff')}>
-                                {t.hint}
-                            </button>
-                            <button onClick={handleRevealSolution} disabled={concluded || loading} style={btn(concluded ? '#adb5bd' : '#fd7e14')}>
-                                {t.showSolution}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* revealed steps (hints) or full solution */}
-                    {(revealedHints > 0 || showSolution) && steps.length > 0 && (
-                        <ol style={solutionBox}>
-                            {(showSolution ? steps : steps.slice(0, revealedHints)).map((step, i) => (
-                                <li key={i} style={{ marginBottom: '4px' }}>{step}</li>
-                            ))}
-                        </ol>
-                    )}
-
-                    {concluded && (
-                        <button onClick={handleNext} disabled={loading} style={{ ...btn('#007bff'), marginTop: '16px', width: '100%' }}>
-                            {pendingBonus ? t.goToBonus : t.nextQuestion}
-                        </button>
-                    )}
-                </div>
-            ) : (
-                loading && <p style={{ color: '#888' }}>{t.loading}</p>
-            )}
-
-            {/* progress to next level */}
-            <div style={{ marginTop: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#555', marginBottom: '4px' }}>
-                    <span>{format(t.level, { level: progress.currentLevel })}{progress.inSubLevel && t.subLevel}</span>
-                    <span>{format(t.toNextLevel, { current: progress.levelProgressCurrent, target: progress.levelProgressTarget })}</span>
-                </div>
-                <div style={barTrack}>
-                    <div style={{ ...barFill, width: `${barPct}%`, backgroundColor: progress.inSubLevel ? '#fd7e14' : '#28a745' }} />
-                </div>
-                {progress.inSubLevel && (
-                    <p style={{ fontSize: '12px', color: '#fd7e14', marginTop: '4px' }}>
-                        {t.subLevelPaused}
-                    </p>
-                )}
-            </div>
-
-            {/* AI tutor for the current exercise. Keyed by questionId so the chat
-                resets when the student moves to the next question. Hidden for bonus
-                questions, which are a separate high-stakes mode. */}
+            {/* Existing AI tutor as a floating launcher — closed by default, opens on click;
+                keyed by questionId so the chat resets each question. Hidden for bonus mode. */}
             {question && !isBonus && (
-                <div style={{ marginTop: '24px' }}>
-                    <TutorChat key={question.questionId} questionId={question.questionId} language={language} />
-                </div>
+                <TutorChatLauncher key={question.questionId} questionId={question.questionId} language={language} />
             )}
         </div>
-        </>
     );
 };
 
-// ── styles ──────────────────────────────────────────────────────────────────
-const feedbackColor = (t) => (t === 'correct' ? '#28a745' : t === 'wrong' ? '#dc3545' : '#fd7e14');
-
-const page = { padding: '20px', maxWidth: '640px', margin: '0 auto', fontFamily: 'Arial, sans-serif' };
-
-const topBar = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px' };
-
-const starBadge   = { fontSize: '15px', fontWeight: 'bold', color: '#f0ad4e' };
-const adaptedBadge = {
-    fontSize: '12px', fontWeight: 'bold', color: '#fff',
-    backgroundColor: '#007bff', borderRadius: '20px',
-    padding: '4px 10px', whiteSpace: 'nowrap',
-};
-const streakBadge = {
-    fontSize: '14px', fontWeight: 'bold', color: '#fff',
-    backgroundColor: '#fd7e14', borderRadius: '20px',
-    padding: '4px 10px', whiteSpace: 'nowrap',
-    boxShadow: '0 0 8px rgba(253,126,20,0.5)',
-};
-
-const trophyOverlay = {
-    position: 'fixed', inset: 0, zIndex: 9998,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    pointerEvents: 'none',
-};
-
-const bonusBanner = {
-    padding: '10px 14px', marginBottom: '12px', borderRadius: '6px',
-    backgroundColor: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', fontWeight: 'bold',
-};
-
-const card = { border: '1px solid #ddd', borderRadius: '8px', padding: '24px', backgroundColor: '#f9f9f9' };
-
-const expression = {
-    fontSize: '32px', fontWeight: 'bold', color: '#222', textAlign: 'center',
-    padding: '12px 0', letterSpacing: '1px',
-};
-
-const optionGrid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' };
-
-const optionBtn = (disabled) => ({
-    padding: '14px', fontSize: '18px', fontWeight: 'bold',
-    backgroundColor: disabled ? '#e9ecef' : '#fff', color: '#333',
-    border: '2px solid #007bff', borderRadius: '6px',
-    cursor: disabled ? 'default' : 'pointer',
-});
-
-const input = {
-    flex: 1, padding: '12px', fontSize: '18px',
-    border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box',
-};
-
-const solutionBox = {
-    marginTop: '14px', padding: '12px 12px 12px 28px', backgroundColor: '#eef6ff',
-    border: '1px solid #cfe2ff', borderRadius: '6px', color: '#333',
-};
-
-const barTrack = { width: '100%', height: '16px', backgroundColor: '#e9ecef', borderRadius: '8px', overflow: 'hidden' };
-const barFill  = { height: '100%', transition: 'width 0.3s ease' };
-
-const btn = (bg) => ({
-    padding: '10px 16px', backgroundColor: bg, color: 'white',
-    border: 'none', borderRadius: '4px', cursor: 'pointer',
-    fontSize: '14px', fontWeight: 'bold',
-});
+// All visual styling now lives in QuestionGame.css (themed via the shared --mg-* tokens),
+// matching the daily-practice look. The shake keyframes also live there.

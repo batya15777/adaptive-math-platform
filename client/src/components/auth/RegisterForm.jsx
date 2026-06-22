@@ -6,6 +6,7 @@ import { format } from "../../i18n/languages.js";
 import { getAuthStrings } from "./authStrings.js";
 import { AuthLayout } from "./AuthLayout.jsx";
 import { Field, PasswordField, Otp, AgeSelect } from "./authFields.jsx";
+import { emailRegex, fullNameRegex, passwordRegex } from "../../utils/validators.js";
 
 function RegisterForm() {
     const { language } = useLanguage();
@@ -23,21 +24,9 @@ function RegisterForm() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState("");
     const [resendCooldown, setResendCooldown] = useState(0);
+    const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
-
-    const fullNameRegex = (value) => {
-        const checkFullName = /^[A-Za-z]+(?: [A-Za-z]+)+$/;
-        return checkFullName.test(value.trim());
-    };
-    const passwordRegex = (value) => {
-        const checkPassword = /^[A-Za-z!0-9@#*]{2,10}$/;
-        return checkPassword.test(value.trim());
-    };
-    const emailRegex = (value) => {
-        const checkEmail = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-        return checkEmail.test(value.trim());
-    };
 
     const validation = () => {
         let hasErrors = false;
@@ -67,20 +56,22 @@ function RegisterForm() {
         setErrors("");
         if (validation()) return;
 
-        const data = {
-            fullName, password, email, age: Number(age), gender
-        };
+        const data = registrationData();
 
+        setLoading(true);
         register(data)
             .then(response => {
                 if (response.data.success) {
                     setShowCode(true);
+                } else {
+                    setErrors(response.data.message || t.registerFailed);
                 }
             })
             .catch(error => {
                 console.log(error);
                 setErrors(t.registerFailed);
-            });
+            })
+            .finally(() => setLoading(false));
     };
 
     const handleVerify = () => {
@@ -90,6 +81,8 @@ function RegisterForm() {
                 setShowCode(false);
                 setErrors(t.registerOk);
                 navigate("/login");
+            } else {
+                setErrors(response.data.message || t.invalidCode);
             }
         })
             .catch(error => {
@@ -100,12 +93,25 @@ function RegisterForm() {
 
     // Re-sends the verification email by re-issuing the same registration request.
     const handleResend = () => {
-        if (resendCooldown > 0) return;
+        if (resendCooldown > 0 || loading) return;
         setErrors("");
-        register({ fullName, password, email, age: Number(age), gender })
-            .then(() => setResendCooldown(30))
-            .catch(() => setErrors(t.registerFailed));
+        setLoading(true);
+        register(registrationData())
+            .then((response) => {
+                if (response.data.success) setResendCooldown(30);
+                else setErrors(response.data.message || t.registerFailed);
+            })
+            .catch(() => setErrors(t.registerFailed))
+            .finally(() => setLoading(false));
     };
+
+    const registrationData = () => ({
+        fullName: fullName.trim(),
+        password,
+        email: email.trim(),
+        age: Number(age),
+        gender,
+    });
 
     useEffect(() => {
         if (resendCooldown <= 0) return;
@@ -142,12 +148,12 @@ function RegisterForm() {
                         {t.resendQuestion}{" "}
                         {resendCooldown > 0
                             ? <span>{format(t.resendIn, { seconds: resendCooldown })}</span>
-                            : <button type="button" className="mg-link" onClick={handleResend}>{t.resend}</button>}
+                            : <button type="button" className="mg-link" onClick={handleResend} disabled={loading}>{t.resend}</button>}
                     </div>
 
                     {errors && <div className="mg-alert mg-alert--err">{errors}</div>}
 
-                    <button className="mg-cta" type="button" onClick={handleVerify} disabled={code.length < 6}>
+                    <button className="mg-cta" type="button" onClick={handleVerify} disabled={loading || code.length < 6}>
                         {t.verify}
                     </button>
 
@@ -206,7 +212,7 @@ function RegisterForm() {
 
                 {errors && <div className="mg-alert mg-alert--err">{errors}</div>}
 
-                <button className="mg-cta" type="submit" disabled={validation()}>
+                <button className="mg-cta" type="submit" disabled={loading || validation()}>
                     {t.register}
                 </button>
 

@@ -11,10 +11,10 @@ import { Stars } from '../../components/ui/Stars.jsx';
 import { AppTopBar } from '../../components/ui/AppTopBar.jsx';
 import { HomeHero } from './HomeHero.jsx';
 import { bumpDailyStreak, getDailyProgress } from './homeLocal.js';
+import { DAILY_GOAL, DAILY_BONUS } from '../Practice/dailyLogic.js';
 import '../../styles/spaceTokens.css';
 import './home.css';
 
-const DAILY_GOAL = 5;
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 // Operation glyph for a sub-subject (best-effort by name).
@@ -60,6 +60,8 @@ export const Home = () => {
     }, [t.loadError]);
 
     useEffect(() => {
+        // localStorage is the current source of truth for the client-only streak.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (user?.id != null) setStreak(bumpDailyStreak(user.id));
     }, [user?.id]);
 
@@ -135,6 +137,7 @@ export const Home = () => {
                                 <div className="home-card-h"><span className="ic">🎯</span>{t.dailyTitle}</div>
                                 <div className="home-action-body">
                                     <span className="home-action-sub">{g(t.dailyMotivation)}</span>
+                                    <span className="home-daily-reward">{format(t.dailyReward, { goal: DAILY_GOAL, bonus: DAILY_BONUS })}</span>
                                     <div className="home-bar"><i style={{ width: `${dailyPct}%` }} /></div>
                                     <span className="home-daily-count" dir="ltr">{format(t.dailyGoal, { done: daily.done, goal: daily.goal })}</span>
                                     <button type="button" className="sc-btn" onClick={() => navigate('/daily-practice')}>

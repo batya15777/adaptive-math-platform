@@ -16,8 +16,8 @@ export const MathTraining = () => {
     const [subjects,    setSubjects]    = useState([]);
     const [subSubjects, setSubSubjects] = useState([]);
 
-    const [selectedTopic,   setSelectedTopic]   = useState(null);
-    const [selectedSubject, setSelectedSubject] = useState(null);
+    const [selectedTopic, setSelectedTopic] = useState(() => location.state?.topic ?? null);
+    const [selectedSubject, setSelectedSubject] = useState(() => location.state?.subject ?? null);
 
     const [loading, setLoading] = useState(false);
     const [error,   setError]   = useState('');
@@ -46,10 +46,10 @@ export const MathTraining = () => {
         const topic = location.state?.topic;
         const subject = location.state?.subject;
         if (topic && subject) {
-            setSelectedTopic(topic);
-            setSelectedSubject(subject);
             getTopics().then(r => setTopics(r.data)).catch(() => {});              // for breadcrumb back
             getSubjects(topic.id).then(r => setSubjects(r.data)).catch(() => {});  // for breadcrumb back
+            // `load` owns the async state transition for this restored navigation state.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             load(() => getSubSubjects(subject.id), setSubSubjects);                // the restored view
         } else {
             load(getTopics, setTopics);

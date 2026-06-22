@@ -1,5 +1,6 @@
 package com.adaptive.server.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import javax.persistence.*;
 
@@ -29,6 +30,11 @@ public class User {
 
     @Column(name = "total_stars", nullable = false)
     private Integer totalStars = 0;
+
+    // Date the student last claimed the daily-practice bonus. Used server-side to award
+    // it at most once per day (nullable so existing rows are valid after ddl-auto adds it).
+    @Column(name = "last_daily_bonus_date")
+    private LocalDate lastDailyBonusDate;
 
     @Column(name = "role", nullable = false)
     private String role = "STUDENT"; // ברירת מחדל: כל מי שנרשם הוא תלמיד
@@ -120,6 +126,14 @@ public class User {
 
     public void setTotalStars(Integer totalStars) {
         this.totalStars = (totalStars == null) ? 0 : totalStars;
+    }
+
+    public LocalDate getLastDailyBonusDate() {
+        return lastDailyBonusDate;
+    }
+
+    public void setLastDailyBonusDate(LocalDate lastDailyBonusDate) {
+        this.lastDailyBonusDate = lastDailyBonusDate;
     }
 
     public String getAccountStatus() {
