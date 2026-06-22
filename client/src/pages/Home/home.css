@@ -1,0 +1,73 @@
+/* Student Home dashboard — MathGalaxy galaxy dashboard. Themed via shared --mg-* tokens. */
+.home-root { min-height: 100vh; padding: 18px 18px 48px; }
+.home-inner { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+.home-msg { color: var(--mg-tm); padding: 28px 4px; font-size: 14px; }
+.home-msg--err { color: var(--mg-danger); }
+
+.home-card { padding: 20px 22px; display: flex; flex-direction: column; }
+.home-card-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--mg-tm); margin: 0 0 12px; }
+.home-card-h .ic { font-size: 16px; }
+
+/* progress bars */
+.home-bar { height: 9px; background: var(--mg-s2); border-radius: 999px; overflow: hidden; border: 1px solid var(--mg-bd); }
+.home-bar > i { display: block; height: 100%; background: var(--mg-cta); border-radius: 999px; transition: width .5s var(--mg-ease); }
+
+/* Hero (top banner) lives in its own component — see HomeHero.jsx / HomeHero.css */
+
+/* ============================ Stat cards ============================ */
+.home-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.home-stat-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 22px; }
+.home-stat-l { min-width: 0; }
+.home-stat-v { font-size: 32px; font-weight: 800; color: var(--mg-ts); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.home-stat-v.accent { color: var(--mg-accent); }
+.home-stat-sub { margin-top: 4px; color: var(--mg-tm); font-size: 12.5px; }
+.home-stat-ico {
+  flex: none; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 38px;
+  background: radial-gradient(circle, rgba(124, 77, 255, .20), transparent 72%);
+}
+
+/* ============================ Action row ============================ */
+.home-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: stretch; }
+.home-action-body { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.home-action-body > .sc-btn { margin-top: auto; }
+.home-action-sub { color: var(--mg-tm); font-size: 13.5px; line-height: 1.5; }
+.home-daily-count { font-weight: 700; color: var(--mg-ts); font-variant-numeric: tabular-nums; }
+
+/* recommended (green-tinted) */
+.home-rec { border-color: rgba(34, 197, 94, .4); }
+.home-rec .home-card-h { color: var(--mg-success); }
+.home-rec-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 12px; background: rgba(34, 197, 94, .10); border: 1px solid rgba(34, 197, 94, .3); }
+.home-rec-box .rb-l { color: var(--mg-success); font-weight: 700; font-size: 13px; }
+.home-rec-box .rb-topic { color: var(--mg-ts); font-weight: 600; font-size: 13px; text-transform: capitalize; }
+.sc-btn--green { background: linear-gradient(135deg, #22C55E, #16A34A); box-shadow: 0 0 30px rgba(34, 197, 94, .25); }
+
+/* my path — topic chips */
+.home-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.home-chip { flex: 1 1 88px; max-width: 150px; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 8px; border-radius: 14px; background: var(--mg-s2); border: 1px solid var(--mg-bd); }
+.chip-ico { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #fff; }
+.chip-name { font-size: 13px; font-weight: 700; color: var(--mg-ts); text-transform: capitalize; }
+.chip-pct { font-size: 12px; color: var(--mg-tm); font-variant-numeric: tabular-nums; }
+.chip-bar { width: 100%; height: 5px; background: var(--mg-card); border-radius: 999px; overflow: hidden; }
+.chip-bar > i { display: block; height: 100%; background: var(--mg-cta); }
+.home-allbtn { margin-top: auto; }
+
+/* ============================ Leaderboard teaser ============================ */
+.home-teaser { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 24px; flex-wrap: wrap; }
+.home-teaser-cta { display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+.home-teaser-cta .ht-title { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 800; color: var(--mg-ts); }
+.home-teaser-cta .ht-sub { color: var(--mg-tm); font-size: 13.5px; }
+.home-teaser-cta .home-link { align-self: flex-start; background: none; border: none; padding: 0; margin-top: 2px; color: var(--mg-accent); font: inherit; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+.home-teaser-cta .home-link:hover { text-decoration: underline; }
+.home-podium { display: flex; align-items: flex-end; gap: 14px; }
+.podium-item { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 84px; }
+.podium-ava { position: relative; width: 52px; height: 52px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #8a78d6, #2a2050 70%); box-shadow: 0 6px 16px rgba(0, 0, 0, .25); }
+.podium-medal { position: absolute; inset-inline-start: -6px; top: -6px; font-size: 20px; }
+.podium-name { font-size: 13px; font-weight: 700; color: var(--mg-ts); }
+.podium-stars { font-size: 12px; font-weight: 700; color: var(--mg-stars); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  .home-hero-card { width: 100%; }
+  .home-hero-planet, .home-hero-rocket { opacity: .5; }
+  .home-teaser { justify-content: center; }
+}

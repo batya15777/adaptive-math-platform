@@ -2,7 +2,7 @@ import { useState, useContext, useEffect, useCallback } from 'react';
 import { ProfileContext } from './ProfileContextSetup.js';
 import { AuthContext } from '../context/AuthContextSetup.js';
 import { getProfile, updateProfile as updateProfileApi, getProfileOptions } from '../service/profileApi.js';
-import { readGuestLanguage, writeGuestLanguage } from '../i18n/languages.js';
+import { readGuestLanguage, writeGuestLanguage, readGuestTheme, writeGuestTheme } from '../i18n/languages.js';
 
 const DEFAULT_PROFILE = {
     theme:     'LIGHT',
@@ -15,7 +15,7 @@ const DEFAULT_OPTIONS = { themes: [], languages: [] };
 export const ProfileProvider = ({ children }) => {
     const { user } = useContext(AuthContext);
 
-    const [profile, setProfile]   = useState(() => ({ ...DEFAULT_PROFILE, language: readGuestLanguage() }));
+    const [profile, setProfile]   = useState(() => ({ ...DEFAULT_PROFILE, theme: readGuestTheme(), language: readGuestLanguage() }));
     const [options, setOptions]   = useState(DEFAULT_OPTIONS);
     const [loading, setLoading]   = useState(false);
     const [error,   setError]     = useState(null);
@@ -30,8 +30,8 @@ export const ProfileProvider = ({ children }) => {
     // Fetch from server whenever the user logs in
     useEffect(() => {
         if (!user) {
-            // Guest: language comes from localStorage (theme/picture stay default).
-            setProfile({ ...DEFAULT_PROFILE, language: readGuestLanguage() });
+            // Guest: theme + language come from localStorage so they survive a refresh.
+            setProfile({ ...DEFAULT_PROFILE, theme: readGuestTheme(), language: readGuestLanguage() });
             return;
         }
         setLoading(true);
@@ -47,9 +47,10 @@ export const ProfileProvider = ({ children }) => {
 
     // Sends only the changed fields to the server, then updates local state
     const updateProfile = useCallback(async (changes) => {
-        // Guest (no session): persist language locally instead of calling the API.
+        // Guest (no session): persist theme/language locally instead of calling the API.
         if (!user) {
             if (changes.language) writeGuestLanguage(changes.language);
+            if (changes.theme) writeGuestTheme(changes.theme);
             setProfile(prev => ({ ...prev, ...changes }));
             return;
         }

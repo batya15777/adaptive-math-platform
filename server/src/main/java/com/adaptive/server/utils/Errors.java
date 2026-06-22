@@ -22,7 +22,11 @@ public enum Errors {
     ACCESS_DENIED_USER_MISMATCH("Access denied: token does not match the provided user ID."),
     ACCESS_DENIED_ADMIN_REQUIRED("Access denied: Admin privileges required."),
     ACCOUNT_INACTIVE("Account is not active. Please contact the administrator."),
-    SUB_SUBJECT_NOT_FOUND("Sub-subject not found.");
+    SUB_SUBJECT_NOT_FOUND("Sub-subject not found."),
+
+    RESET_NOT_FOUND("No password reset request found for this email."),
+    RESET_CODE_EXPIRED("The reset code has expired. Please request a new one."),
+    RESET_CODE_INVALID("Invalid reset code.");
 
 
     private final String message;

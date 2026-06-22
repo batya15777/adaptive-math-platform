@@ -1,0 +1,19 @@
+/* Themed leaderboard (uses the shared --mg-* tokens; render inside .mg-space). */
+.lb { overflow: hidden; }
+.lb-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px; border-bottom: 1px solid var(--mg-bd);
+}
+.lb-trophy { font-size: 22px; }
+.lb-head h2 { margin: 0; font-size: 17px; font-weight: 700; color: var(--mg-ts); }
+.lb-msg { padding: 26px; text-align: center; color: var(--mg-tm); font-size: 14px; }
+.lb-msg--err { color: var(--mg-danger); }
+.lb-list { list-style: none; margin: 0; padding: 6px; }
+.lb-row { display: flex; align-items: center; gap: 14px; padding: 11px 14px; border-radius: 12px; }
+.lb-row + .lb-row { margin-top: 2px; }
+.lb-row--top { background: rgba(251, 191, 36, .09); }
+.lb-row--me { background: rgba(124, 77, 255, .15); border: 1px solid var(--mg-ring); }
+.lb-rank { min-width: 34px; text-align: center; font-weight: 700; color: var(--mg-tm); font-size: 14px; flex: none; font-variant-numeric: tabular-nums; }
+.lb-rank--medal { font-size: 22px; }
+.lb-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--mg-ts); }
+.lb-stars { flex: none; font-weight: 700; color: var(--mg-stars); font-size: 14px; font-variant-numeric: tabular-nums; }
