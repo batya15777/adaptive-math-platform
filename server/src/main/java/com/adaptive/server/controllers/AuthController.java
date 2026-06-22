@@ -1,8 +1,10 @@
 package com.adaptive.server.controllers;
 
+import com.adaptive.server.DTOs.ForgotPasswordRequest;
 import com.adaptive.server.DTOs.LoginRequest;
 import com.adaptive.server.DTOs.LoginSuccessData;
 import com.adaptive.server.DTOs.RegisterRequest;
+import com.adaptive.server.DTOs.ResetPasswordRequest;
 import com.adaptive.server.DTOs.UserResponseDTO;
 import com.adaptive.server.DTOs.VerifyEmailRequest;
 import com.adaptive.server.entity.SessionToken;
@@ -33,11 +35,22 @@ public class AuthController {
 
         LoginResponse responseData = authService.login(loginRequest);
         if (responseData.isSuccess() && responseData.getLoginData() != null) {
-            CookieUtils.setSessionCookie(response , responseData.getLoginData().getToken());
+            // "Remember me" controls whether the cookie persists across browser restarts.
+            CookieUtils.setSessionCookie(response , responseData.getLoginData().getToken(), loginRequest.isRemember());
             //אם התחברתי בהצלחה מגידירם את HTTP ONLY וסידור עוגייה
             stripTokensFormatBody(responseData.getLoginData());
         }
         return responseData;
+    }
+
+    @PostMapping("/forgot-password")
+    public BasicResponse forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        return authService.forgotPassword(request.getEmail());
+    }
+
+    @PostMapping("/reset-password")
+    public BasicResponse resetPassword(@RequestBody ResetPasswordRequest request) {
+        return authService.resetPassword(request.getEmail(), request.getCode(), request.getPassword());
     }
 
     //זה פונקציית עזר שמוחקת לי את הטוקן מJSON

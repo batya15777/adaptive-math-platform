@@ -1,52 +1,60 @@
 import { useState } from 'react';
-import { submitAnswer } from '../../service/progressApi.js';
+import { submitAnswer, getNextQuestion } from '../../service/progressApi.js';
 import { format } from '../../i18n/languages.js';
 
-// "5|7|9|11" → ["5","7","9","11"];  "" / null → []
-// Pipe-delimited so an option may contain commas (e.g. "X1=5 , X2=10").
-const parseOptions  = (s) => (s ? s.split('|').map(o => o.trim()).filter(Boolean) : []);
-// "a = 1\nb = 2" → ["a = 1","b = 2"]
-const parseSolution = (s) => (s ? s.split('\n').map(t => t.trim()).filter(Boolean) : []);
+// Number of placement questions (matches the sketch's "1 of 4").
+const TOTAL = 4;
 
-export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onDone, t }) => {
-    const [answer,    setAnswer]    = useState('');
-    const [feedback,  setFeedback]  = useState(null); // { type: 'correct'|'wrong', text }
-    const [concluded, setConcluded] = useState(false);
+// "5|7|9|11" → ["5","7","9","11"];  "" / null → []
+// Pipe-delimited so an option may itself contain commas (e.g. "X1=5 , X2=10");
+// the backend joins options with '|' (see LevelManagerService).
+const parseOptions = (s) => (s ? String(s).split('|').map(o => o.trim()).filter(Boolean) : []);
+
+// Forward-only placement quiz: pick an answer → Continue submits it and loads the next
+// adaptive question. Each answer feeds the existing leveling logic (submitAnswer). After
+// the last question we're done. Back returns to the survey step.
+export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, language, onBack, onDone, t }) => {
+    const [questions, setQuestions] = useState([question]);
+    const [index,     setIndex]     = useState(0);
+    const [selected,  setSelected]  = useState('');
+    const [text,      setText]      = useState('');
     const [loading,   setLoading]   = useState(false);
     const [error,     setError]     = useState('');
 
-    const options  = parseOptions(question.options);
-    const steps    = parseSolution(question.solution);
+    const current = questions[index];
+    const options = parseOptions(current.options);
     const isMultipleChoice = options.length > 0;
+    const answer = (isMultipleChoice ? selected : text).trim();
+    const canContinue = !!answer && !loading;
+    const isLast = index >= TOTAL - 1;
 
-    const handleAnswer = async (value) => {
-        if (concluded || loading) return;
-        const given = (value ?? answer).toString().trim();
-        if (!given) return;
-
+    const handleContinue = async () => {
+        if (!canContinue) return;
         setLoading(true);
         setError('');
         try {
-            const res = await submitAnswer({
-                subSubjectId:     Number(subSubjectId),
-                questionId:       question.questionId,
-                userAnswer:       given,
-                questionType:     subSubjectName || 'ASSESSMENT',
-                currentDifficulty: question.difficultyLevel || 1,
-                attemptNumber:    1,
+            await submitAnswer({
+                subSubjectId:      Number(subSubjectId),
+                questionId:        current.questionId,
+                userAnswer:        answer,
+                questionType:      subSubjectName || 'ASSESSMENT',
+                currentDifficulty: current.difficultyLevel || 1,
+                attemptNumber:     1,
             });
-            const data = res.data;
-            if (data.answerCorrect) {
-                setFeedback({ type: 'correct', text: t.feedbackCorrect });
-            } else {
-                setFeedback({
-                    type: 'wrong',
-                    text: format(t.feedbackWrong, { answer: question.correctAnswer }),
-                });
+
+            if (isLast) {
+                onDone();
+                return;
             }
-            setConcluded(true);
+            // Load the next (adaptive) placement question.
+            const res = await getNextQuestion(Number(subSubjectId), language);
+            setQuestions(prev => [...prev, res.data]);
+            setIndex(i => i + 1);
+            setSelected('');
+            setText('');
         } catch {
-            setError(t.errSubmit);
+            // Graceful: never block the user on a placement quiz — just finish.
+            onDone();
         } finally {
             setLoading(false);
         }
@@ -54,125 +62,60 @@ export const AssessmentQuestion = ({ question, subSubjectId, subSubjectName, onD
 
     return (
         <div>
-            <h2 style={sectionHeading}>{t.questionHeading}</h2>
-            <p style={subtext}>
-                {t.questionSubtext}
-            </p>
+            <div className="lvl-head">
+                <h2>{t.questionHeading}</h2>
+                <p>{t.questionSubtext}</p>
+            </div>
+            <div className="lvl-divider" />
 
-            {error && <p style={errorMsg}>{error}</p>}
+            {error && <p className="lvl-error">{error}</p>}
 
-            <div style={questionCard}>
-                <div style={diffTag}>{format(t.difficulty, { level: question.difficultyLevel })}</div>
+            <div className="lvl-qcard">
+                <p className="lvl-counter">{format(t.questionCounter, { current: index + 1, total: TOTAL })}</p>
 
-                {/* Math stays LTR even when the page is RTL (Hebrew). */}
-                <div dir="ltr" style={expression}>{question.expression}</div>
+                {/* Math stays LTR even when the page is RTL. */}
+                <div className="lvl-expr" dir="ltr">{current.expression}</div>
 
                 {isMultipleChoice ? (
-                    <div style={optionGrid}>
+                    <div className="lvl-opts">
                         {options.map(opt => (
                             <button
                                 key={opt}
                                 type="button"
-                                disabled={concluded || loading}
-                                onClick={() => handleAnswer(opt)}
-                                style={optionBtn(concluded)}
+                                disabled={loading}
+                                className={'lvl-opt' + (selected === opt ? ' is-sel' : '')}
+                                onClick={() => setSelected(opt)}
                             >
                                 {opt}
                             </button>
                         ))}
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                    <div className="lvl-textrow">
                         <input
+                            className="lvl-textinput"
+                            dir="ltr"
                             type="text"
-                            value={answer}
-                            disabled={concluded || loading}
-                            onChange={e => setAnswer(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') handleAnswer(); }}
+                            value={text}
+                            disabled={loading}
                             placeholder={t.answerPlaceholder}
-                            style={textInput}
+                            onChange={e => setText(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleContinue(); }}
                         />
-                        <button
-                            type="button"
-                            disabled={concluded || loading || !answer.trim()}
-                            onClick={() => handleAnswer()}
-                            style={btn(concluded || !answer.trim() ? '#adb5bd' : '#28a745')}
-                        >
-                            {t.submit}
-                        </button>
                     </div>
                 )}
 
-                {feedback && (
-                    <p style={{ marginTop: '14px', fontWeight: 'bold', color: feedback.type === 'correct' ? '#28a745' : '#fd7e14' }}>
-                        {feedback.text}
-                    </p>
-                )}
-
-                {/* Show full solution steps after answering */}
-                {concluded && steps.length > 0 && (
-                    <ol style={solutionBox}>
-                        {steps.map((step, i) => (
-                            <li key={i} style={{ marginBottom: '4px' }}>{step}</li>
-                        ))}
-                    </ol>
-                )}
+                <p className="lvl-noWrong">{t.noWrongAnswer}</p>
             </div>
 
-            {concluded && (
-                <button
-                    type="button"
-                    onClick={onDone}
-                    style={{ ...btn('#007bff'), marginTop: '20px', width: '100%', padding: '14px', fontSize: '16px' }}
-                >
-                    {t.continueToPractice}
+            <div className="lvl-actions">
+                <button type="button" className="mg-cta" onClick={handleContinue} disabled={!canContinue}>
+                    {loading ? t.loading : isLast ? t.continueToPractice : <>{t.continueBtn} ✨</>}
                 </button>
-            )}
+                <button type="button" className="lvl-back" onClick={onBack} disabled={loading}>
+                    {t.backBtn}
+                </button>
+            </div>
         </div>
     );
 };
-
-// ── styles ──────────────────────────────────────────────────────────────────
-
-const sectionHeading = { margin: '0 0 6px', fontSize: '20px', color: '#222' };
-const subtext        = { margin: '0 0 20px', color: '#777', fontSize: '13px' };
-const errorMsg       = { color: '#dc3545', fontSize: '14px', marginBottom: '10px' };
-
-const questionCard = {
-    border: '1px solid #ddd', borderRadius: '8px',
-    padding: '24px', backgroundColor: '#f9f9f9',
-};
-
-const diffTag = { fontSize: '12px', color: '#888', marginBottom: '8px' };
-
-const expression = {
-    fontSize: '32px', fontWeight: 'bold', color: '#222',
-    textAlign: 'center', padding: '16px 0', letterSpacing: '1px',
-};
-
-const optionGrid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' };
-
-const optionBtn = (disabled) => ({
-    padding: '14px', fontSize: '18px', fontWeight: 'bold',
-    backgroundColor: disabled ? '#e9ecef' : '#fff',
-    color: '#333', border: '2px solid #007bff', borderRadius: '6px',
-    cursor: disabled ? 'default' : 'pointer',
-});
-
-const textInput = {
-    flex: 1, padding: '12px', fontSize: '18px',
-    border: '1px solid #ccc', borderRadius: '4px',
-    boxSizing: 'border-box',
-};
-
-const solutionBox = {
-    marginTop: '14px', padding: '12px 12px 12px 28px',
-    backgroundColor: '#eef6ff', border: '1px solid #cfe2ff',
-    borderRadius: '6px', color: '#333',
-};
-
-const btn = (bg) => ({
-    padding: '10px 16px', backgroundColor: bg, color: '#fff',
-    border: 'none', borderRadius: '4px', cursor: 'pointer',
-    fontSize: '14px', fontWeight: 'bold',
-});

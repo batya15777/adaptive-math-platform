@@ -3,6 +3,7 @@ import { useLanguage } from '../../i18n/useLanguage.js';
 import { format } from '../../i18n/languages.js';
 import { getTopics, getSubjects, getSubSubjects } from '../../service/trainingApi.js';
 import { initialAssessment } from '../../service/progressApi.js';
+import { ThemedSelect } from '../../components/ui/ThemedSelect.jsx';
 
 export const SurveyForm = ({ onComplete, t }) => {
     const { language } = useLanguage();
@@ -30,31 +31,26 @@ export const SurveyForm = ({ onComplete, t }) => {
 
     // On mount: fetch topics → auto-use first (Math) → fetch its subjects
     useEffect(() => {
-        console.log('[Survey] Fetching topics...');
         getTopics()
             .then(res => {
                 const topics = res.data || [];
-                console.log('[Survey] Topics received:', topics);
                 if (topics.length === 0) {
                     setError(t.errNoTopics);
                     setSubjectsLoading(false);
                     return Promise.resolve(null);
                 }
                 const first = topics[0];
-                console.log('[Survey] Auto-selecting topic:', first.name, '| id:', first.id);
                 return getSubjects(String(first.id));
             })
             .then(res => {
                 if (!res) return;
                 const subs = res.data || [];
-                console.log('[Survey] Subjects received:', subs);
                 setSubjects(subs);
                 if (subs.length === 0) {
                     setError(t.errNoSubjects);
                 }
             })
-            .catch(err => {
-                console.error('[Survey] Error loading subjects:', err?.response?.data || err.message || err);
+            .catch(() => {
                 setError(t.errLoadSubjects);
             })
             .finally(() => {
@@ -66,7 +62,6 @@ export const SurveyForm = ({ onComplete, t }) => {
     }, []);
 
     const handleSubjectChange = async (subjectId) => {
-        console.log('[Survey] Subject selected, id:', subjectId);
         setSelectedSubjectId(subjectId);
         setSubSubjects([]);
         setSelectedSubSubjectIds([]);
@@ -77,13 +72,11 @@ export const SurveyForm = ({ onComplete, t }) => {
         try {
             const res = await getSubSubjects(subjectId);
             const subs = res.data || [];
-            console.log('[Survey] Sub-subjects received:', subs);
             setSubSubjects(subs);
             if (subs.length === 0) {
                 setError(t.errNoSubSubjects);
             }
-        } catch (err) {
-            console.error('[Survey] Error loading sub-subjects:', err?.response?.data || err.message || err);
+        } catch {
             setError(t.errLoadSubSubjects);
         } finally {
             setSubSubjectsLoading(false);
@@ -102,8 +95,6 @@ export const SurveyForm = ({ onComplete, t }) => {
     const handleSubmit = async () => {
         if (!canSubmit) return;
         const firstId = selectedSubSubjectIds[0];
-        console.log('[Survey] Submitting — grade:', grade, '| confidence:', confidence,
-            '| selectedSubSubjectIds:', selectedSubSubjectIds, '| language:', language);
         setSubmitLoading(true);
         setError('');
         try {
@@ -113,12 +104,10 @@ export const SurveyForm = ({ onComplete, t }) => {
                 confidenceLevel: confidence,
                 language,
             });
-            console.log('[Survey] Assessment question received:', res.data);
             const selectedSS = subSubjects.find(ss => String(ss.id) === firstId);
             const ssName = selectedSS?.name?.toUpperCase() || 'GENERAL';
             onComplete(Number(firstId), res.data, ssName);
-        } catch (err) {
-            console.error('[Survey] Error starting assessment:', err?.response?.data || err.message || err);
+        } catch {
             setError(t.errStartAssessment);
         } finally {
             setSubmitLoading(false);
@@ -126,179 +115,104 @@ export const SurveyForm = ({ onComplete, t }) => {
     };
 
     return (
-        <div style={formWrap}>
-            <h2 style={sectionHeading}>{t.surveyHeading}</h2>
-            <p style={subtext}>{t.surveySubtext}</p>
-
-            {error && <p style={errorMsg}>{error}</p>}
-
-            {/* Grade */}
-            <div style={fieldWrap}>
-                <label style={labelStyle}>{t.gradeLabel}</label>
-                <select value={grade} onChange={e => setGrade(e.target.value)} style={selectStyle}>
-                    <option value="" disabled>{t.gradePlaceholder}</option>
-                    {Array.from({ length: 6 }, (_, i) => i + 1).map(g => (
-                        <option key={g} value={g}>{format(t.gradeOption, { grade: g })}</option>
-                    ))}
-                </select>
+        <div>
+            <div className="lvl-head">
+                <h2>{t.surveyHeading}</h2>
+                <p>{t.surveySubtext}</p>
             </div>
+            <div className="lvl-divider" />
 
-            {/* Confidence */}
-            <div style={fieldWrap}>
-                <label style={labelStyle}>{t.confidenceLabel}</label>
-                <div style={cardRow}>
-                    {confidenceOptions.map(({ value, icon, title, desc }) => (
-                        <button
-                            key={value}
-                            type="button"
-                            onClick={() => setConfidence(value)}
-                            style={confidenceCard(confidence === value)}
-                        >
-                            <span style={{ fontSize: '26px' }}>{icon}</span>
-                            <strong style={{ display: 'block', marginTop: '6px', fontSize: '13px' }}>{title}</strong>
-                            <span style={{ fontSize: '11px', color: '#777', display: 'block', marginTop: '3px' }}>{desc}</span>
-                        </button>
-                    ))}
+            {error && <p className="lvl-error">{error}</p>}
+
+            <div className="lvl-form">
+                {/* Grade */}
+                <div className="lvl-field">
+                    <label className="lvl-label">{t.gradeLabel}</label>
+                    <ThemedSelect
+                        value={grade}
+                        onChange={setGrade}
+                        placeholder={t.gradePlaceholder}
+                        ariaLabel={t.gradeLabel}
+                        options={Array.from({ length: 6 }, (_, i) => i + 1).map(g => ({
+                            value: String(g),
+                            label: format(t.gradeOption, { grade: g }),
+                        }))}
+                    />
                 </div>
-            </div>
 
-            {/* Subject */}
-            <div style={fieldWrap}>
-                <label style={labelStyle}>{t.subjectLabel}</label>
-                {subjectsLoading ? (
-                    <p style={hint}>{t.subjectLoading}</p>
-                ) : (
-                    <select
-                        value={selectedSubjectId}
-                        onChange={e => handleSubjectChange(e.target.value)}
-                        style={selectStyle}
-                    >
-                        <option value="" disabled>{t.subjectPlaceholder}</option>
-                        {subjects.map(s => (
-                            <option key={s.id} value={String(s.id)}>{s.name}</option>
+                {/* Confidence */}
+                <div className="lvl-field">
+                    <label className="lvl-label">{t.confidenceLabel}</label>
+                    <div className="lvl-conf-row">
+                        {confidenceOptions.map(({ value, icon, title, desc }) => (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setConfidence(value)}
+                                className={'lvl-conf' + (confidence === value ? ' is-sel' : '')}
+                            >
+                                <span className="lvl-conf-ico">{icon}</span>
+                                <strong className="lvl-conf-title">{title}</strong>
+                                <span className="lvl-conf-desc">{desc}</span>
+                            </button>
                         ))}
-                    </select>
-                )}
-            </div>
+                    </div>
+                </div>
 
-            {/* Sub-subjects — checkbox cards (multi-select) */}
-            {selectedSubjectId && (
-                <div style={fieldWrap}>
-                    <label style={labelStyle}>
-                        {t.chooseTopics}
-                        {selectedSubSubjectIds.length > 0 && (
-                            <span style={selectedCount}> {format(t.selectedCount, { count: selectedSubSubjectIds.length })}</span>
-                        )}
-                    </label>
-                    {subSubjectsLoading ? (
-                        <p style={hint}>{t.topicsLoading}</p>
-                    ) : subSubjects.length === 0 ? (
-                        <p style={hint}>{t.noTopicsForSubject}</p>
+                {/* Subject */}
+                <div className="lvl-field">
+                    <label className="lvl-label">{t.subjectLabel}</label>
+                    {subjectsLoading ? (
+                        <p className="lvl-loading">{t.subjectLoading}</p>
                     ) : (
-                        <div style={checkboxGrid}>
-                            {subSubjects.map(ss => {
-                                const strId  = String(ss.id);
-                                const active = selectedSubSubjectIds.includes(strId);
-                                return (
-                                    <div
-                                        key={ss.id}
-                                        onClick={() => toggleSubSubject(ss.id)}
-                                        style={checkboxCard(active)}
-                                    >
-                                        <span style={checkMark(active)}>✓</span>
-                                        <span style={cardLabel}>{ss.name}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        <ThemedSelect
+                            value={selectedSubjectId}
+                            onChange={handleSubjectChange}
+                            placeholder={t.subjectPlaceholder}
+                            ariaLabel={t.subjectLabel}
+                            options={subjects.map(s => ({ value: String(s.id), label: s.name }))}
+                        />
                     )}
                 </div>
-            )}
 
-            <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!canSubmit}
-                style={submitBtn(canSubmit)}
-            >
-                {submitLoading ? t.loading : t.startAssessment}
-            </button>
+                {/* Sub-subjects — chips (multi-select) */}
+                {selectedSubjectId && (
+                    <div className="lvl-field">
+                        <label className="lvl-label">
+                            {t.chooseTopics}
+                            {selectedSubSubjectIds.length > 0 && (
+                                <span className="lvl-count">{format(t.selectedCount, { count: selectedSubSubjectIds.length })}</span>
+                            )}
+                        </label>
+                        {subSubjectsLoading ? (
+                            <p className="lvl-loading">{t.topicsLoading}</p>
+                        ) : subSubjects.length === 0 ? (
+                            <p className="lvl-loading">{t.noTopicsForSubject}</p>
+                        ) : (
+                            <div className="lvl-topics">
+                                {subSubjects.map(ss => {
+                                    const strId  = String(ss.id);
+                                    const active = selectedSubSubjectIds.includes(strId);
+                                    return (
+                                        <div
+                                            key={ss.id}
+                                            onClick={() => toggleSubSubject(ss.id)}
+                                            className={'lvl-topic' + (active ? ' is-sel' : '')}
+                                        >
+                                            <span className="lvl-topic-check">✓</span>
+                                            <span>{ss.name}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <button type="button" className="mg-cta" onClick={handleSubmit} disabled={!canSubmit}>
+                    {submitLoading ? t.loading : t.startAssessment}
+                </button>
+            </div>
         </div>
     );
 };
-
-// ── styles ──────────────────────────────────────────────────────────────────
-
-const formWrap       = { display: 'flex', flexDirection: 'column', gap: '22px' };
-const sectionHeading = { margin: 0, fontSize: '20px', color: '#222' };
-const subtext        = { margin: 0, color: '#777', fontSize: '13px' };
-const fieldWrap      = { display: 'flex', flexDirection: 'column', gap: '8px' };
-const labelStyle     = { fontWeight: '600', fontSize: '14px', color: '#444' };
-const hint           = { margin: 0, color: '#999', fontSize: '13px' };
-const errorMsg       = { margin: 0, color: '#dc3545', fontSize: '14px' };
-const selectedCount  = { fontWeight: 'normal', color: '#007bff', marginLeft: '4px' };
-
-const selectStyle = {
-    padding: '10px 12px', fontSize: '15px',
-    border: '1px solid #ccc', borderRadius: '6px',
-    backgroundColor: '#fff', color: '#333',
-};
-
-const cardRow = { display: 'flex', gap: '10px' };
-
-const confidenceCard = (active) => ({
-    flex: 1, padding: '12px 8px', textAlign: 'center',
-    border: `2px solid ${active ? '#007bff' : '#ddd'}`,
-    borderRadius: '8px',
-    backgroundColor: active ? '#e8f4ff' : '#fff',
-    cursor: 'pointer',
-    transition: 'border-color 0.15s, background-color 0.15s',
-});
-
-const checkboxGrid = {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '10px',
-};
-
-const checkboxCard = (active) => ({
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '14px 18px',
-    minWidth: '80px',
-    border: `2px solid ${active ? '#007bff' : '#ddd'}`,
-    borderRadius: '8px',
-    backgroundColor: active ? '#e8f4ff' : '#fafafa',
-    cursor: 'pointer',
-    userSelect: 'none',
-    transition: 'border-color 0.15s, background-color 0.15s',
-});
-
-const checkMark = (active) => ({
-    fontSize: '18px',
-    color: active ? '#007bff' : '#ddd',
-    fontWeight: 'bold',
-    transition: 'color 0.15s',
-});
-
-const cardLabel = {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#333',
-    textTransform: 'capitalize',
-    textAlign: 'center',
-};
-
-const submitBtn = (enabled) => ({
-    alignSelf: 'flex-start',
-    padding: '12px 28px',
-    backgroundColor: enabled ? '#007bff' : '#adb5bd',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    cursor: enabled ? 'pointer' : 'not-allowed',
-});

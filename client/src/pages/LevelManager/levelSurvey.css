@@ -1,0 +1,115 @@
+/* ============================================================================
+   Level assessment (survey + quiz). Rendered INSIDE the shared <AuthLayout>
+   (".mg-auth[data-theme]"), so it reuses the Space Academy design tokens
+   (--mg-*) and is automatically themed (dark/light) and direction-aware.
+   ============================================================================ */
+
+/* ---- Stepper (kept LTR so step 1 → step 2 reads the same in every language) ---- */
+.lvl-stepper {
+  direction: ltr;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 22px;
+}
+.lvl-step { display: flex; flex-direction: column; align-items: center; gap: 7px; flex: none; }
+.lvl-dot {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px;
+  background: var(--mg-s2); color: var(--mg-tm);
+  border: 1px solid var(--mg-bd);
+  transition: background .25s var(--mg-ease), color .25s var(--mg-ease), border-color .25s var(--mg-ease);
+}
+.lvl-dot.is-active { background: var(--mg-accent); color: #fff; border-color: transparent; box-shadow: var(--mg-glow); }
+.lvl-dot.is-done { background: rgba(34, 197, 94, .15); color: var(--mg-success); border-color: rgba(34, 197, 94, .5); }
+.lvl-step-label { font-size: 11.5px; color: var(--mg-tm); max-width: 92px; text-align: center; }
+.lvl-step-label.is-active { color: var(--mg-accent); font-weight: 700; }
+.lvl-step-label.is-done { color: var(--mg-success); }
+.lvl-connector { flex: 1; height: 2px; background: var(--mg-bd); border-radius: 2px; }
+.lvl-connector.is-filled { background: var(--mg-accent); }
+
+/* ---- Section head (title + subtitle + divider) ---- */
+.lvl-head { text-align: center; }
+.lvl-head h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.4px; color: var(--mg-ts); }
+.lvl-head p { margin: 8px 0 0; color: var(--mg-tm); font-size: 14px; line-height: 1.5; }
+.lvl-divider { height: 1px; background: var(--mg-bd); margin: 18px 0; }
+.lvl-error { margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; font-size: 13.5px; text-align: center;
+  background: rgba(239, 68, 68, .12); color: var(--mg-danger); border: 1px solid rgba(239, 68, 68, .35); }
+.lvl-hint-line { margin: 0; color: var(--mg-tm); font-size: 13px; }
+
+/* ---- Quiz question panel ---- */
+.lvl-qcard { background: var(--mg-s2); border: 1px solid var(--mg-bd); border-radius: 16px; padding: 26px 24px; text-align: center; }
+.lvl-counter { margin: 0 0 6px; color: var(--mg-accent); font-size: 13px; font-weight: 600; }
+.lvl-expr { font-size: clamp(30px, 5vw, 40px); font-weight: 700; color: var(--mg-ts); letter-spacing: 1px; padding: 6px 0 18px; }
+.lvl-opts { display: grid; direction: ltr; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lvl-opt {
+  height: 64px; display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: var(--mg-ts);
+  background: var(--mg-card); border: 1px solid var(--mg-bd); border-radius: 12px;
+  cursor: pointer; font-variant-numeric: tabular-nums;
+  transition: border-color .15s var(--mg-ease), background .15s var(--mg-ease), box-shadow .15s var(--mg-ease);
+}
+.lvl-opt:hover:not(:disabled) { border-color: var(--mg-accent); }
+.lvl-opt.is-sel { border-color: var(--mg-accent); background: rgba(124, 77, 255, .12); box-shadow: 0 0 0 3px var(--mg-ring); }
+.lvl-opt:disabled { cursor: default; }
+.lvl-noWrong { margin: 16px 0 0; color: var(--mg-tm); font-size: 13px; }
+
+/* free-text answer (non multiple-choice questions) */
+.lvl-textrow { display: flex; gap: 10px; margin-top: 14px; }
+.lvl-textinput {
+  flex: 1; height: 50px; padding: 0 14px; font-size: 18px; text-align: center;
+  background: var(--mg-card); border: 1px solid var(--mg-bd); border-radius: 12px; color: var(--mg-ts); outline: none;
+}
+.lvl-textinput:focus { border-color: var(--mg-accent); box-shadow: 0 0 0 3px var(--mg-ring); }
+
+/* ---- Bottom actions (Back + Continue) ---- */
+.lvl-actions { display: flex; gap: 14px; margin-top: 22px; }
+.lvl-back {
+  min-width: 120px; height: 50px; padding: 0 22px;
+  background: transparent; color: var(--mg-tx);
+  border: 1px solid var(--mg-bd); border-radius: 12px; cursor: pointer;
+  font: inherit; font-size: 15px; font-weight: 600;
+  transition: border-color .15s var(--mg-ease), background .15s var(--mg-ease);
+}
+.lvl-back:hover { border-color: var(--mg-bd-strong); background: var(--mg-s2); }
+.lvl-back:focus-visible { outline: 2px solid var(--mg-ring); outline-offset: 2px; }
+.lvl-actions .mg-cta { flex: 1; margin-top: 0; }
+
+/* ============================ Survey (step 1) ============================ */
+.lvl-form { display: flex; flex-direction: column; gap: 20px; }
+.lvl-field { display: flex; flex-direction: column; gap: 8px; }
+.lvl-label { font-size: 13px; font-weight: 600; color: var(--mg-tm); text-align: start; }
+.lvl-label .lvl-count { color: var(--mg-accent); font-weight: 600; margin-inline-start: 6px; }
+.lvl-loading { margin: 0; color: var(--mg-tm); font-size: 13px; }
+
+/* confidence cards */
+.lvl-conf-row { display: flex; gap: 10px; }
+.lvl-conf {
+  flex: 1; padding: 14px 8px; text-align: center; cursor: pointer;
+  background: var(--mg-s2); border: 1px solid var(--mg-bd); border-radius: 12px; color: var(--mg-ts);
+  transition: border-color .15s var(--mg-ease), background .15s var(--mg-ease);
+}
+.lvl-conf:hover { border-color: var(--mg-accent); }
+.lvl-conf.is-sel { border-color: var(--mg-accent); background: rgba(124, 77, 255, .12); box-shadow: 0 0 0 3px var(--mg-ring); }
+.lvl-conf-ico { font-size: 24px; }
+.lvl-conf-title { display: block; margin-top: 6px; font-size: 13px; font-weight: 600; }
+.lvl-conf-desc { display: block; margin-top: 3px; font-size: 11px; color: var(--mg-tm); }
+
+/* topic chips (multi-select) */
+.lvl-topics { display: flex; flex-wrap: wrap; gap: 10px; }
+.lvl-topic {
+  display: flex; align-items: center; gap: 8px; padding: 11px 16px; min-width: 78px; justify-content: center;
+  background: var(--mg-s2); border: 1px solid var(--mg-bd); border-radius: 12px; color: var(--mg-ts);
+  cursor: pointer; user-select: none; font-size: 13.5px; font-weight: 600; text-transform: capitalize;
+  transition: border-color .15s var(--mg-ease), background .15s var(--mg-ease);
+}
+.lvl-topic:hover { border-color: var(--mg-accent); }
+.lvl-topic.is-sel { border-color: var(--mg-accent); background: rgba(124, 77, 255, .12); }
+.lvl-topic-check { color: var(--mg-bd-strong); font-weight: 700; }
+.lvl-topic.is-sel .lvl-topic-check { color: var(--mg-accent); }
+
+@media (max-width: 560px) {
+  .lvl-conf-row { flex-direction: column; }
+  .lvl-step-label { font-size: 10.5px; }
+}

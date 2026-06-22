@@ -1,0 +1,15 @@
+/* Reusable MathGalaxy logo. Renders inside a themed root (.mg-auth / .mg-space) so the
+   wordmark colours follow the theme tokens. Always LTR (the brand lockup never mirrors). */
+.mgl { display: inline-flex; direction: ltr; align-items: center; gap: 9px; text-decoration: none; line-height: 1; }
+.mgl svg { display: block; flex: none; }
+.mgl-wm { font-family: var(--mg-font); font-weight: 700; letter-spacing: -.5px; color: var(--mg-ts); }
+.mgl-wm b { color: var(--mg-wm-ink); font-weight: 700; }
+.mgl-wm span { background: var(--mg-wm-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.mgl--sm svg { width: 22px; height: 22px; } .mgl--sm .mgl-wm { font-size: 18px; }
+.mgl--md svg { width: 28px; height: 28px; } .mgl--md .mgl-wm { font-size: 22px; }
+.mgl--lg svg { width: 34px; height: 34px; } .mgl--lg .mgl-wm { font-size: 27px; }
+.mgl--xl { gap: 16px; }
+.mgl--xl svg { width: clamp(50px, 7vw, 72px); height: clamp(50px, 7vw, 72px); }
+.mgl--xl .mgl-wm { font-size: clamp(42px, 7.2vw, 70px); letter-spacing: -1px; }
+.mgl--xl .mgl-wm span { background: linear-gradient(90deg, #b9a4ff, #d6c8ff); -webkit-background-clip: text; background-clip: text; }

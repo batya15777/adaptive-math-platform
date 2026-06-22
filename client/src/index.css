@@ -50,6 +50,12 @@
   }
 }
 
+html {
+  /* Always reserve the scrollbar gutter so toggling page height (e.g. switching
+     language) never shifts the centered layout sideways. */
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
 }

@@ -28,6 +28,7 @@ const DashboardLayout = () => {
         { key: 'home',         label: t.home,         path: '/home'},
         { key: 'dashboard',    label: t.myDashboard,  path: '/dashboard'},
         { key: 'mathTraining', label: t.mathTraining, path: '/math-training'},
+        { key: 'leaderboard',  label: t.leaderboard,  path: '/leaderboard'},
         { key: 'settings',     label: t.settings,     path: '/profile-settings'}
     ];
 

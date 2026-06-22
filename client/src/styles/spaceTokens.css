@@ -1,0 +1,107 @@
+/* ============================================================================
+   Shared "Space Academy" design tokens + small reusable kit for in-app screens
+   (Home, Leaderboard, …). Same --mg-* token names/values used by the auth
+   screens, exposed here on a generic ".mg-space[data-theme]" root so any page
+   can opt in to the theme (dark/light from ProfileTheme) without hardcoding.
+   ============================================================================ */
+
+.mg-space {
+  --mg-accent: #7C4DFF;
+  --mg-accent-2: #3B82F6;
+  --mg-cta: linear-gradient(135deg, #7C4DFF 0%, #3B82F6 100%);
+  --mg-wm-grad: linear-gradient(90deg, #7C4DFF, #A78BFA);
+  --mg-success: #22C55E;
+  --mg-warning: #F59E0B;
+  --mg-danger: #EF4444;
+  --mg-stars: #FBBF24;
+  --mg-r: 16px;
+  --mg-r-pill: 999px;
+  --mg-font: "Rubik", "Heebo", Inter, system-ui, "Segoe UI", Roboto, sans-serif;
+  --mg-ease: cubic-bezier(.2, .8, .2, 1);
+}
+.mg-space[data-theme="dark"] {
+  --mg-card: #131A2E;
+  --mg-card-glass: rgba(18, 24, 44, .72);
+  --mg-s2: #1A2340;
+  --mg-ts: #F4F6FB;
+  --mg-tx: #C7CDDB;
+  --mg-tm: #8B93A7;
+  --mg-bd: rgba(255, 255, 255, .10);
+  --mg-bd-strong: rgba(255, 255, 255, .18);
+  --mg-ring: rgba(124, 77, 255, .55);
+  --mg-glow: 0 0 36px rgba(124, 77, 255, .28);
+  --mg-cardsh: 0 18px 44px rgba(0, 0, 0, .42);
+  --mg-star: #ffffff;
+  --mg-wm-ink: #ffffff;
+  --mg-chip: rgba(20, 26, 46, .55);
+  --mg-page: radial-gradient(900px 560px at 80% -10%, rgba(124, 77, 255, .20), transparent 60%),
+             radial-gradient(700px 480px at 0% 110%, rgba(59, 130, 246, .16), transparent 60%), #0A0E1C;
+  --mg-hero: radial-gradient(120% 140% at 80% 0%, rgba(124, 77, 255, .38), transparent 60%),
+             radial-gradient(120% 140% at 0% 100%, rgba(59, 130, 246, .30), transparent 60%),
+             linear-gradient(135deg, #1b1746, #0e1330);
+}
+.mg-space[data-theme="light"] {
+  --mg-card: #FFFFFF;
+  --mg-card-glass: rgba(255, 255, 255, .78);
+  --mg-s2: #F1F3FB;
+  --mg-ts: #0B1020;
+  --mg-tx: #2C3450;
+  --mg-tm: #5B6480;
+  --mg-bd: rgba(11, 16, 32, .10);
+  --mg-bd-strong: rgba(11, 16, 32, .18);
+  --mg-ring: rgba(124, 77, 255, .45);
+  --mg-glow: 0 0 30px rgba(124, 77, 255, .16);
+  --mg-cardsh: 0 16px 40px rgba(40, 50, 95, .14);
+  --mg-star: #b3a7e6;
+  --mg-wm-ink: #0B1020;
+  --mg-chip: rgba(255, 255, 255, .72);
+  --mg-page: radial-gradient(900px 560px at 80% -10%, rgba(124, 77, 255, .14), transparent 60%),
+             radial-gradient(700px 480px at 0% 110%, rgba(59, 130, 246, .12), transparent 60%),
+             linear-gradient(160deg, #ECEAFB, #E4E6FA);
+  --mg-hero: radial-gradient(120% 150% at 82% -10%, rgba(167, 139, 250, .55), transparent 60%),
+             radial-gradient(120% 150% at -10% 110%, rgba(125, 162, 255, .45), transparent 60%),
+             linear-gradient(135deg, #efeafe, #e6ecff);
+}
+
+/* ---- Themed page surface with a soft galaxy background + faint stars ---- */
+.mg-space {
+  position: relative;
+  min-height: 100%;
+  background: var(--mg-page);
+  color: var(--mg-tx);
+  font-family: var(--mg-font);
+  text-align: start; /* neutralize the global #root text-align:center */
+}
+.mg-space .sc-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.mg-space .sc-bg i { position: absolute; width: 1px; height: 1px; border-radius: 50%; background: var(--mg-star); }
+.mg-space .sc-bg i.lg { width: 2px; height: 2px; }
+.mg-space[data-theme="light"] .sc-bg i { opacity: .5; }
+.mg-space .sc-content { position: relative; z-index: 1; }
+
+/* ---- Reusable glass card ---- */
+.sc-card {
+  background: var(--mg-card-glass);
+  backdrop-filter: saturate(140%) blur(14px);
+  border: 1px solid var(--mg-bd);
+  border-radius: var(--mg-r);
+  box-shadow: var(--mg-cardsh);
+}
+
+/* ---- Reusable buttons ---- */
+.sc-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 20px; border: none; border-radius: 12px;
+  background: var(--mg-cta); color: #fff; font: inherit; font-size: 14.5px; font-weight: 600;
+  cursor: pointer; box-shadow: var(--mg-glow); text-decoration: none;
+  transition: transform .15s var(--mg-ease), filter .15s var(--mg-ease);
+}
+.sc-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.sc-btn:focus-visible { outline: 2px solid var(--mg-ring); outline-offset: 3px; }
+.sc-btn--ghost {
+  background: transparent; color: var(--mg-ts); border: 1px solid var(--mg-bd); box-shadow: none;
+}
+.sc-btn--ghost:hover { border-color: var(--mg-bd-strong); background: var(--mg-s2); transform: translateY(-1px); filter: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-btn:hover { transform: none; }
+}

@@ -18,6 +18,9 @@ function Navbar() {
     // questions in the active language, so changing it mid-question is disruptive.
     const isExerciseScreen = /\/math-training\/[^/]+\/play$/.test(location.pathname);
 
+    // Pages that render their own themed top bar (AppTopBar) — hide this grey navbar there.
+    const hasOwnTopBar = ['/home', '/leaderboard'].includes(location.pathname);
+
     const handleLogout = () => {
         logout()
             .then(() => {
@@ -29,7 +32,7 @@ function Navbar() {
             });
     };
 
-    if (!user) {
+    if (!user || hasOwnTopBar) {
         return null;
     }
 

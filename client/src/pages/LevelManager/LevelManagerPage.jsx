@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContextSetup.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
 import { getLevelManagerStrings } from './levelManagerStrings.js';
+import { AuthLayout } from '../../components/auth/AuthLayout.jsx';
 import { SurveyForm } from './SurveyForm.jsx';
 import { AssessmentQuestion } from './AssessmentQuestion.jsx';
+import './levelSurvey.css';
 
 // PHASES: 'survey' → 'question' → 'done'
 
 export const LevelManagerPage = () => {
     const { user }   = useContext(AuthContext);
     const navigate   = useNavigate();
-    const { language, dir } = useLanguage();
+    const { language } = useLanguage();
     const t = getLevelManagerStrings(language);
 
     const [phase,              setPhase]              = useState('survey');
@@ -42,106 +44,44 @@ export const LevelManagerPage = () => {
     };
 
     return (
-        <div dir={dir} style={page}>
-            {/* Step progress bar */}
-            <div style={stepsRow}>
-                <StepDot num={1} label={t.stepAboutYou}    active={phase === 'survey'}   done={phase !== 'survey'} />
-                <div style={stepConnector(phase !== 'survey')} />
-                <StepDot num={2} label={t.stepAssessment}  active={phase === 'question'} done={phase === 'done'} />
-            </div>
+        <AuthLayout wide>
+            <Stepper phase={phase} t={t} />
 
-            <div style={card}>
-                {/* Header */}
-                <div style={cardHeader}>
-                    <span style={headerEmoji}>📚</span>
-                    <div>
-                        <h1 style={{ margin: 0, fontSize: '22px', color: '#222' }}>{t.pageTitle}</h1>
-                        <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#777' }}>
-                            {t.pageSubtitle}
-                        </p>
-                    </div>
-                </div>
+            {phase === 'survey' && (
+                <SurveyForm onComplete={handleSurveyComplete} t={t} />
+            )}
 
-                {phase === 'survey' && (
-                    <SurveyForm onComplete={handleSurveyComplete} t={t} />
-                )}
+            {phase === 'question' && assessmentQuestion && (
+                <AssessmentQuestion
+                    question={assessmentQuestion}
+                    subSubjectId={subSubjectId}
+                    subSubjectName={subSubjectName}
+                    language={language}
+                    onBack={() => setPhase('survey')}
+                    onDone={() => setPhase('done')}
+                    t={t}
+                />
+            )}
+        </AuthLayout>
+    );
+};
 
-                {phase === 'question' && assessmentQuestion && (
-                    <AssessmentQuestion
-                        question={assessmentQuestion}
-                        subSubjectId={subSubjectId}
-                        subSubjectName={subSubjectName}
-                        onDone={() => setPhase('done')}
-                        t={t}
-                    />
-                )}
-            </div>
+// ── Step indicator (always LTR: step 1 → step 2) ────────────────────────────
+
+const Stepper = ({ phase, t }) => {
+    const surveyDone = phase !== 'survey';
+    return (
+        <div className="lvl-stepper">
+            <Step n={1} label={t.stepAboutYou}   active={phase === 'survey'}   done={surveyDone} />
+            <span className={'lvl-connector' + (surveyDone ? ' is-filled' : '')} />
+            <Step n={2} label={t.stepAssessment} active={phase === 'question'} done={phase === 'done'} />
         </div>
     );
 };
 
-// ── Step indicator sub-component ────────────────────────────────────────────
-
-const StepDot = ({ num, label, active, done }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-        <div style={dotStyle(active, done)}>
-            {done ? '✓' : num}
-        </div>
-        <span style={dotLabel(active, done)}>{label}</span>
+const Step = ({ n, label, active, done }) => (
+    <div className="lvl-step">
+        <span className={'lvl-dot' + (active ? ' is-active' : done ? ' is-done' : '')}>{done ? '✓' : n}</span>
+        <span className={'lvl-step-label' + (active ? ' is-active' : done ? ' is-done' : '')}>{label}</span>
     </div>
 );
-
-// ── styles ──────────────────────────────────────────────────────────────────
-
-const page = {
-    padding: '32px 16px',
-    maxWidth: '560px',
-    margin: '0 auto',
-    fontFamily: 'Arial, sans-serif',
-};
-
-const stepsRow = {
-    display: 'flex',
-    alignItems: 'center',
-    marginBottom: '28px',
-};
-
-const stepConnector = (filled) => ({
-    flex: 1,
-    height: '2px',
-    backgroundColor: filled ? '#007bff' : '#e0e0e0',
-    transition: 'background-color 0.3s',
-});
-
-const dotStyle = (active, done) => ({
-    width: '34px', height: '34px', borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontWeight: 'bold', fontSize: '14px',
-    backgroundColor: done ? '#28a745' : active ? '#007bff' : '#e9ecef',
-    color: done || active ? '#fff' : '#aaa',
-    flexShrink: 0,
-    transition: 'background-color 0.3s',
-});
-
-const dotLabel = (active, done) => ({
-    fontSize: '11px', fontWeight: active ? '700' : '400',
-    color: done ? '#28a745' : active ? '#007bff' : '#aaa',
-    textAlign: 'center', maxWidth: '90px',
-    transition: 'color 0.3s',
-});
-
-const card = {
-    border: '1px solid #ddd',
-    borderRadius: '12px',
-    padding: '32px',
-    backgroundColor: '#fff',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-};
-
-const cardHeader = {
-    display: 'flex', alignItems: 'flex-start', gap: '14px',
-    marginBottom: '28px', paddingBottom: '20px',
-    borderBottom: '1px solid #eee',
-};
-
-const headerEmoji = { fontSize: '38px', lineHeight: 1, flexShrink: 0 };

@@ -5,12 +5,16 @@ import javax.servlet.http.HttpServletResponse;
 
 public class CookieUtils {
 
+    private static final int REMEMBER_ME_MAX_AGE = 30 * 24 * 60 * 60; // 30 ימים
+
     // פונקציה ליצירת עוגיית ההתחברות (HTTP Only)
-    public static void setSessionCookie(HttpServletResponse response, String token) {
+    // rememberMe=true → עוגייה מתמשכת ל-30 יום; rememberMe=false → עוגיית סשן
+    // (maxAge=-1) שנמחקת כשסוגרים את הדפדפן.
+    public static void setSessionCookie(HttpServletResponse response, String token, boolean rememberMe) {
         Cookie cookie = new Cookie("session_token", token);
         cookie.setHttpOnly(true); // חסימה מ-JavaScript
         cookie.setPath("/");
-        cookie.setMaxAge(24 * 60 * 60); // תוקף ל-24 שעות
+        cookie.setMaxAge(rememberMe ? REMEMBER_ME_MAX_AGE : -1);
         response.addCookie(cookie);
     }
 
