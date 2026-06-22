@@ -5,12 +5,12 @@
 .appbar-logo { position: absolute; top: 50%; right: 2px; transform: translateY(-50%); text-decoration: none; }
 .appbar-controls { position: absolute; top: 50%; left: 2px; transform: translateY(-50%); direction: ltr; display: flex; align-items: center; gap: 12px; }
 .appbar-lang { width: 160px; }
-.appbar-logout {
+.appbar-logout, .appbar-back {
   height: 40px; padding: 0 16px; background: transparent; border: 1px solid var(--mg-bd);
   border-radius: 999px; color: var(--mg-ts); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
   transition: border-color .15s var(--mg-ease), background .15s var(--mg-ease);
 }
-.appbar-logout:hover { border-color: var(--mg-bd-strong); background: var(--mg-s2); }
+.appbar-logout:hover, .appbar-back:hover { border-color: var(--mg-bd-strong); background: var(--mg-s2); }
 .appbar-logo { text-decoration: none; }
 
 /* theme toggle */

@@ -1,0 +1,45 @@
+/* Floating launcher for the AI tutor — a robot button (closed) that opens the existing
+   TutorChat panel. Fixed to the bottom corner, above the page content. */
+
+/* ---- closed: robot FAB ---- */
+.tcl-fab {
+    position: fixed; bottom: 24px; right: 24px; z-index: 60;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: none; border: none; padding: 0; cursor: pointer;
+}
+.tcl-fab-bot {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(150deg, #9b7bff, #5b8cff);
+    box-shadow: 0 10px 26px rgba(124, 77, 255, .45);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.tcl-fab:hover .tcl-fab-bot { transform: translateY(-2px) scale(1.05); box-shadow: 0 14px 32px rgba(124, 77, 255, .55); }
+.tcl-fab-bot svg { width: 42px; height: 42px; }
+.tcl-fab-label {
+    font-size: 12px; font-weight: 700; color: #fff;
+    background: #2a2150; padding: 3px 11px; border-radius: 999px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .22); white-space: nowrap;
+}
+
+/* ---- open: chat panel ---- */
+.tcl-panel {
+    position: fixed; bottom: 24px; right: 24px; z-index: 61;
+    width: 380px; max-width: calc(100vw - 32px);
+}
+.tcl-panel .tutor-chat {
+    max-width: none; width: 100%;
+    max-height: min(78vh, 640px);
+}
+.tcl-close {
+    position: absolute; top: -10px; inset-inline-end: -10px; z-index: 2;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #fff; border: 1px solid rgba(0, 0, 0, .08); box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
+    cursor: pointer; font-size: 14px; color: #555; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+}
+.tcl-close:hover { background: #f1f1f4; color: #222; }
+
+@media (max-width: 480px) {
+    .tcl-fab, .tcl-panel { bottom: 16px; right: 16px; }
+}

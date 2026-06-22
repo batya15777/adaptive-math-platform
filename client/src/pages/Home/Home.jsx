@@ -137,7 +137,9 @@ export const Home = () => {
                                     <span className="home-action-sub">{g(t.dailyMotivation)}</span>
                                     <div className="home-bar"><i style={{ width: `${dailyPct}%` }} /></div>
                                     <span className="home-daily-count" dir="ltr">{format(t.dailyGoal, { done: daily.done, goal: daily.goal })}</span>
-                                    <button type="button" className="sc-btn" onClick={() => play(continueTopic?.subSubjectId)}>{g(t.startBtn)}</button>
+                                    <button type="button" className="sc-btn" onClick={() => navigate('/daily-practice')}>
+                                        {daily.done >= daily.goal ? t.dailyDoneBtn : g(t.startBtn)}
+                                    </button>
                                 </div>
                             </div>
 

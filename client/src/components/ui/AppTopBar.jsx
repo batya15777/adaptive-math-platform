@@ -12,7 +12,10 @@ import "./appTopBar.css";
 
 // Themed app top bar for in-app screens: language + theme toggle + logout (start),
 // MathGalaxy logo (end). Reuses the existing profile/auth logic (no new state).
-export function AppTopBar() {
+//   minimal — hide the language + theme controls (keep logo + logout).
+//   backTo  — exercise mode: show only a "← back" button (to that path) + the logo, with
+//             no theme / language / logout, so nothing distracts the student mid-question.
+export function AppTopBar({ minimal = false, backTo = null }) {
     const { logoutUser } = useContext(AuthContext);
     const { profileData, options, updateProfile, loading } = useProfile();
     const { language } = useLanguage();
@@ -31,18 +34,26 @@ export function AppTopBar() {
         <header className="appbar">
             <Link to="/home" className="appbar-logo" aria-label="MathGalaxy"><MathGalaxyLogo size="md" /></Link>
             <div className="appbar-controls">
-                <ThemeToggle />
-                <div className="appbar-lang">
-                    <ThemedSelect
-                        value={profileData.language}
-                        disabled={loading}
-                        onChange={(v) => { if (v !== profileData.language) updateProfile({ language: v }).catch(() => {}); }}
-                        options={langs}
-                        icon="🌐"
-                        ariaLabel="Language"
-                    />
-                </div>
-                <button type="button" className="appbar-logout" onClick={doLogout}>{nav.logout}</button>
+                {backTo ? (
+                    <button type="button" className="appbar-back" onClick={() => navigate(backTo)}>← {nav.back}</button>
+                ) : (
+                    <>
+                        {!minimal && <ThemeToggle />}
+                        {!minimal && (
+                            <div className="appbar-lang">
+                                <ThemedSelect
+                                    value={profileData.language}
+                                    disabled={loading}
+                                    onChange={(v) => { if (v !== profileData.language) updateProfile({ language: v }).catch(() => {}); }}
+                                    options={langs}
+                                    icon="🌐"
+                                    ariaLabel="Language"
+                                />
+                            </div>
+                        )}
+                        <button type="button" className="appbar-logout" onClick={doLogout}>{nav.logout}</button>
+                    </>
+                )}
             </div>
         </header>
     );

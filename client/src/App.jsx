@@ -16,6 +16,7 @@ import { MathTraining } from "./pages/MathTraining/MathTraining.jsx";
 import { QuestionGame } from "./pages/QuestionGame/QuestionGame.jsx";
 import { LevelManagerPage } from "./pages/LevelManager/LevelManagerPage.jsx";
 import { LeaderboardPage } from "./pages/Leaderboard/LeaderboardPage.jsx";
+import { DailyPractice } from "./pages/Practice/DailyPractice.jsx";
 import { AdminLayout } from "./pages/Admin/AdminLayout.jsx";
 import { AdminDashboard } from "./pages/Admin/AdminDashboard.jsx";
 import { AdminUsers } from "./pages/Admin/AdminUsers.jsx";
@@ -73,6 +74,10 @@ function AppRoutes() {
 
         {/* Level survey — protected but outside DashboardLayout to avoid the survey gate loop */}
         <Route path="/level-survey" element={<ProtectedRoute element={<LevelManagerPage />} />} />
+
+        {/* Daily practice — a focused exercise flow with its own top bar, outside the
+            DashboardLayout so the sidebar/nav doesn't clutter the question screen */}
+        <Route path="/daily-practice" element={<ProtectedRoute element={<DailyPractice />} />} />
 
         {/* Admin area — guarded layout (language switcher + dir) with nested pages */}
         <Route path="/admin" element={<AdminRoute element={<AdminLayout />} />}>

@@ -19,7 +19,7 @@ function Navbar() {
     const isExerciseScreen = /\/math-training\/[^/]+\/play$/.test(location.pathname);
 
     // Pages that render their own themed top bar (AppTopBar) — hide this grey navbar there.
-    const hasOwnTopBar = ['/home', '/leaderboard'].includes(location.pathname);
+    const hasOwnTopBar = ['/home', '/leaderboard', '/daily-practice'].includes(location.pathname);
 
     const handleLogout = () => {
         logout()

@@ -12,6 +12,8 @@ export const TUTOR_CHAT_STRINGS = {
     en: {
         eyebrow: "Exercise help",
         title: "AI Tutor",
+        close: "Close",
+        openHint: "Need help? Tap me",
         placeholder: "Ask a question about the exercise...",
         history: "🕘 History",
         back: "← Back",
@@ -36,6 +38,8 @@ export const TUTOR_CHAT_STRINGS = {
     he: {
         eyebrow: "עזרה בתרגיל",
         title: "AI Tutor",
+        close: "סגירה",
+        openHint: "צריך עזרה? לחצו עליי",
         placeholder: "כתבי שאלה על התרגיל...",
         history: "🕘 היסטוריה",
         back: "← חזרה",
@@ -60,6 +64,8 @@ export const TUTOR_CHAT_STRINGS = {
     ru: {
         eyebrow: "Помощь с заданием",
         title: "AI Tutor",
+        close: "Закрыть",
+        openHint: "Нужна помощь? Нажмите",
         placeholder: "Задайте вопрос по заданию...",
         history: "🕘 История",
         back: "← Назад",

@@ -1,0 +1,33 @@
+/* Daily practice — themed full-screen flow (follows light/dark via --mg-* tokens). */
+.dp-root { min-height: 100vh; padding: 18px 18px 48px; }
+.dp-topbar { max-width: 1080px; margin: 0 auto; } /* wide top bar: logo far right, back button far left (matches Home) */
+.dp-inner { max-width: 640px; margin: 6px auto 0; display: flex; flex-direction: column; gap: 18px; }
+
+.dp-head { text-align: center; }
+.dp-title { margin: 0 0 6px; font-size: clamp(24px, 4vw, 30px); font-weight: 800; color: var(--mg-accent); }
+.mg-space[data-theme="dark"] .dp-title { color: #CBBBFF; }
+.dp-sub { margin: 0; color: var(--mg-tm); font-size: 14.5px; }
+
+/* progress toward the 5-correct goal */
+.dp-progress { display: flex; align-items: center; gap: 12px; }
+.dp-bar { flex: 1; height: 12px; border-radius: 999px; background: var(--mg-s2); border: 1px solid var(--mg-bd); overflow: hidden; }
+.dp-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--mg-cta); transition: width .45s var(--mg-ease); }
+.dp-count { font-weight: 800; color: var(--mg-ts); font-variant-numeric: tabular-nums; font-size: 14px; }
+
+.dp-card { padding: 24px; min-height: 200px; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+.dp-msg { margin: 0; text-align: center; color: var(--mg-tm); font-size: 15px; }
+.dp-msg--err { color: var(--mg-danger); }
+.dp-next { width: 100%; }
+
+
+/* completion screen */
+.dp-done { padding: 36px 28px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.dp-done-emoji { font-size: 56px; line-height: 1; }
+.dp-done-title { margin: 0; font-size: clamp(26px, 5vw, 34px); font-weight: 800; color: var(--mg-ts); }
+.dp-done-praise { margin: 0; color: var(--mg-tx); font-size: 16px; max-width: 36ch; }
+.dp-done-bonus {
+  margin-top: 4px; padding: 8px 18px; border-radius: 999px; font-weight: 800; font-size: 18px; color: #fff;
+  background: var(--mg-cta); box-shadow: var(--mg-glow);
+}
+.dp-done-stars { margin: 0; color: var(--mg-tm); font-size: 14px; }
+.dp-done-btn { margin-top: 10px; }
