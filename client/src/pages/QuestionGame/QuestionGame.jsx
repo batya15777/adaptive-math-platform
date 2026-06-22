@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Confetti from 'react-confetti';
 import _LottieImport from 'lottie-react';
 // lottie-react ships CJS only; Vite may hand us the module namespace object instead of
@@ -25,7 +25,7 @@ const LANG_CODE = { HEBREW: 'he', ENGLISH: 'en', RUSSIAN: 'ru' };
 
 // "5|7|9|11" → ["5","7","9","11"];  "" / null → []
 // Pipe-delimited so an option may contain commas (e.g. "X1=5 , X2=10").
-const parseOptions  = (s) => (s ? s.split(',').map(o => o.trim()).filter(Boolean) : []);
+const parseOptions  = (s) => (s ? s.split('|').map(o => o.trim()).filter(Boolean) : []);
 // "a = 1\nb = 2" → ["a = 1","b = 2"]
 const parseSolution = (s) => (s ? s.split('\n').map(t => t.trim()).filter(Boolean) : []);
 

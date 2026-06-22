@@ -13,6 +13,7 @@ import com.adaptive.server.responses.QuestionResponse;
 import com.adaptive.server.service.QuestionsGenerators.CalculationGenerator;
 import com.adaptive.server.service.QuestionsGenerators.PolynomialGenerator;
 import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
+import com.adaptive.server.service.sse.AdminSseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -69,6 +70,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private final PolynomialGenerator polynomialGenerator;
     private final ClusterContextService clusterContextService;
     private final AiQuestionService aiQuestionService;
+    private final AdminSseService adminSseService;
 
     // Coin flip for the multiple-choice vs typed-answer decision at difficulty ≥ 3.
     private final Random random = new Random();
@@ -87,7 +89,8 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                                CalculationGenerator calculationGenerator, PolynomialGenerator polynomialGenerator,
                                QuestionRepository questionRepository,
                                QuestionArchiveRepository archiveRepository,
-                               ClusterContextService clusterContextService, AiQuestionService aiQuestionService) {
+                               ClusterContextService clusterContextService, AiQuestionService aiQuestionService,
+                               AdminSseService adminSseService) {
         this.attemptRepository = attemptRepository;
         this.progressRepository = progressRepository;
         this.userRepository = userRepository;
@@ -99,6 +102,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         this.archiveRepository = archiveRepository;
         this.clusterContextService = clusterContextService;
         this.aiQuestionService = aiQuestionService;
+        this.adminSseService = adminSseService;
     }
 
 
@@ -120,6 +124,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                 : null;
         saveAttempt(user, subSubject, request.getQuestionId(), isCorrect, request.getCurrentDifficulty(),
                 request.getQuestionType(), request.getUserAnswer(), errorPattern, LocalDateTime.now());
+        adminSseService.pushAnalyticsUpdate();
 
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
         long total = attemptRepository.countByUserIdAndSubSubjectId(userId, request.getSubSubjectId());

@@ -21,6 +21,9 @@ export const updateUser = (id, data) => api.patch(`/admin/users/${id}`, data);
 // Read-only platform analytics for the admin dashboard.
 export const getAnalytics = () => api.get("/admin/analytics");
 
+// Send a one-shot broadcast message to all currently connected students.
+export const sendBroadcast = (message) => api.post("/admin/broadcast", { message });
+
 // Read-only ML cluster groups (existing clustering results).
 export const getMLGroups = () => api.get("/admin/ml-groups");
 

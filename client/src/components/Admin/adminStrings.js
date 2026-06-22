@@ -34,6 +34,8 @@ export const ADMIN_STRINGS = {
         colOccurrences: "Occurrences",
         analyticsLoadError: "Failed to load analytics.",
         noData: "No data yet.",
+        broadcastPlaceholder: "Type a message to send to all students…",
+        broadcastSend: "Send to all students",
         // ml groups
         mlGroupsTitle: "ML Cluster Groups",
         manageClusters: "ML cluster groups →",
@@ -218,6 +220,8 @@ export const ADMIN_STRINGS = {
         colOccurrences: "מספר הופעות",
         analyticsLoadError: "לא הצלחתי לטעון את הנתונים.",
         noData: "אין עדיין נתונים.",
+        broadcastPlaceholder: "הקלד/י הודעה לכל התלמידים…",
+        broadcastSend: "שלח לכל התלמידים",
         // ml groups
         mlGroupsTitle: "קבוצות ML",
         manageClusters: "קבוצות ML →",
@@ -402,6 +406,8 @@ export const ADMIN_STRINGS = {
         colOccurrences: "Количество",
         analyticsLoadError: "Не удалось загрузить аналитику.",
         noData: "Пока нет данных.",
+        broadcastPlaceholder: "Введите сообщение для всех учеников…",
+        broadcastSend: "Отправить всем ученикам",
         // ml groups
         mlGroupsTitle: "ML-группы",
         manageClusters: "ML-группы →",

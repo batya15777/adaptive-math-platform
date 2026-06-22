@@ -1,8 +1,9 @@
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContextSetup.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
 import { getNavStrings } from '../navStrings.js';
+import { BroadcastAlert } from '../BroadcastAlert.jsx';
 // import { CalendarDays, BarChart3, Files, ShoppingCart, House, BookUser } from 'lucide-react';
 // import styles from './DashboardLayout.module.css';
 
@@ -11,6 +12,13 @@ const DashboardLayout = () => {
     const navigate = useNavigate();
     const { language, dir } = useLanguage();
     const t = getNavStrings(language);
+    const [broadcasts, setBroadcasts] = useState([]);
+
+    useEffect(() => {
+        const es = new EventSource("http://localhost:8080/sse/user", { withCredentials: true });
+        es.addEventListener("broadcast", (e) => setBroadcasts(prev => [...prev, e.data]));
+        return () => es.close();
+    }, []);
 
     // Survey gate: redirect to placement survey until it has been completed exactly once.
     // Guard against authLoading so a hard-refresh race condition (user briefly null) can't
@@ -33,6 +41,10 @@ const DashboardLayout = () => {
 
     return (
         <div dir={dir}>
+            <BroadcastAlert
+                messages={broadcasts}
+                onDismiss={(i) => setBroadcasts(prev => prev.filter((_, idx) => idx !== i))}
+            />
             <aside >
                 <div >
                     {t.brand}

@@ -86,6 +86,7 @@ public class CalculationGenerator extends QuestionGenerator {
 
         int difficulty   = Math.max(1, Math.min(difficultyLevel, MAX_DIFFICULTY_LEVEL));
         List<String> operators = deriveOperators(subSubject);
+        String requiredOp = primaryOperator(subSubject);
         int operandCount = operandCount(difficulty, subSubjectLevel);
 
         String expression = null;
@@ -94,7 +95,7 @@ public class CalculationGenerator extends QuestionGenerator {
 
         // Fill numbers; in the low regime, retry until operands + result stay below 100.
         for (int attempt = 0; attempt < MAX_FILL_ATTEMPTS; attempt++) {
-            List<String> tokens = buildFilledTokens(operators, operandCount, difficulty, subSubjectLevel);
+            List<String> tokens = buildFilledTokens(operators, operandCount, difficulty, subSubjectLevel, requiredOp);
             fixDivisions(tokens);                       // keep every division a multiple of 0.25
             String candidate = String.join(" ", tokens);
 
@@ -111,7 +112,7 @@ public class CalculationGenerator extends QuestionGenerator {
 
         // Fallback: constraints somehow never satisfied — accept the last fresh attempt.
         if (expression == null) {
-            List<String> tokens = buildFilledTokens(operators, operandCount, difficulty, subSubjectLevel);
+            List<String> tokens = buildFilledTokens(operators, operandCount, difficulty, subSubjectLevel, requiredOp);
             fixDivisions(tokens);
             expression = String.join(" ", tokens);
             solutionSteps = new ArrayList<>();
@@ -206,12 +207,33 @@ public class CalculationGenerator extends QuestionGenerator {
         return new ArrayList<>(ops);
     }
 
+    /**
+     * Returns the operator that must appear at least once in every generated expression.
+     * For pure sub-subjects (add/sub/mult/div) this is obvious; for "mixed" and unknown
+     * names there is no single required operator, so null is returned.
+     */
+    private String primaryOperator(SubSubject subSubject) {
+        switch (subSubject.getName().toLowerCase()) {
+            case "add":  return "+";
+            case "sub":  return "-";
+            case "mult": return "*";
+            case "div":  return "/";
+            default:     return null;
+        }
+    }
+
     /** Builds a token list (operand, op, operand, …) of {@code operandCount} numbers. */
     private List<String> buildFilledTokens(List<String> operators, int operandCount,
-                                           int difficulty, int subSubjectLevel) {
+                                           int difficulty, int subSubjectLevel,
+                                           String requiredOp) {
         List<String> ops = new ArrayList<>();
         for (int k = 0; k < operandCount - 1; k++) {
             ops.add(operators.get(random.nextInt(operators.size())));
+        }
+        // Guarantee the primary operator appears at least once so e.g. a "mult"
+        // question with mixed templates never produces an expression with no '*'.
+        if (requiredOp != null && !ops.contains(requiredOp) && !ops.isEmpty()) {
+            ops.set(random.nextInt(ops.size()), requiredOp);
         }
 
         List<String> tokens = new ArrayList<>();
