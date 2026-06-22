@@ -1,6 +1,8 @@
 import './App.css'
-import RegisterForm from "./components/RegisterForm.jsx";
-import LoginForm from "./components/LoginForm.jsx";
+import RegisterForm from "./components/auth/RegisterForm.jsx";
+import LoginForm from "./components/auth/LoginForm.jsx";
+import { Landing } from "./components/auth/Landing.jsx";
+import ForgotPassword from "./components/auth/ForgotPassword.jsx";
 import Navbar from "./components/Navbar.jsx";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./components/DashboardLayout/DashboardLayout.jsx";
@@ -13,6 +15,7 @@ import {ProfileSettings} from "./components/ProfileSettings/ProfileSettings.jsx"
 import { MathTraining } from "./pages/MathTraining/MathTraining.jsx";
 import { QuestionGame } from "./pages/QuestionGame/QuestionGame.jsx";
 import { LevelManagerPage } from "./pages/LevelManager/LevelManagerPage.jsx";
+import { LeaderboardPage } from "./pages/Leaderboard/LeaderboardPage.jsx";
 import { AdminLayout } from "./pages/Admin/AdminLayout.jsx";
 import { AdminDashboard } from "./pages/Admin/AdminDashboard.jsx";
 import { AdminUsers } from "./pages/Admin/AdminUsers.jsx";
@@ -32,7 +35,7 @@ const AdminMLGroups = lazy(() =>
 const ProtectedRoute = ({ element }) => {
   const { user, authLoading } = useContext(AuthContext);
   if (authLoading) return null;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/welcome" replace />;
   return element;
 };
 
@@ -60,9 +63,13 @@ function AppRoutes() {
     <BrowserRouter>
       {!authLoading && user && <Navbar/>}
       <Routes>
+        {/* Landing / intro hero — guests start here, click → login */}
+        <Route path="/welcome" element={<AuthRoute element={<Landing />} />} />
+
         {/* Auth pages - only accessible when not logged in */}
         <Route path="/login" element={<AuthRoute element={<LoginForm />} />} />
         <Route path="/register" element={<AuthRoute element={<RegisterForm />} />} />
+        <Route path="/forgot-password" element={<AuthRoute element={<ForgotPassword />} />} />
 
         {/* Level survey — protected but outside DashboardLayout to avoid the survey gate loop */}
         <Route path="/level-survey" element={<ProtectedRoute element={<LevelManagerPage />} />} />
@@ -99,11 +106,12 @@ function AppRoutes() {
           />
           <Route path="math-training" element={<MathTraining />} />
           <Route path="math-training/:subSubjectId/play" element={<QuestionGame />} />
+          <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="profile-settings" element={<ProfileSettings />} />
         </Route>
 
         {/* Default redirect */}
-        <Route path="*" element={<Navigate to={!authLoading && user ? "/" : "/login"} replace />} />
+        <Route path="*" element={<Navigate to={!authLoading && user ? "/" : "/welcome"} replace />} />
       </Routes>
     </BrowserRouter>
   );

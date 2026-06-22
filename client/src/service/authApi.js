@@ -16,3 +16,7 @@ export const logout = () => {
 }
 
 export const getMe = () => api.get("/auth/me");
+
+// Password reset flow.
+export const forgotPassword = (email) => api.post("/auth/forgot-password", { email });
+export const resetPassword = (data) => api.post("/auth/reset-password", data);

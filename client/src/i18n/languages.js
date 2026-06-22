@@ -37,6 +37,28 @@ export const writeGuestLanguage = (lang) => {
     }
 };
 
+// Guest (pre-login) theme persistence — so a chosen theme survives a refresh
+// instead of snapping back to the default. Logged-in users get theme from the server.
+const GUEST_THEME_KEY = "guestTheme";
+const PROFILE_THEMES = ["LIGHT", "DARK"];
+
+export const readGuestTheme = () => {
+    try {
+        const v = localStorage.getItem(GUEST_THEME_KEY);
+        return PROFILE_THEMES.includes(v) ? v : "LIGHT";
+    } catch {
+        return "LIGHT";
+    }
+};
+
+export const writeGuestTheme = (theme) => {
+    try {
+        localStorage.setItem(GUEST_THEME_KEY, theme);
+    } catch {
+        /* ignore storage failures (private mode, quota) */
+    }
+};
+
 // Right-to-left scripts. Future RTL languages just join the set.
 export const RTL_LANGUAGES = new Set(["he", "ar", "fa", "ur"]);
 

@@ -3,12 +3,14 @@ package com.adaptive.server.utils;
 import com.adaptive.server.entity.QuestionTemplate;
 import com.adaptive.server.entity.SubSubject;
 import com.adaptive.server.entity.Subject;
+import com.adaptive.server.entity.Topic;
 import com.adaptive.server.entity.enums.CalculationOperation;
 import com.adaptive.server.entity.enums.GeometryOperation;
 import com.adaptive.server.entity.enums.PolynomialOperation;
 import com.adaptive.server.repository.QuestionTemplateRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import com.adaptive.server.repository.SubjectRepository;
+import com.adaptive.server.repository.TopicRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -27,13 +29,16 @@ public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
+    private final TopicRepository topicRepository;
     private final SubjectRepository subjectRepository;
     private final SubSubjectRepository subSubjectRepository;
     private final QuestionTemplateRepository templateRepository;
 
-    public DataInitializer(SubjectRepository subjectRepository,
+    public DataInitializer(TopicRepository topicRepository,
+                           SubjectRepository subjectRepository,
                            SubSubjectRepository subSubjectRepository,
                            QuestionTemplateRepository templateRepository) {
+        this.topicRepository      = topicRepository;
         this.subjectRepository    = subjectRepository;
         this.subSubjectRepository = subSubjectRepository;
         this.templateRepository   = templateRepository;
@@ -43,17 +48,20 @@ public class DataInitializer implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         log.info("Seeding initial data...");
-        seedCalculation();
-        seedGeometry();
-        seedPolynomial();
-        seedAi();
+        // Respect the Topic → Subject → SubSubject hierarchy: the umbrella topic must
+        // exist (and be saved) before any subject, since Subject.topic is a not-null FK.
+        Topic mathematics = getOrCreateTopic("Mathematics");
+        seedCalculation(mathematics);
+        seedGeometry(mathematics);
+        seedPolynomial(mathematics);
+        seedAi(mathematics);
         log.info("Seeding done.");
     }
 
     // ── Calculation ──────────────────────────────────────────────────────
 
-    private void seedCalculation() {
-        Subject subject = getOrCreateSubject("Calculation");
+    private void seedCalculation(Topic topic) {
+        Subject subject = getOrCreateSubject("Calculation", topic);
         for (CalculationOperation op : CalculationOperation.values()) {
             SubSubject sub = getOrCreateSubSubject(op.getSubSubjectName(), subject);
             seedCalculationTemplates(sub, op);
@@ -80,8 +88,8 @@ public class DataInitializer implements CommandLineRunner {
     // GeometryGenerator does not use DB templates (formulas are fixed),
     // but the sub-subject rows must exist as FKs for the Question entity.
 
-    private void seedGeometry() {
-        Subject subject = getOrCreateSubject("Geometry");
+    private void seedGeometry(Topic topic) {
+        Subject subject = getOrCreateSubject("Geometry", topic);
         for (GeometryOperation op : GeometryOperation.values()) {
             getOrCreateSubSubject(op.getSubSubjectName(), subject);
         }
@@ -89,8 +97,8 @@ public class DataInitializer implements CommandLineRunner {
 
     // ── Polynomial ───────────────────────────────────────────────────────
 
-    private void seedPolynomial() {
-        Subject subject = getOrCreateSubject("Polynomial");
+    private void seedPolynomial(Topic topic) {
+        Subject subject = getOrCreateSubject("Polynomial", topic);
         for (PolynomialOperation op : PolynomialOperation.values()) {
             getOrCreateSubSubject(op.getSubSubjectName(), subject);
         }
@@ -98,18 +106,28 @@ public class DataInitializer implements CommandLineRunner {
 
     // ── AI ───────────────────────────────────────────────────────────────
 
-    private void seedAi() {
-        Subject subject = getOrCreateSubject("AI");
+    private void seedAi(Topic topic) {
+        Subject subject = getOrCreateSubject("AI", topic);
         getOrCreateSubSubject("ai", subject);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
 
-    private Subject getOrCreateSubject(String name) {
+    private Topic getOrCreateTopic(String name) {
+        return topicRepository.findByName(name)
+                .orElseGet(() -> {
+                    log.info("Creating topic '{}'", name);
+                    return topicRepository.save(new Topic(name));
+                });
+    }
+
+    private Subject getOrCreateSubject(String name, Topic topic) {
         return subjectRepository.findByName(name)
                 .orElseGet(() -> {
-                    log.info("Creating subject '{}'", name);
-                    return subjectRepository.save(new Subject(name));
+                    log.info("Creating subject '{}' under topic '{}'", name, topic.getName());
+                    Subject subject = new Subject(name);
+                    subject.setTopic(topic); // satisfy the not-null topic_id FK
+                    return subjectRepository.save(subject);
                 });
     }
 

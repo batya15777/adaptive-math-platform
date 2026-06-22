@@ -12,6 +12,7 @@ export const NAV_STRINGS = {
         myDashboard: "My Dashboard",
         mathTraining: "Math Training",
         settings: "Settings",
+        leaderboard: "Leaderboard",
     },
     he: {
         greeting: "שלום",
@@ -22,6 +23,7 @@ export const NAV_STRINGS = {
         myDashboard: "הלוח שלי",
         mathTraining: "אימון במתמטיקה",
         settings: "הגדרות",
+        leaderboard: "טבלת מובילים",
     },
     ru: {
         greeting: "Привет",
@@ -32,6 +34,7 @@ export const NAV_STRINGS = {
         myDashboard: "Моя панель",
         mathTraining: "Тренировка по математике",
         settings: "Настройки",
+        leaderboard: "Таблица лидеров",
     },
 };
 

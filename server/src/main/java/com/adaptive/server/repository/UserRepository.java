@@ -1,5 +1,6 @@
 package com.adaptive.server.repository;
 
+import com.adaptive.server.DTOs.LeaderboardEntryDto;
 import com.adaptive.server.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,7 +18,13 @@ public interface UserRepository extends JpaRepository<User,Long> {
 
     Optional<User> findByEmail(String email);
 
-    List<User> findTop10ByOrderByTotalStarsDesc();
+    // Leaderboard entries enriched with each user's avatar (UserProfile.pictureId).
+    // LEFT JOIN so a user without a profile row still appears (pictureId comes back null,
+    // and the client falls back to a default icon). Limit via Pageable.
+    @Query("SELECT new com.adaptive.server.DTOs.LeaderboardEntryDto(u.fullName, u.totalStars, p.pictureId) " +
+            "FROM User u LEFT JOIN UserProfile p ON p.user = u " +
+            "ORDER BY u.totalStars DESC")
+    List<LeaderboardEntryDto> findTopWithAvatar(Pageable pageable);
 
     // Admin analytics — role is a String column on User (default "STUDENT").
     long countByRole(String role);

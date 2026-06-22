@@ -152,6 +152,11 @@ export const MathTraining = () => {
                                 <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '14px' }}>{t.play}</span>
                             </div>
                             <div style={statsRow}>
+                                {/* Three independent metrics — do NOT merge:
+                                    רמה  (Level)      = currentLevel — progression tier (advances every N correct).
+                                    נפתרו (Solved)    = questionsSolved — correct answers in this sub-subject.
+                                    קושי (Difficulty) = difficultyLevel — the cluster/ML-adjusted difficulty
+                                                        actually played (from attempts), which can sit above the level. */}
                                 <Stat label={t.statLevel}      value={sub.currentLevel} />
                                 <Stat label={t.statSolved}     value={sub.questionsSolved} />
                                 <Stat label={t.statDifficulty} value={sub.difficultyLevel} />

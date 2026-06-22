@@ -1,0 +1,25 @@
+/* Themed top bar for in-app screens (Home, Leaderboard). Groups are pinned to
+   PHYSICAL sides (logo right, controls left) and the controls run LTR, so the
+   bar never flips or shifts when the page language/direction changes. */
+.appbar { position: relative; min-height: 52px; z-index: 30; } /* keep the language dropdown above the hero */
+.appbar-logo { position: absolute; top: 50%; right: 2px; transform: translateY(-50%); text-decoration: none; }
+.appbar-controls { position: absolute; top: 50%; left: 2px; transform: translateY(-50%); direction: ltr; display: flex; align-items: center; gap: 12px; }
+.appbar-lang { width: 160px; }
+.appbar-logout {
+  height: 40px; padding: 0 16px; background: transparent; border: 1px solid var(--mg-bd);
+  border-radius: 999px; color: var(--mg-ts); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  transition: border-color .15s var(--mg-ease), background .15s var(--mg-ease);
+}
+.appbar-logout:hover { border-color: var(--mg-bd-strong); background: var(--mg-s2); }
+.appbar-logo { text-decoration: none; }
+
+/* theme toggle */
+.tt { display: inline-flex; align-items: center; gap: 3px; padding: 4px; background: var(--mg-chip); border: 1px solid var(--mg-bd); border-radius: 999px; backdrop-filter: blur(8px); }
+.tt-opt { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; border-radius: 999px; cursor: pointer; font-size: 14px; opacity: .55; transition: background .15s var(--mg-ease), opacity .15s var(--mg-ease); }
+.tt-opt.on { background: var(--mg-card); opacity: 1; box-shadow: 0 2px 6px rgba(0, 0, 0, .18); }
+.tt-opt:focus-visible { outline: 2px solid var(--mg-ring); outline-offset: 2px; }
+
+@media (max-width: 560px) {
+  .appbar-lang { width: 130px; }
+  .appbar-logout { padding: 0 12px; }
+}

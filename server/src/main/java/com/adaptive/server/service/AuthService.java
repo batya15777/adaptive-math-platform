@@ -6,9 +6,11 @@ import com.adaptive.server.DTOs.RegisterRequest;
 import com.adaptive.server.DTOs.VerifyEmailRequest;
 import com.adaptive.server.entity.EmailVerification;
 import com.adaptive.server.DTOs.UserResponseDTO;
+import com.adaptive.server.entity.PasswordReset;
 import com.adaptive.server.entity.SessionToken;
 import com.adaptive.server.entity.User;
 import com.adaptive.server.repository.EmailVerificationRepository;
+import com.adaptive.server.repository.PasswordResetRepository;
 import com.adaptive.server.repository.SessionTokenRepository;
 import com.adaptive.server.repository.UserRepository;
 import com.adaptive.server.responses.BasicResponse;
@@ -33,14 +35,16 @@ public class AuthService {
     private final ValidationService validationService;
     private final SessionTokenRepository sessionTokenRepository;
     private final EmailService emailService;
+    private final PasswordResetRepository passwordResetRepository;
 
 
-    public AuthService(EmailService emailService ,UserRepository userRepository, EmailVerificationRepository emailVerificationRepository, ValidationService validationService , SessionTokenRepository sessionTokenRepository) {
+    public AuthService(EmailService emailService ,UserRepository userRepository, EmailVerificationRepository emailVerificationRepository, ValidationService validationService , SessionTokenRepository sessionTokenRepository, PasswordResetRepository passwordResetRepository) {
         this.userRepository = userRepository;
         this.emailVerificationRepository = emailVerificationRepository;
         this.validationService = validationService;
         this.sessionTokenRepository = sessionTokenRepository;
         this.emailService = emailService;
+        this.passwordResetRepository = passwordResetRepository;
     }
 
 
@@ -67,9 +71,10 @@ public class AuthService {
             return new LoginResponse(false , Errors.ACCOUNT_INACTIVE.getMessage() , null);
         }
 
-        //יצרתי ככה סשן שיהיה תקף בינתיים ליום ואז שומרת אותו
+        //יצרתי ככה סשן: "זכור אותי" => 30 יום, אחרת יום אחד.
         String tokenString = UUID.randomUUID().toString();
-        Instant expiryDate = Instant.now().plus(1 , ChronoUnit.DAYS);
+        long sessionDays = loginRequest.isRemember() ? 30 : 1;
+        Instant expiryDate = Instant.now().plus(sessionDays , ChronoUnit.DAYS);
 
         SessionToken sessionToken = new SessionToken(tokenString, expiryDate, user);
         sessionTokenRepository.save(sessionToken);
@@ -195,6 +200,63 @@ public class AuthService {
         emailVerificationRepository.delete(emailVerification);
 
         return new BasicResponse(true, "Email verified and user registered successfully.");
+    }
+
+    // Step 1 of password reset: email a one-time code. Always returns the same generic
+    // message so the response can't be used to discover which emails are registered.
+    @Transactional
+    public BasicResponse forgotPassword(String email) {
+        BasicResponse generic = new BasicResponse(true,
+                "If an account exists for this email, a reset code has been sent.");
+
+        if (email == null || !validationService.isValidEmail(email)) {
+            return generic;
+        }
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            return generic;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        passwordResetRepository.deleteByEmail(email);
+        passwordResetRepository.flush();
+        String code = generateVerificationCode();
+        passwordResetRepository.save(new PasswordReset(email, code, now.plusMinutes(15), now));
+
+        emailService.sendPasswordResetCode(email, code); // best-effort; failures are logged
+        return generic;
+    }
+
+    // Step 2 of password reset: validate the code and set a new password.
+    @Transactional
+    public BasicResponse resetPassword(String email, String code, String newPassword) {
+        if (!validationService.isValidPassword(newPassword)) {
+            return new BasicResponse(false, Errors.INVALID_PASSWORD.getMessage());
+        }
+
+        PasswordReset reset = passwordResetRepository.findByEmail(email).orElse(null);
+        if (reset == null) {
+            return new BasicResponse(false, Errors.RESET_NOT_FOUND.getMessage());
+        }
+        if (LocalDateTime.now().isAfter(reset.getExpiresAt())) {
+            passwordResetRepository.delete(reset);
+            return new BasicResponse(false, Errors.RESET_CODE_EXPIRED.getMessage());
+        }
+        if (!reset.getCode().equals(code)) {
+            return new BasicResponse(false, Errors.RESET_CODE_INVALID.getMessage());
+        }
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            passwordResetRepository.delete(reset);
+            return new BasicResponse(false, Errors.USER_NOT_FOUND.getMessage());
+        }
+
+        user.setPasswordHash(GenerateHash.hashMd5(user.getFullName(), newPassword));
+        userRepository.save(user);
+        passwordResetRepository.delete(reset);
+
+        return new BasicResponse(true, "Password has been reset successfully. Please log in.");
     }
 
     private String generateVerificationCode() {

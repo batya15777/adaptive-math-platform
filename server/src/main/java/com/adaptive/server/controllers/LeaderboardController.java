@@ -1,16 +1,14 @@
 package com.adaptive.server.controllers;
 
 import com.adaptive.server.DTOs.LeaderboardEntryDto;
-import com.adaptive.server.entity.User;
 import com.adaptive.server.repository.UserRepository;
 import com.adaptive.server.responses.LeaderboardResponse;
 import com.adaptive.server.service.SessionValidationService;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/leaderboard")
@@ -30,13 +28,9 @@ public class LeaderboardController {
             @CookieValue(value = "session_token", required = false) String sessionToken) {
 
         sessionValidationService.validateAndGetUser(sessionToken);
-        List<User> topUsers = userRepository.findTop10ByOrderByTotalStarsDesc();
-        // יצירת רשימה ריקה והוספת איברים בלולאה
-        List<LeaderboardEntryDto> leaderboardEntries = new ArrayList<>();
-        for (User user : topUsers) {
-            LeaderboardEntryDto entry = new LeaderboardEntryDto(user.getFullName(), user.getTotalStars());
-            leaderboardEntries.add(entry);
-        }
+        // Single query: top-10 by stars, each row carrying the user's avatar (pictureId).
+        List<LeaderboardEntryDto> leaderboardEntries =
+                userRepository.findTopWithAvatar(PageRequest.of(0, 10));
         LeaderboardResponse response = new LeaderboardResponse(
                 true,
                 "Top 10 leaderboard fetched successfully.",
