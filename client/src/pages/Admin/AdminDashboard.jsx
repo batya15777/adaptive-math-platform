@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContextSetup.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
 import { getAdminStrings } from "../../components/Admin/adminStrings.js";
-import { getAnalytics } from "../../service/adminApi.js";
+import { getAnalytics, sendBroadcast } from "../../service/adminApi.js";
 import { StatCard } from "../../components/Admin/StatCard.jsx";
 
 // Real admin dashboard: read-only platform analytics (cards + simple tables).
@@ -16,6 +16,7 @@ export const AdminDashboard = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [broadcastMsg, setBroadcastMsg] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -26,10 +27,35 @@ export const AdminDashboard = () => {
         return () => { active = false; };
     }, [t.analyticsLoadError]);
 
+    useEffect(() => {
+        const es = new EventSource("http://localhost:8080/sse/admin", { withCredentials: true });
+        es.addEventListener("analytics", (e) => setData(JSON.parse(e.data)));
+        return () => es.close();
+    }, []);
+
+    const handleBroadcast = () => {
+        const msg = broadcastMsg.trim();
+        if (!msg) return;
+        sendBroadcast(msg).then(() => setBroadcastMsg(""));
+    };
+
     return (
         <div style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
             <h1>{t.dashboardTitle}</h1>
             <p>{t.welcome}, {user?.username} ({t.roleLabel}: {user?.role}).</p>
+
+            <div style={broadcastBox}>
+                <textarea
+                    value={broadcastMsg}
+                    onChange={(e) => setBroadcastMsg(e.target.value)}
+                    placeholder={t.broadcastPlaceholder}
+                    rows={2}
+                    style={broadcastTextarea}
+                />
+                <button onClick={handleBroadcast} disabled={!broadcastMsg.trim()} style={broadcastBtn}>
+                    {t.broadcastSend}
+                </button>
+            </div>
 
             {error && <p style={{ color: "#dc3545" }}>{error}</p>}
             {loading ? (
@@ -115,3 +141,6 @@ const table = { width: "100%", borderCollapse: "collapse" };
 const th = { textAlign: "start", borderBottom: "2px solid #ddd", padding: 8 };
 const cell = { borderBottom: "1px solid #eee", padding: 8 };
 const muted = { color: "#888" };
+const broadcastBox = { marginBottom: 24, padding: 16, background: "#f8f9fa", borderRadius: 8, border: "1px solid #dee2e6" };
+const broadcastTextarea = { width: "100%", padding: 8, fontSize: 14, borderRadius: 4, border: "1px solid #ced4da", resize: "vertical", boxSizing: "border-box", marginBottom: 8 };
+const broadcastBtn = { padding: "8px 16px", background: "#1a73e8", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 14 };
