@@ -10,12 +10,14 @@ import trophyAnimation from '../../assets/bonusStars/Trophy.json';
 import './QuestionGame.css';
 import TutorChat from '../../components/TutorChat/TutorChat.jsx';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { useProfile } from '../../contexts/useProfile.js';
 import {
     getStatus, getNextQuestion, submitAnswer, revealSolution,
     getBonusQuestion, submitBonusAnswer,
 } from '../../service/progressApi.js';
 import { getMyCluster } from '../../service/dashboardApi.js';
+import { useLanguage } from '../../i18n/useLanguage.js';
+import { format } from '../../i18n/languages.js';
+import { getQuestionGameStrings } from './questionGameStrings.js';
 
 const MAX_ATTEMPTS = 3;
 
@@ -23,7 +25,7 @@ const LANG_CODE = { HEBREW: 'he', ENGLISH: 'en', RUSSIAN: 'ru' };
 
 // "5|7|9|11" → ["5","7","9","11"];  "" / null → []
 // Pipe-delimited so an option may contain commas (e.g. "X1=5 , X2=10").
-const parseOptions  = (s) => (s ? s.split('|').map(o => o.trim()).filter(Boolean) : []);
+const parseOptions  = (s) => (s ? s.split(',').map(o => o.trim()).filter(Boolean) : []);
 // "a = 1\nb = 2" → ["a = 1","b = 2"]
 const parseSolution = (s) => (s ? s.split('\n').map(t => t.trim()).filter(Boolean) : []);
 
@@ -31,9 +33,11 @@ export const QuestionGame = () => {
     const { subSubjectId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const { profileData } = useProfile();
-    const language = LANG_CODE[profileData?.language] || 'he';
-    const subSubjectName = location.state?.subSubjectName || 'Practice';
+    const { language } = useLanguage();
+    // Memoized so it stays stable across renders (only changes with language),
+    // which keeps the useCallback/effect dependency chains below from re-firing.
+    const t = useMemo(() => getQuestionGameStrings(language), [language]);
+    const subSubjectName = location.state?.subSubjectName || t.practiceFallback;
     const backTopic   = location.state?.topic;    // carried through so "back" returns to
     const backSubject = location.state?.subject;  // the subject's sub-subjects tab
 
@@ -106,11 +110,11 @@ export const QuestionGame = () => {
             const res = await getNextQuestion(subSubjectId, language);
             setQuestion(res.data);
         } catch {
-            setError('Could not load the question. Please try again.');
+            setError(t.errLoadQuestion);
         } finally {
             setLoading(false);
         }
-    }, [subSubjectId, language]);
+    }, [subSubjectId, language, t]);
 
     const loadBonusQuestion = useCallback(async () => {
         setLoading(true); setError('');
@@ -121,11 +125,11 @@ export const QuestionGame = () => {
             const res = await getBonusQuestion(subSubjectId, language);
             setQuestion(res.data);
         } catch {
-            setError('Could not load the bonus question.');
+            setError(t.errLoadBonus);
         } finally {
             setLoading(false);
         }
-    }, [subSubjectId, language]);
+    }, [subSubjectId, language, t]);
 
     // Initial load: status (bar) + first question
     useEffect(() => {
@@ -185,7 +189,7 @@ export const QuestionGame = () => {
             applyProgress(data);
 
             if (data.answerCorrect) {
-                setFeedback({ type: 'correct', text: data.message || 'Correct! ✅' });
+                setFeedback({ type: 'correct', text: data.message || t.correct });
                 setConcluded(true);
                 if (data.bonusQuestionTriggered) setPendingBonus(true);
             } else {
@@ -197,15 +201,15 @@ export const QuestionGame = () => {
                 if (data.concluded === 'FAILED') {
                     setShowSolution(true);
                     setConcluded(true);
-                    setFeedback({ type: 'failed', text: data.message || 'Out of tries — here is the solution.' });
+                    setFeedback({ type: 'failed', text: data.message || t.outOfTries });
                 } else {
                     setAttemptNumber(n => n + 1);
                     setAnswer('');
-                    setFeedback({ type: 'wrong', text: `Not quite — try again (${attemptNumber + 1}/${MAX_ATTEMPTS}).` });
+                    setFeedback({ type: 'wrong', text: format(t.tryAgain, { current: attemptNumber + 1, max: MAX_ATTEMPTS }) });
                 }
             }
         } catch {
-            setError('Could not submit your answer. Please try again.');
+            setError(t.errSubmit);
         } finally {
             setLoading(false);
         }
@@ -228,7 +232,7 @@ export const QuestionGame = () => {
             setConcluded(true);
             if (correct) {
                 console.log('Correct Bonus Answer Detected - Fetching Animation');
-                setFeedback({ type: 'correct', text: 'Bonus solved! +50 ⭐' });
+                setFeedback({ type: 'correct', text: t.bonusSolved });
                 setShowTrophy(true);
                 // Auto-advance after the animation plays — clears the overlay AND loads next question
                 clearTimeout(trophyTimerRef.current);
@@ -241,11 +245,11 @@ export const QuestionGame = () => {
                 clearTimeout(shakeTimerRef.current);
                 setShaking(true);
                 shakeTimerRef.current = setTimeout(() => setShaking(false), 600);
-                setFeedback({ type: 'failed', text: 'Bonus missed — no stars this time.' });
+                setFeedback({ type: 'failed', text: t.bonusMissed });
                 setShowSolution(true);
             }
         } catch {
-            setError('Could not submit the bonus answer.');
+            setError(t.errSubmitBonus);
         } finally {
             setLoading(false);
         }
@@ -262,9 +266,9 @@ export const QuestionGame = () => {
             applyProgress(res.data);
             setShowSolution(true);
             setConcluded(true);
-            setFeedback({ type: 'failed', text: 'Solution shown — this one is marked as failed.' });
+            setFeedback({ type: 'failed', text: t.solutionShown });
         } catch {
-            setError('Could not reveal the solution.');
+            setError(t.errRevealSolution);
         } finally {
             setLoading(false);
         }
@@ -309,17 +313,17 @@ export const QuestionGame = () => {
                     onClick={() => navigate('/math-training', { state: { topic: backTopic, subject: backSubject } })}
                     style={btn('#6c757d')}
                 >
-                    ← {backSubject?.name || 'Back'}
+                    ← {backSubject?.name || t.back}
                 </button>
                 <h2 style={{ margin: 0, color: '#333', textTransform: 'capitalize' }}>{subSubjectName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {cluster && (
-                        <span style={adaptedBadge} title={`Tailored to your learning group: ${cluster.label || ''}`}>
-                            🎯 Adapted for you
+                        <span style={adaptedBadge} title={format(t.adaptedTitle, { label: cluster.label || '' })}>
+                            {t.adaptedForYou}
                         </span>
                     )}
                     {progress.currentStreak >= 10 && (
-                        <span style={streakBadge}>🔥 {progress.currentStreak} Streak!</span>
+                        <span style={streakBadge}>{format(t.streak, { count: progress.currentStreak })}</span>
                     )}
                     <span style={starBadge}>⭐ {progress.totalStars}</span>
                 </div>
@@ -328,17 +332,18 @@ export const QuestionGame = () => {
             {error && <p style={{ color: '#dc3545' }}>{error}</p>}
 
             {isBonus && (
-                <div style={bonusBanner}>🌟 Bonus question — harder, worth 50 stars!</div>
+                <div style={bonusBanner}>{t.bonusBanner}</div>
             )}
 
             {question ? (
                 <div style={card} className={shaking ? 'shake' : ''}>
                     <div style={{ fontSize: '13px', color: '#888', marginBottom: '6px' }}>
-                        Difficulty {question.difficultyLevel}
-                        {!isBonus && !concluded && ` · Attempt ${attemptNumber}/${MAX_ATTEMPTS}`}
+                        {format(t.difficulty, { level: question.difficultyLevel })}
+                        {!isBonus && !concluded && ` · ${format(t.attempt, { current: attemptNumber, max: MAX_ATTEMPTS })}`}
                     </div>
 
-                    <div style={expression}>{question.expression}</div>
+                    {/* Math stays LTR even when the page is RTL (Hebrew). */}
+                    <div dir="ltr" style={expression}>{question.expression}</div>
 
                     {/* answer area */}
                     {isMultipleChoice ? (
@@ -362,7 +367,7 @@ export const QuestionGame = () => {
                                 disabled={concluded || loading}
                                 onChange={e => setAnswer(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') handleAnswer(); }}
-                                placeholder="Type your answer"
+                                placeholder={t.answerPlaceholder}
                                 style={input}
                             />
                             <button
@@ -370,7 +375,7 @@ export const QuestionGame = () => {
                                 onClick={() => handleAnswer()}
                                 style={btn('#28a745')}
                             >
-                                Submit
+                                {t.submit}
                             </button>
                         </div>
                     )}
@@ -385,10 +390,10 @@ export const QuestionGame = () => {
                     {!isBonus && (
                         <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
                             <button onClick={() => setRevealedHints(n => n + 1)} disabled={hintDisabled} style={btn(hintDisabled ? '#adb5bd' : '#007bff')}>
-                                💡 Hint
+                                {t.hint}
                             </button>
                             <button onClick={handleRevealSolution} disabled={concluded || loading} style={btn(concluded ? '#adb5bd' : '#fd7e14')}>
-                                Show full solution
+                                {t.showSolution}
                             </button>
                         </div>
                     )}
@@ -404,26 +409,26 @@ export const QuestionGame = () => {
 
                     {concluded && (
                         <button onClick={handleNext} disabled={loading} style={{ ...btn('#007bff'), marginTop: '16px', width: '100%' }}>
-                            {pendingBonus ? 'Go to bonus question →' : 'Next question →'}
+                            {pendingBonus ? t.goToBonus : t.nextQuestion}
                         </button>
                     )}
                 </div>
             ) : (
-                loading && <p style={{ color: '#888' }}>Loading...</p>
+                loading && <p style={{ color: '#888' }}>{t.loading}</p>
             )}
 
             {/* progress to next level */}
             <div style={{ marginTop: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#555', marginBottom: '4px' }}>
-                    <span>Level {progress.currentLevel}{progress.inSubLevel && ' · Sub-level (easier practice)'}</span>
-                    <span>{progress.levelProgressCurrent}/{progress.levelProgressTarget} to next level</span>
+                    <span>{format(t.level, { level: progress.currentLevel })}{progress.inSubLevel && t.subLevel}</span>
+                    <span>{format(t.toNextLevel, { current: progress.levelProgressCurrent, target: progress.levelProgressTarget })}</span>
                 </div>
                 <div style={barTrack}>
                     <div style={{ ...barFill, width: `${barPct}%`, backgroundColor: progress.inSubLevel ? '#fd7e14' : '#28a745' }} />
                 </div>
                 {progress.inSubLevel && (
                     <p style={{ fontSize: '12px', color: '#fd7e14', marginTop: '4px' }}>
-                        Solve a few easier questions to get back to your level — the bar is paused.
+                        {t.subLevelPaused}
                     </p>
                 )}
             </div>

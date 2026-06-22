@@ -1,19 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useProfile } from '../../contexts/useProfile.js';
+import { useLanguage } from '../../i18n/useLanguage.js';
+import { format } from '../../i18n/languages.js';
 import { getTopics, getSubjects, getSubSubjects } from '../../service/trainingApi.js';
 import { initialAssessment } from '../../service/progressApi.js';
 
-const LANG_CODE = { HEBREW: 'he', ENGLISH: 'en', RUSSIAN: 'ru' };
+export const SurveyForm = ({ onComplete, t }) => {
+    const { language } = useLanguage();
 
-const CONFIDENCE_OPTIONS = [
-    { value: 'EASY',   icon: '🤔', title: 'Beginner',    desc: 'Math feels hard for me' },
-    { value: 'MEDIUM', icon: '🙂', title: 'Comfortable', desc: 'I know the basics well' },
-    { value: 'HARD',   icon: '😎', title: 'Advanced',    desc: 'I enjoy hard problems' },
-];
-
-export const SurveyForm = ({ onComplete }) => {
-    const { profileData } = useProfile();
-    const language = LANG_CODE[profileData?.language] || 'he';
+    // Confidence options: stable value/icon, localized title/desc from `t`.
+    const confidenceOptions = [
+        { value: 'EASY',   icon: '🤔', title: t.confBeginnerTitle,    desc: t.confBeginnerDesc },
+        { value: 'MEDIUM', icon: '🙂', title: t.confComfortableTitle, desc: t.confComfortableDesc },
+        { value: 'HARD',   icon: '😎', title: t.confAdvancedTitle,    desc: t.confAdvancedDesc },
+    ];
 
     const [grade,      setGrade]      = useState('');
     const [confidence, setConfidence] = useState('');
@@ -37,7 +36,7 @@ export const SurveyForm = ({ onComplete }) => {
                 const topics = res.data || [];
                 console.log('[Survey] Topics received:', topics);
                 if (topics.length === 0) {
-                    setError('No topics available. Please contact support.');
+                    setError(t.errNoTopics);
                     setSubjectsLoading(false);
                     return Promise.resolve(null);
                 }
@@ -51,16 +50,19 @@ export const SurveyForm = ({ onComplete }) => {
                 console.log('[Survey] Subjects received:', subs);
                 setSubjects(subs);
                 if (subs.length === 0) {
-                    setError('No subjects found for this topic. Please contact support.');
+                    setError(t.errNoSubjects);
                 }
             })
             .catch(err => {
                 console.error('[Survey] Error loading subjects:', err?.response?.data || err.message || err);
-                setError('Could not load subjects. Please refresh the page.');
+                setError(t.errLoadSubjects);
             })
             .finally(() => {
                 setSubjectsLoading(false);
             });
+        // Mount-only fetch; error strings come from `t` but we don't want to
+        // re-fetch topics when the language changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleSubjectChange = async (subjectId) => {
@@ -78,11 +80,11 @@ export const SurveyForm = ({ onComplete }) => {
             console.log('[Survey] Sub-subjects received:', subs);
             setSubSubjects(subs);
             if (subs.length === 0) {
-                setError('No sub-subjects found for this subject.');
+                setError(t.errNoSubSubjects);
             }
         } catch (err) {
             console.error('[Survey] Error loading sub-subjects:', err?.response?.data || err.message || err);
-            setError('Could not load sub-subjects. Please try again.');
+            setError(t.errLoadSubSubjects);
         } finally {
             setSubSubjectsLoading(false);
         }
@@ -117,7 +119,7 @@ export const SurveyForm = ({ onComplete }) => {
             onComplete(Number(firstId), res.data, ssName);
         } catch (err) {
             console.error('[Survey] Error starting assessment:', err?.response?.data || err.message || err);
-            setError('Could not start the assessment. Please try again.');
+            setError(t.errStartAssessment);
         } finally {
             setSubmitLoading(false);
         }
@@ -125,27 +127,27 @@ export const SurveyForm = ({ onComplete }) => {
 
     return (
         <div style={formWrap}>
-            <h2 style={sectionHeading}>Tell us about yourself</h2>
-            <p style={subtext}>We'll use this to place you at exactly the right level.</p>
+            <h2 style={sectionHeading}>{t.surveyHeading}</h2>
+            <p style={subtext}>{t.surveySubtext}</p>
 
             {error && <p style={errorMsg}>{error}</p>}
 
             {/* Grade */}
             <div style={fieldWrap}>
-                <label style={labelStyle}>What grade are you in?</label>
+                <label style={labelStyle}>{t.gradeLabel}</label>
                 <select value={grade} onChange={e => setGrade(e.target.value)} style={selectStyle}>
-                    <option value="" disabled>— Select grade —</option>
+                    <option value="" disabled>{t.gradePlaceholder}</option>
                     {Array.from({ length: 6 }, (_, i) => i + 1).map(g => (
-                        <option key={g} value={g}>Grade {g}</option>
+                        <option key={g} value={g}>{format(t.gradeOption, { grade: g })}</option>
                     ))}
                 </select>
             </div>
 
             {/* Confidence */}
             <div style={fieldWrap}>
-                <label style={labelStyle}>How confident are you in math?</label>
+                <label style={labelStyle}>{t.confidenceLabel}</label>
                 <div style={cardRow}>
-                    {CONFIDENCE_OPTIONS.map(({ value, icon, title, desc }) => (
+                    {confidenceOptions.map(({ value, icon, title, desc }) => (
                         <button
                             key={value}
                             type="button"
@@ -162,16 +164,16 @@ export const SurveyForm = ({ onComplete }) => {
 
             {/* Subject */}
             <div style={fieldWrap}>
-                <label style={labelStyle}>Subject:</label>
+                <label style={labelStyle}>{t.subjectLabel}</label>
                 {subjectsLoading ? (
-                    <p style={hint}>Loading subjects...</p>
+                    <p style={hint}>{t.subjectLoading}</p>
                 ) : (
                     <select
                         value={selectedSubjectId}
                         onChange={e => handleSubjectChange(e.target.value)}
                         style={selectStyle}
                     >
-                        <option value="" disabled>— Select subject —</option>
+                        <option value="" disabled>{t.subjectPlaceholder}</option>
                         {subjects.map(s => (
                             <option key={s.id} value={String(s.id)}>{s.name}</option>
                         ))}
@@ -183,15 +185,15 @@ export const SurveyForm = ({ onComplete }) => {
             {selectedSubjectId && (
                 <div style={fieldWrap}>
                     <label style={labelStyle}>
-                        Choose topics to practice:
+                        {t.chooseTopics}
                         {selectedSubSubjectIds.length > 0 && (
-                            <span style={selectedCount}> {selectedSubSubjectIds.length} selected</span>
+                            <span style={selectedCount}> {format(t.selectedCount, { count: selectedSubSubjectIds.length })}</span>
                         )}
                     </label>
                     {subSubjectsLoading ? (
-                        <p style={hint}>Loading topics...</p>
+                        <p style={hint}>{t.topicsLoading}</p>
                     ) : subSubjects.length === 0 ? (
-                        <p style={hint}>No topics found for this subject.</p>
+                        <p style={hint}>{t.noTopicsForSubject}</p>
                     ) : (
                         <div style={checkboxGrid}>
                             {subSubjects.map(ss => {
@@ -219,7 +221,7 @@ export const SurveyForm = ({ onComplete }) => {
                 disabled={!canSubmit}
                 style={submitBtn(canSubmit)}
             >
-                {submitLoading ? 'Loading...' : 'Start Assessment →'}
+                {submitLoading ? t.loading : t.startAssessment}
             </button>
         </div>
     );

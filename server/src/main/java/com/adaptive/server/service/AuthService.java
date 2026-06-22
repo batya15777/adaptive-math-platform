@@ -62,6 +62,11 @@ public class AuthService {
             return new LoginResponse(false , Errors.INVALID_CREDENTIALS.getMessage() , null);
         }//לוקחים סיסמא שלקוח הקליד נכניס לפונקציית HASH שלנו ונבדוק אם תוצאה שווה למה שיש בDB
 
+        // Non-active accounts (BLOCKED or DELETED) cannot log in.
+        if (!"ACTIVE".equals(user.getAccountStatus())) {
+            return new LoginResponse(false , Errors.ACCOUNT_INACTIVE.getMessage() , null);
+        }
+
         //יצרתי ככה סשן שיהיה תקף בינתיים ליום ואז שומרת אותו
         String tokenString = UUID.randomUUID().toString();
         Instant expiryDate = Instant.now().plus(1 , ChronoUnit.DAYS);

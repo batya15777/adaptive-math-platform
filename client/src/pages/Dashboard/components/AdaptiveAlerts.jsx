@@ -4,14 +4,16 @@ import { Card, COLORS, severityColor } from './DashboardPrimitives.jsx';
 
 // The "Adaptive Alert" section — dynamically suggests what to practise next,
 // driven by the ML cluster's (or the student's own) top error patterns.
-export const AdaptiveAlerts = ({ recommendations }) => {
+// Pure: receives the strings dictionary `t`. Note: rec.title/rec.message are
+// produced by the backend and rendered as-is.
+export const AdaptiveAlerts = ({ recommendations, t }) => {
     const navigate = useNavigate();
     const items = recommendations || [];
 
     const practise = (rec) => {
         if (rec.recommendedSubSubjectId) {
             navigate(`/math-training/${rec.recommendedSubSubjectId}/play`, {
-                state: { subSubjectName: rec.recommendedSubSubjectName || 'Practice' },
+                state: { subSubjectName: rec.recommendedSubSubjectName || t.practiceFallback },
             });
         } else {
             navigate('/math-training');
@@ -19,7 +21,7 @@ export const AdaptiveAlerts = ({ recommendations }) => {
     };
 
     return (
-        <Card title="Recommended for you 🎯">
+        <Card title={t.recommendedTitle}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {items.map((rec, i) => {
                     const color = severityColor(rec.severity);
@@ -41,13 +43,13 @@ export const AdaptiveAlerts = ({ recommendations }) => {
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.96 }}
                             >
-                                Practice now →
+                                {t.practiceNow}
                             </motion.button>
                         </motion.div>
                     );
                 })}
                 {items.length === 0 && (
-                    <p style={{ color: COLORS.muted, fontSize: 14, margin: 0 }}>No recommendations right now.</p>
+                    <p style={{ color: COLORS.muted, fontSize: 14, margin: 0 }}>{t.noRecommendations}</p>
                 )}
             </div>
         </Card>

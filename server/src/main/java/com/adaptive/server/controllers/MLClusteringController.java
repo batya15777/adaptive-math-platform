@@ -22,7 +22,7 @@ public class MLClusteringController {
     public ResponseEntity<MLClusteringResponse> run(
             @CookieValue(value = "session_token", required = false) String sessionToken,
             @RequestParam(value = "k", required = false) Integer k) {
-//        sessionValidationService.validateAdminOnly(sessionToken);
+        sessionValidationService.validateAdminOnly(sessionToken);
         return ResponseEntity.ok(mlClusteringService.runClustering(k));
     }
 }

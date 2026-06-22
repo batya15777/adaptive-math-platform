@@ -1,12 +1,16 @@
 import { useContext, useEffect } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContextSetup.js';
+import { useLanguage } from '../../i18n/useLanguage.js';
+import { getNavStrings } from '../navStrings.js';
 // import { CalendarDays, BarChart3, Files, ShoppingCart, House, BookUser } from 'lucide-react';
 // import styles from './DashboardLayout.module.css';
 
 const DashboardLayout = () => {
     const { user, authLoading } = useContext(AuthContext);
     const navigate = useNavigate();
+    const { language, dir } = useLanguage();
+    const t = getNavStrings(language);
 
     // Survey gate: redirect to placement survey until it has been completed exactly once.
     // Guard against authLoading so a hard-refresh race condition (user briefly null) can't
@@ -21,17 +25,17 @@ const DashboardLayout = () => {
     // const location = useLocation();
 
     const navItems = [
-        { name: 'Home', path: '/home'},
-        { name: 'My Dashboard', path: '/dashboard'},
-        { name: 'Math Training', path: '/math-training'},
-        { name: 'settings', path: '/profile-settings'}
+        { key: 'home',         label: t.home,         path: '/home'},
+        { key: 'dashboard',    label: t.myDashboard,  path: '/dashboard'},
+        { key: 'mathTraining', label: t.mathTraining, path: '/math-training'},
+        { key: 'settings',     label: t.settings,     path: '/profile-settings'}
     ];
 
     return (
-        <div >
+        <div dir={dir}>
             <aside >
                 <div >
-                    Mathematics Game
+                    {t.brand}
                 </div>
                 <nav >
                     {navItems.map((item) => {
@@ -40,12 +44,12 @@ const DashboardLayout = () => {
 
                         return (
                             <Link
-                                key={item.name}
+                                key={item.key}
                                 to={item.path}
 
                             >
                                 {/*<Icon size={20} />*/}
-                                <span>{item.name}</span>
+                                <span>{item.label}</span>
                             </Link>
                         );
                     })}

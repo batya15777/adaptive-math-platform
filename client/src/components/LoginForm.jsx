@@ -1,17 +1,24 @@
 import {useState , useContext} from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { emailRegex, passwordRegex } from "../utils/validators.js";
 import { login } from "../service/authApi.js";
 import { AuthContext } from "../context/AuthContextSetup.js";
+import { useLanguage } from "../i18n/useLanguage.js";
+import { getAuthStrings } from "./authStrings.js";
+import { LanguageSwitcher } from "./LanguageSwitcher/LanguageSwitcher.jsx";
+import "./LoginForm.css";
 
 function LoginForm() {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState("");
 
     const { loginUser } = useContext(AuthContext);
     const navigate = useNavigate();
+    const { language, dir } = useLanguage();
+    const t = getAuthStrings(language);
 
     const validation = () => {
         let hasError = false;
@@ -39,44 +46,62 @@ function LoginForm() {
                     console.log(response.data);
                     console.log("Logged in!", response.data.loginData.user);
 
-                    loginUser(response.data.loginData.user);
-                    navigate("/"); // Redirect to dashboard
+                    const loggedInUser = response.data.loginData.user;
+                    loginUser(loggedInUser);
+                    navigate(loggedInUser?.role === "ADMIN" ? "/admin/dashboard" : "/");
                 } else {
-                    setErrors("Email or Password are incorrect")
+                    // Backend returns a distinct message for a non-active account (blocked
+                    // or deleted); show a dedicated localized message, generic one otherwise.
+                    const msg = response.data.message || "";
+                    setErrors(/not active|inactive/i.test(msg) ? t.accountInactive : t.invalidCreds);
                 }
             })
             .catch(error => {
                 console.log(error)
-                setErrors("שגיאת תקשורת עם השרת, אנא נסו שוב מאוחר יותר")
+                setErrors(t.network)
             });
 
     }
 
     return (
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleLogin} dir={dir}>
+            <div style={{ textAlign: "end", marginBottom: 8 }}><LanguageSwitcher /></div>
             <input
                 type="email"
                 value={email}
-                placeholder="Enter email"
+                placeholder={t.emailPh}
                 onChange={(e) => setEmail(e.target.value)}
             />
 
-            <input
-                type="password"
-                value={password}
-                placeholder="Enter password"
-                onChange={(e) => setPassword(e.target.value)}
-            />
+            <div>
+                <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    placeholder={t.passwordPh}
+                    onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                    type="button"
+                    onClick={() => setShowPassword((currentValue) => !currentValue)}
+                >
+                    {showPassword ? t.hide : t.show}
+                </button>
+            </div>
 
             <button
                 type="submit"
                 disabled={validation()}
             >
-                Login
+                {t.login}
             </button>
 
             {errors && <p style={{color: "red"}}>{errors}</p>}
+
+            <p className="login-register-hint">
+                {t.noAccount}
+                <Link to="/register">{t.registerHere}</Link>
+            </p>
         </form>
     );
 

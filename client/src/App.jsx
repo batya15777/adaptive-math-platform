@@ -13,6 +13,13 @@ import {ProfileSettings} from "./components/ProfileSettings/ProfileSettings.jsx"
 import { MathTraining } from "./pages/MathTraining/MathTraining.jsx";
 import { QuestionGame } from "./pages/QuestionGame/QuestionGame.jsx";
 import { LevelManagerPage } from "./pages/LevelManager/LevelManagerPage.jsx";
+import { AdminLayout } from "./pages/Admin/AdminLayout.jsx";
+import { AdminDashboard } from "./pages/Admin/AdminDashboard.jsx";
+import { AdminUsers } from "./pages/Admin/AdminUsers.jsx";
+import { AdminTopics } from "./pages/Admin/AdminTopics.jsx";
+import { AdminSubjects } from "./pages/Admin/AdminSubjects.jsx";
+import { AdminSubSubjects } from "./pages/Admin/AdminSubSubjects.jsx";
+import { AdminMLGroups } from "./pages/Admin/AdminMLGroups.jsx";
 // Lazy-loaded so the charts (recharts) + animations (framer-motion) only download
 // when a student actually opens the dashboard, keeping the main bundle lean.
 const StudentDashboard = lazy(() =>
@@ -31,7 +38,16 @@ const ProtectedRoute = ({ element }) => {
 const AuthRoute = ({ element }) => {
   const { user, authLoading } = useContext(AuthContext);
   if (authLoading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={user.role === "ADMIN" ? "/admin/dashboard" : "/"} replace />;
+  return element;
+};
+
+// Admin-only route — waits for session restore, then requires role ADMIN
+const AdminRoute = ({ element }) => {
+  const { user, authLoading } = useContext(AuthContext);
+  if (authLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "ADMIN") return <Navigate to="/" replace />;
   return element;
 };
 
@@ -48,6 +64,17 @@ function AppRoutes() {
 
         {/* Level survey — protected but outside DashboardLayout to avoid the survey gate loop */}
         <Route path="/level-survey" element={<ProtectedRoute element={<LevelManagerPage />} />} />
+
+        {/* Admin area — guarded layout (language switcher + dir) with nested pages */}
+        <Route path="/admin" element={<AdminRoute element={<AdminLayout />} />}>
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="topics" element={<AdminTopics />} />
+          <Route path="topics/:topicId/subjects" element={<AdminSubjects />} />
+          <Route path="subjects/:subjectId/sub-subjects" element={<AdminSubSubjects />} />
+          <Route path="ml-groups" element={<AdminMLGroups />} />
+        </Route>
 
         {/* Dashboard - only accessible when logged in */}
         <Route path="/" element={<ProtectedRoute element={<DashboardLayout />} />}>

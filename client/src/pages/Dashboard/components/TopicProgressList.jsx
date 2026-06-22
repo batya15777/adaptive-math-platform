@@ -2,23 +2,24 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, LabelL
 import { Card, COLORS, rateColor } from './DashboardPrimitives.jsx';
 
 // Success rate per topic, drawn as an animated horizontal bar chart.
-export const TopicProgressList = ({ topics }) => {
+// Pure: receives the strings dictionary `t`. (Topic names come from the backend.)
+export const TopicProgressList = ({ topics, t }) => {
     const data = (topics || [])
         .slice()
         .sort((a, b) => b.successRate - a.successRate)
-        .map((t) => ({
-            name: cap(t.name),
-            successRate: t.successRate,
-            level: t.currentLevel,
-            correct: t.correct,
-            attempts: t.attempts,
+        .map((topic) => ({
+            name: cap(topic.name),
+            successRate: topic.successRate,
+            level: topic.currentLevel,
+            correct: topic.correct,
+            attempts: topic.attempts,
         }));
 
     return (
-        <Card title="Progress by topic 📚">
+        <Card title={t.topicProgressTitle}>
             {data.length === 0 ? (
                 <p style={{ color: COLORS.muted, fontSize: 14, margin: 0 }}>
-                    No practice yet — head to Math Training to get started.
+                    {t.noPracticeYet}
                 </p>
             ) : (
                 <ResponsiveContainer width="100%" height={Math.max(140, data.length * 52)}>
@@ -30,7 +31,7 @@ export const TopicProgressList = ({ topics }) => {
                         />
                         <Tooltip
                             cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-                            formatter={(v, _n, p) => [`${v}%  (${p.payload.correct}/${p.payload.attempts})`, 'Success']}
+                            formatter={(v, _n, p) => [`${v}%  (${p.payload.correct}/${p.payload.attempts})`, t.successLabel]}
                             labelFormatter={(l) => l}
                         />
                         <Bar dataKey="successRate" radius={[0, 8, 8, 0]} isAnimationActive animationDuration={900}>

@@ -13,6 +13,11 @@ public class Topic {
     @Column(nullable = false)
     private String name;
 
+    // Soft-delete / draft flag. DB default TRUE so existing topics stay visible
+    // to students after the column is added under ddl-auto=update.
+    @Column(nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT TRUE")
+    private Boolean active = true;
+
     public Topic() {
     }
 
@@ -34,5 +39,13 @@ public class Topic {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public Boolean getActive() {
+        return active == null ? Boolean.TRUE : active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 }

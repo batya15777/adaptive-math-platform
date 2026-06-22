@@ -1,12 +1,22 @@
 import { useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContextSetup.js";
 import { logout } from "../service/authApi.js";
+import { useLanguage } from "../i18n/useLanguage.js";
+import { getNavStrings } from "./navStrings.js";
+import { LanguageSwitcher } from "./LanguageSwitcher/LanguageSwitcher.jsx";
 
 function Navbar() {
 
     const { user, logoutUser } = useContext(AuthContext);
     const navigate = useNavigate();
+    const location = useLocation();
+    const { language, dir } = useLanguage();
+    const t = getNavStrings(language);
+
+    // Hide the language switcher during an active exercise: the quiz generates
+    // questions in the active language, so changing it mid-question is disruptive.
+    const isExerciseScreen = /\/math-training\/[^/]+\/play$/.test(location.pathname);
 
     const handleLogout = () => {
         logout()
@@ -25,11 +35,14 @@ function Navbar() {
 
 
     return(
-        <nav style={{ padding: "10px", backgroundColor: "#f0f0f0", marginBottom: "20px" }}>
-            <span style={{ marginRight: "20px" }}>
-                שלום, {user.username}!
-            </span>
-            <button onClick={handleLogout}>התנתק</button>
+        <nav dir={dir} style={{ padding: "10px", backgroundColor: "#f0f0f0", marginBottom: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+            <span>{t.greeting}, {user.username}!</span>
+            <button onClick={handleLogout}>{t.logout}</button>
+            {/* Single, app-wide language control — defined once here. Hidden on the
+                active exercise screen to avoid changing the language mid-question. */}
+            {!isExerciseScreen && (
+                <span style={{ marginInlineStart: "auto" }}><LanguageSwitcher /></span>
+            )}
         </nav>
     );
 

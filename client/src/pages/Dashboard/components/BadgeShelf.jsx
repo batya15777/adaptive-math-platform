@@ -2,12 +2,14 @@ import { motion } from 'framer-motion';
 import { Card, COLORS } from './DashboardPrimitives.jsx';
 
 // Gamification: earned badges pop in with a spring; locked ones are greyed out.
-export const BadgeShelf = ({ badges }) => {
+// Pure: receives the strings dictionary `t`. (Badge name/description come from
+// the backend and are rendered as-is.)
+export const BadgeShelf = ({ badges, t }) => {
     const items = badges || [];
     const earnedCount = items.filter((b) => b.earned).length;
 
     return (
-        <Card title={`Badges 🏅 (${earnedCount}/${items.length})`}>
+        <Card title={`${t.badgesTitle} (${earnedCount}/${items.length})`}>
             <div style={grid}>
                 {items.map((b, i) => (
                     <motion.div
@@ -24,7 +26,7 @@ export const BadgeShelf = ({ badges }) => {
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 'bold', color: b.earned ? '#333' : COLORS.muted }}>{b.name}</div>
                         <div style={{ fontSize: 11, color: COLORS.muted, textAlign: 'center' }}>{b.description}</div>
-                        {b.earned && <span style={earnedTag}>Earned</span>}
+                        {b.earned && <span style={earnedTag}>{t.earned}</span>}
                     </motion.div>
                 ))}
             </div>

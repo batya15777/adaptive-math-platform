@@ -1,16 +1,22 @@
 import { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContextSetup.js';
 import { Leaderboard } from '../../components/Leaderboard/Leaderboard.jsx';
+import { useLanguage } from '../../i18n/useLanguage.js';
+import { format } from '../../i18n/languages.js';
+import { getHomeStrings } from './homeStrings.js';
 
+// Renders under DashboardLayout, which owns `dir` — so no dir on this root.
 export const Home = () => {
     const { user } = useContext(AuthContext);
-    const displayName = user?.username || user?.fullName || 'Student';
+    const { language } = useLanguage();
+    const t = getHomeStrings(language);
+    const displayName = user?.username || user?.fullName || t.student;
 
     return (
         <div style={page}>
             <div style={welcomeBox}>
-                <h1 style={welcomeTitle}>Welcome back, {displayName}! 👋</h1>
-                <p style={welcomeSub}>Keep practicing to climb the leaderboard.</p>
+                <h1 style={welcomeTitle}>{format(t.welcomeBack, { name: displayName })}</h1>
+                <p style={welcomeSub}>{t.keepPracticing}</p>
             </div>
 
             <Leaderboard />

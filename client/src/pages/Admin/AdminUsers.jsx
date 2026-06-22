@@ -1,0 +1,157 @@
+import { useState, useEffect, useContext } from "react";
+import { getUsers, updateUserRole, setUserStatus, updateUser } from "../../service/adminApi.js";
+import { UsersTable } from "../../components/Admin/UsersTable.jsx";
+import { UserEditModal } from "../../components/Admin/UserEditModal.jsx";
+import { getAdminStrings } from "../../components/Admin/adminStrings.js";
+import { useLanguage } from "../../i18n/useLanguage.js";
+import { format } from "../../i18n/languages.js";
+import { AuthContext } from "../../context/AuthContextSetup.js";
+
+const PAGE_SIZE = 20;
+
+// "Smart" page: owns data fetching, server-side search/filter/pagination and
+// loading/error state. The table itself is a separate presentational component.
+export const AdminUsers = () => {
+    const { language, locale, dir } = useLanguage();
+    const t = getAdminStrings(language);
+    const { user } = useContext(AuthContext);
+
+    const [data, setData] = useState({ users: [], page: 0, totalPages: 0, totalElements: 0 });
+    const [page, setPage] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [notice, setNotice] = useState("");
+    const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [role, setRole] = useState(""); // "" = All
+    const [status, setStatus] = useState(""); // "" = default (ACTIVE + BLOCKED)
+    const [version, setVersion] = useState(0); // bump to refetch after a mutation
+    const [editing, setEditing] = useState(null); // null | user being edited
+    const [editError, setEditError] = useState("");
+
+    // Debounce the search box (setState lives in the timer callback, not the effect body).
+    useEffect(() => {
+        const id = setTimeout(() => setDebouncedSearch(search), 300);
+        return () => clearTimeout(id);
+    }, [search]);
+
+    useEffect(() => {
+        let active = true;
+        getUsers(page, PAGE_SIZE, debouncedSearch, role, status)
+            .then((res) => { if (active) { setData(res.data); setError(""); } })
+            .catch(() => { if (active) setError(t.usersLoadError); })
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [page, debouncedSearch, role, status, version, t.usersLoadError]);
+
+    // Page reset + loading flag live in the handlers (not in the effect body) for eslint.
+    const goToPage = (next) => { setLoading(true); setPage(next); };
+    const onSearch = (v) => { setSearch(v); setPage(0); setLoading(true); };
+    const onRole = (v) => { setRole(v); setPage(0); setLoading(true); };
+    const onStatus = (v) => { setStatus(v); setPage(0); setLoading(true); };
+
+    const onChangeRole = (u, nextRole) => {
+        if (!window.confirm(t.changeRoleConfirm)) return;
+        setNotice("");
+        setError("");
+        updateUserRole(u.id, nextRole)
+            .then(() => { setNotice(t.roleChangeSuccess); setVersion((v) => v + 1); })
+            .catch((e) => setError(e.response?.status === 409 ? t.roleChangeBlocked : t.roleChangeError));
+    };
+
+    const onSetStatus = (u, nextStatus) => {
+        const confirmMsg = nextStatus === "DELETED" ? t.softDeleteConfirm
+            : nextStatus === "BLOCKED" ? t.blockConfirm
+            : t.unblockConfirm;
+        if (!window.confirm(confirmMsg)) return;
+        setNotice("");
+        setError("");
+        setUserStatus(u.id, nextStatus)
+            .then(() => { setNotice(t.statusChangeSuccess); setVersion((v) => v + 1); })
+            .catch((e) => setError(e.response?.status === 409 ? t.statusChangeBlocked : t.statusChangeError));
+    };
+
+    const onEdit = (u) => { setEditError(""); setEditing(u); };
+
+    const onSubmitEdit = (values) => {
+        setEditError("");
+        updateUser(editing.id, values)
+            .then(() => { setEditing(null); setNotice(t.userUpdateSuccess); setVersion((v) => v + 1); })
+            .catch((e) => {
+                const s = e.response?.status;
+                setEditError(s === 409 ? t.emailInUse : s === 400 ? t.invalidDetails : t.userUpdateError);
+            });
+    };
+
+    const hasResults = data.users.length > 0;
+
+    return (
+        <div style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
+            <h1>{t.usersTitle}</h1>
+
+            <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => onSearch(e.target.value)}
+                    placeholder={t.searchPlaceholder}
+                    style={{ padding: 8, minWidth: 260 }}
+                />
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 14, color: "#6c757d" }}>{t.filterRole}:</span>
+                    <select value={role} onChange={(e) => onRole(e.target.value)} style={{ padding: 6 }}>
+                        <option value="">{t.filterAll}</option>
+                        <option value="STUDENT">{t.filterStudents}</option>
+                        <option value="ADMIN">{t.filterAdmins}</option>
+                    </select>
+                </label>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 14, color: "#6c757d" }}>{t.filterStatus}:</span>
+                    <select value={status} onChange={(e) => onStatus(e.target.value)} style={{ padding: 6 }}>
+                        <option value="">{t.statusOptDefault}</option>
+                        <option value="ACTIVE">{t.statusOptActive}</option>
+                        <option value="BLOCKED">{t.statusOptBlocked}</option>
+                        <option value="DELETED">{t.statusOptDeleted}</option>
+                        <option value="ALL">{t.statusOptAll}</option>
+                    </select>
+                </label>
+            </div>
+
+            {notice && <p style={{ color: "#28a745" }}>{notice}</p>}
+            {error && <p style={{ color: "#dc3545" }}>{error}</p>}
+            {loading ? (
+                <p style={{ color: "#888" }}>{t.loading}</p>
+            ) : hasResults ? (
+                <>
+                    <UsersTable users={data.users} t={t} locale={locale} onChangeRole={onChangeRole} onSetStatus={onSetStatus} onEdit={onEdit} currentUserId={user?.id} />
+
+                    <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "center" }}>
+                        <button onClick={() => goToPage(page - 1)} disabled={page <= 0}>{t.prev}</button>
+                        <span>
+                            {format(t.usersPageStatus, {
+                                page: data.page + 1,
+                                total: Math.max(data.totalPages, 1),
+                                count: data.totalElements,
+                            })}
+                        </span>
+                        <button onClick={() => goToPage(page + 1)} disabled={page >= data.totalPages - 1}>{t.next}</button>
+                    </div>
+                </>
+            ) : (
+                <p style={{ color: "#888" }}>{t.noResults}</p>
+            )}
+
+            {editing && (
+                <UserEditModal
+                    key={editing.id}
+                    initialUser={editing}
+                    onSubmit={onSubmitEdit}
+                    onClose={() => setEditing(null)}
+                    dir={dir}
+                    t={t}
+                    error={editError}
+                />
+            )}
+        </div>
+    );
+};
