@@ -19,11 +19,13 @@ import { AdminUsers } from "./pages/Admin/AdminUsers.jsx";
 import { AdminTopics } from "./pages/Admin/AdminTopics.jsx";
 import { AdminSubjects } from "./pages/Admin/AdminSubjects.jsx";
 import { AdminSubSubjects } from "./pages/Admin/AdminSubSubjects.jsx";
-import { AdminMLGroups } from "./pages/Admin/AdminMLGroups.jsx";
 // Lazy-loaded so the charts (recharts) + animations (framer-motion) only download
-// when a student actually opens the dashboard, keeping the main bundle lean.
+// when a user actually opens a dashboard, keeping the main bundle lean.
 const StudentDashboard = lazy(() =>
   import("./pages/Dashboard/StudentDashboard.jsx").then((m) => ({ default: m.StudentDashboard }))
+);
+const AdminMLGroups = lazy(() =>
+  import("./pages/Admin/AdminMLGroups.jsx").then((m) => ({ default: m.AdminMLGroups }))
 );
 
 // Waits for session restore before deciding — prevents redirect on refresh
@@ -73,7 +75,14 @@ function AppRoutes() {
           <Route path="topics" element={<AdminTopics />} />
           <Route path="topics/:topicId/subjects" element={<AdminSubjects />} />
           <Route path="subjects/:subjectId/sub-subjects" element={<AdminSubSubjects />} />
-          <Route path="ml-groups" element={<AdminMLGroups />} />
+          <Route
+            path="ml-groups"
+            element={
+              <Suspense fallback={<div style={{ padding: 24, color: "#888" }}>Loading…</div>}>
+                <AdminMLGroups />
+              </Suspense>
+            }
+          />
         </Route>
 
         {/* Dashboard - only accessible when logged in */}
