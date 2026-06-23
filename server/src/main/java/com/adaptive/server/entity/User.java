@@ -2,6 +2,8 @@ package com.adaptive.server.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import javax.persistence.*;
 
 @Entity
@@ -43,6 +45,16 @@ public class User {
     // DB default 'ACTIVE' so existing rows stay usable after the column is added (ddl-auto).
     @Column(name = "account_status", nullable = false, columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'")
     private String accountStatus = "ACTIVE";
+
+    // Avatar store: which catalog avatars the student owns (free ones are implicitly owned)
+    // and which is currently active. Server-authoritative — purchases deduct stars here.
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_owned_avatars", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "avatar_id")
+    private Set<String> ownedAvatarIds = new HashSet<>();
+
+    @Column(name = "selected_avatar_id")
+    private String selectedAvatarId;
 
     public User() {
     }
@@ -142,5 +154,21 @@ public class User {
 
     public void setAccountStatus(String accountStatus) {
         this.accountStatus = accountStatus;
+    }
+
+    public Set<String> getOwnedAvatarIds() {
+        return ownedAvatarIds == null ? (ownedAvatarIds = new HashSet<>()) : ownedAvatarIds;
+    }
+
+    public void setOwnedAvatarIds(Set<String> ownedAvatarIds) {
+        this.ownedAvatarIds = ownedAvatarIds;
+    }
+
+    public String getSelectedAvatarId() {
+        return selectedAvatarId;
+    }
+
+    public void setSelectedAvatarId(String selectedAvatarId) {
+        this.selectedAvatarId = selectedAvatarId;
     }
 }

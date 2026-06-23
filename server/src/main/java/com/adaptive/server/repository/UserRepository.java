@@ -21,7 +21,7 @@ public interface UserRepository extends JpaRepository<User,Long> {
     // Leaderboard entries enriched with each user's avatar (UserProfile.pictureId).
     // LEFT JOIN so a user without a profile row still appears (pictureId comes back null,
     // and the client falls back to a default icon). Limit via Pageable.
-    @Query("SELECT new com.adaptive.server.DTOs.LeaderboardEntryDto(u.fullName, u.totalStars, p.pictureId) " +
+    @Query("SELECT new com.adaptive.server.DTOs.LeaderboardEntryDto(u.fullName, u.totalStars, p.pictureId, u.selectedAvatarId, u.gender) " +
             "FROM User u LEFT JOIN UserProfile p ON p.user = u " +
             "ORDER BY u.totalStars DESC")
     List<LeaderboardEntryDto> findTopWithAvatar(Pageable pageable);

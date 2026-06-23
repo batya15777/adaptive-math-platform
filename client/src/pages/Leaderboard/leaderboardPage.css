@@ -1,3 +1,4 @@
 .lbp { min-height: 100vh; padding: 26px 18px 48px; }
 .lbp-topbar { max-width: 1080px; margin: 0 auto; } /* wide: logo far right, controls far left */
+.mg-space.lbp .lbp-topbar { position: relative; z-index: 30; } /* language dropdown opens above the list */
 .lbp-inner { max-width: 560px; margin: 10px auto 0; display: flex; flex-direction: column; gap: 14px; }
