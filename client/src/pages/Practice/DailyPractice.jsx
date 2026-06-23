@@ -12,6 +12,7 @@ import { QuestionCard } from '../../components/practice/QuestionCard.jsx';
 import { TutorChatLauncher } from '../../components/TutorChat/TutorChatLauncher.jsx';
 import { getQuestionGameStrings } from '../QuestionGame/questionGameStrings.js';
 import { isDailyComplete } from '../Home/homeLocal.js';
+import { playLevelUpSound } from '../../utils/sound.js';
 import { useDailySession } from './useDailySession.js';
 import { getDailyStrings } from './dailyStrings.js';
 import { DAILY_GOAL, DAILY_BONUS, progressPct } from './dailyLogic.js';
@@ -60,17 +61,27 @@ export const DailyPractice = () => {
 
     const session = useDailySession({ topics, language, qt, userId: user?.id, goal: DAILY_GOAL });
 
-    const view = alreadyDone ? 'already'
+    // 'done' (just finished in THIS session) must win over 'already': finishing the 5th
+    // question marks today complete in local storage, which would otherwise immediately
+    // flip the view to 'already' and swallow the celebration (confetti / +100 / chime).
+    const view = session.phase === 'done' ? 'done'
+        : alreadyDone ? 'already'
         : bootstrapping ? 'loading'
         : loadError ? 'error'
         : topics.length === 0 ? 'empty'
-        : session.phase; // loading | answering | concluded | done | error
+        : session.phase; // loading | answering | concluded | error
 
     const correct = session.correct;
     const q = session.question;
     const fb = session.feedback;
     const stars = session.totalStars;
     const pct = progressPct(correct, DAILY_GOAL);
+
+    // Celebrate the finish with the same success chime as the regular practice (shared
+    // helper). Fires once, when the session first reaches the completion view.
+    useEffect(() => {
+        if (view === 'done') playLevelUpSound();
+    }, [view]);
 
     // ── completion (celebrate or already-done) ──────────────────────────────────
     if (view === 'done' || view === 'already') {

@@ -31,6 +31,8 @@ export const ProfileProvider = ({ children }) => {
     useEffect(() => {
         if (!user) {
             // Guest: theme + language come from localStorage so they survive a refresh.
+            // This intentionally synchronizes profile state with an auth-state transition.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setProfile({ ...DEFAULT_PROFILE, theme: readGuestTheme(), language: readGuestLanguage() });
             return;
         }

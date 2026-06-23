@@ -3,7 +3,6 @@ package com.adaptive.server.service;
 import com.adaptive.server.DTOs.InitialAssessmentRequest;
 import com.adaptive.server.DTOs.SubmitAnswerRequest;
 import com.adaptive.server.entity.*;
-import com.adaptive.server.entity.enums.CalculationOperation;
 import com.adaptive.server.entity.enums.QuestionStatus;
 import com.adaptive.server.entity.enums.SpaceshipStatus;
 import com.adaptive.server.repository.*;
@@ -18,8 +17,6 @@ import com.adaptive.server.service.sse.AdminSseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,13 +29,11 @@ import java.util.stream.Collectors;
 @Service
 public class LevelManagerService {//מוח שמנהל התקדמות תלמיד מחלקה חשובה
 
-    static final int LEVEL_UP_WINDOW = 16; //חלון עליית רמה
+    static final int LEVEL_UP_WINDOW = 16;
     static final int LEVEL_UP_THRESHOLD = 12; // ≥ 80 %
-    static final int INTERMEDIATE_WINDOW = 10; // חלון רמת ביניים
-    static final int INTERMEDIATE_THRESHOLD =  6; // < 60 %
-    static final int WEAKNESS_WINDOW = 15; //זיהוי חולשות
-    static final double WEAKNESS_ERROR_RATE = 0.50;//אם תלמיד טעה ב50 אחוז שאלות אז נסמן כחולשה ונייצר תרגילים שמתמקדים בנושא הזה
-    static final int WEAKNESS_MIN_SAMPLE = 4;//מדגם מינימלי אם נגיד טעה ב4 אז נכריז חולשה
+    static final int INTERMEDIATE_WINDOW = 10;
+    static final int INTERMEDIATE_THRESHOLD = 6;
+    static final int WEAKNESS_MIN_SAMPLE = 4;
     private static final int MIN_LEVEL = 1;//רמה מינימלית שלא נרד לרמה 0
 
     // ── question-game progression ────────────────────────────────────────
@@ -51,8 +46,6 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     static final int MAX_DEDUP_ATTEMPTS = 3;         // regen tries to avoid a seen expression
     static final int STARS_NORMAL = 10;              // correct at normal level
     static final int STARS_SUBLEVEL = 5;             // correct inside the sub-level
-
-    private static final String CALCULATION_SUBJECT_NAME = "Calculation"; //אם בעתיד נרצה לשנות את השם במסד הנתונים, נצטרך לשנות אותו רק בשורה הזו והוא יתעדכן אוטומטית בכל הפרויקט
 
     static final int MAX_BONUS_GEN_ATTEMPTS = 5;//המערכת תנסה להגריל שאלה חדשה מקסימום 5 פעמים זה מונע לולאה אינסופית
 
@@ -529,20 +522,19 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         return response;
     }
 
-
-    SpaceshipStatus evaluateSpaceshipStatus(long total, long correct30, long correct10) {
-        //סטטוס חללית
-        if (total >= LEVEL_UP_WINDOW && correct30 >= LEVEL_UP_THRESHOLD) {
+    // Pure progression-analysis helpers. Kept package-private because they are independently
+    // unit-tested and can be reused by dashboard/adaptation flows without persistence coupling.
+    SpaceshipStatus evaluateSpaceshipStatus(long total, long correctWindow, long correctRecent) {
+        if (total >= LEVEL_UP_WINDOW && correctWindow >= LEVEL_UP_THRESHOLD) {
             return SpaceshipStatus.BOOSTING;
         }
-        if (total >= INTERMEDIATE_WINDOW && correct10 < INTERMEDIATE_THRESHOLD) {
+        if (total >= INTERMEDIATE_WINDOW && correctRecent < INTERMEDIATE_THRESHOLD) {
             return SpaceshipStatus.STOPPED;
         }
         return SpaceshipStatus.MOVING;
     }
 
     void applyStatusToProgress(StudentProgress progress, SpaceshipStatus status) {
-        //עדכון פיזי של התקדמות תלמיד
         switch (status) {
             case BOOSTING:
                 progress.setCurrentLevel(progress.getCurrentLevel() + 1);
@@ -552,86 +544,24 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                 progress.setCurrentLevel(Math.max(MIN_LEVEL, progress.getCurrentLevel() - 1));
                 progress.setCurrentProgress(0);
                 break;
-            case MOVING:
             default:
-                int current = progress.getCurrentProgress() == null ? 0 : progress.getCurrentProgress();
-                progress.setCurrentProgress(current + 1);
-                break;
+                progress.setCurrentProgress(currentProgressOf(progress) + 1);
         }
     }
 
-    //לאתר איפה תלמיד מתקשה ומשנה סוגי שאלות במחולל שלא ייתאש התלמיד
     String detectWeakness(List<ExerciseAttempt> attempts) {
-        if (attempts.isEmpty()) return null;
-        // שלב 1: איסוף נתונים לתוך מפה (מתודה נפרדת)
-        Map<String, TypeStats> stats = collectStats(attempts);
-        // שלב 2: ניתוח המפה למציאת החולשה (מתודה נפרדת)
-        return findWorstWeakness(stats);
-    }
-
-    // מתודה נפרדת לאיסוף הנתונים
-    private Map<String, TypeStats> collectStats(List<ExerciseAttempt> attempts) {
-        Map<String, TypeStats> stats = new HashMap<>();
+        Map<String, Integer> wrongByType = new HashMap<>();
         for (ExerciseAttempt attempt : attempts) {
-            if (Boolean.TRUE.equals(attempt.getIsCorrect())) {
-                continue;
-            }
-            String key = attempt.getErrorPattern() != null ? attempt.getErrorPattern() : attempt.getQuestionType();
-            if (key == null) continue;
-            stats.computeIfAbsent(key, k -> new TypeStats()).record(true);
+            if (Boolean.TRUE.equals(attempt.getIsCorrect())) continue;
+            String key = attempt.getErrorPattern() != null
+                    ? attempt.getErrorPattern() : attempt.getQuestionType();
+            if (key != null) wrongByType.merge(key, 1, Integer::sum);
         }
-        return stats;
-    }
-
-    // מתודה נפרדת לחיפוש החולשה
-    private String findWorstWeakness(Map<String, TypeStats> stats) {
-        String maxWeakness = null;
-        int maxWrong = -1;
-        for (Map.Entry<String, TypeStats> entry : stats.entrySet()) {
-            if (entry.getValue().wrong >= WEAKNESS_MIN_SAMPLE && entry.getValue().wrong > maxWrong) {
-                maxWrong = entry.getValue().wrong;
-                maxWeakness = entry.getKey();
-            }
-        }
-        return maxWeakness;
-    }
-
-
-    private SubSubject resolveTargetSubSubject(SubSubject subSubject, String weakness) {
-        //איזה נושא לימוד נביא לתלמיד שמתקשה בנושא מסוים
-        if (weakness != null) {
-            CalculationOperation fromWeakness = questionTypeToOperation(weakness);
-            if (fromWeakness != null) {
-                SubSubject weaknessSubSubject = subSubjectRepository
-                        .findByNameAndSubject_Name(fromWeakness.getSubSubjectName(),
-                                CALCULATION_SUBJECT_NAME);
-                if (weaknessSubSubject != null) {
-                    return weaknessSubSubject;
-                }
-            }
-        }
-        return subSubject;
-    }
-
-    private CalculationOperation questionTypeToOperation(String questionType) {
-        //מיפוי - תרגום של שמות סוגי שאלות לבין פעולה חשבונית
-        if (questionType == null) {
-            return null;
-        }
-        switch (questionType.toUpperCase()) {
-            case "SIMPLE_ADDITION":
-            case "CARRYING_ADDITION":
-                return CalculationOperation.ADD;
-            case "SIMPLE_SUBTRACTION":
-            case "CARRYING_SUBTRACTION":
-                return CalculationOperation.SUB;
-            case "MULTIPLICATION":
-                return CalculationOperation.MULT;
-            case "DIVISION":
-                return CalculationOperation.DIV;
-            default:
-                return null;
-        }
+        return wrongByType.entrySet().stream()
+                .filter(entry -> entry.getValue() >= WEAKNESS_MIN_SAMPLE)
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
     }
 
 
@@ -652,79 +582,6 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                 question.getLanguage(), question.getDifficultyLevel(), LocalDateTime.now());
         archiveRepository.save(archive);
     }
-
-    private ProgressStatusResponse buildResponse(User user, StudentProgress progress, SpaceshipStatus status,
-                                                 String weakness, boolean lastAnswerCorrect,
-                                                 long correct10, long correct30, long total) {
-        boolean isLevelUp = (status == SpaceshipStatus.BOOSTING);
-        boolean isIntermediate = (status == SpaceshipStatus.STOPPED);
-
-        ProgressStatusResponse response = new ProgressStatusResponse();
-        response.setSuccess(true);
-        response.setCurrentLevel(progress.getCurrentLevel());
-        response.setSpaceshipStatus(status.name());
-        response.setLevelUp(isLevelUp);
-        response.setInIntermediateLevel(isIntermediate);
-        response.setWeaknessType(weakness);
-        response.setRecommendedQuestionType(isIntermediate ? weakness : null);
-        response.setCorrectLast10((int) correct10);
-        response.setCorrectLast30((int) correct30);
-        response.setTotalAttempts(total);
-        response.setTotalStars(user.getTotalStars());
-        response.setBonusQuestionTriggered(isLevelUp);
-        response.setMessage(resolveMessage(status, weakness, lastAnswerCorrect));
-        return response;
-    }
-
-    private ProgressStatusResponse buildStatusFromHistory(StudentProgress progress, Long userId, Long subSubjectId) {
-        //היא חוסכת כתיבה כפולה של הלוגיקה של שליפת המשתמש בכל מקום שבו אנחנו רוצים לבנות סטטוס התקדמות מתקציר ההיסטוריה.
-        User user = resolveUser(userId);
-        return buildStatusFromHistory(progress, userId, subSubjectId, user);
-    }
-
-    private ProgressStatusResponse buildStatusFromHistory(StudentProgress progress, Long userId,
-                                                          Long subSubjectId, User user) {
-        //סיכום מצב קריאה בלבד, איפה תלמיד עומד כרגע
-        long total = attemptRepository.countByUserIdAndSubSubjectId(userId, subSubjectId);
-        List<ExerciseAttempt> last30 = fetchRecent(userId, subSubjectId, LEVEL_UP_WINDOW);
-
-        long correct30 = countCorrect(last30);
-        long correct10 = countCorrect(slice(last30, INTERMEDIATE_WINDOW));
-        SpaceshipStatus status = evaluateSpaceshipStatus(total, correct30, correct10);
-        String weakness = detectWeakness(slice(last30, WEAKNESS_WINDOW));
-
-        ProgressStatusResponse response = new ProgressStatusResponse();
-        response.setSuccess(true);
-        response.setCurrentLevel(progress.getCurrentLevel());
-        response.setSpaceshipStatus(status.name());
-        response.setWeaknessType(weakness);
-        response.setCorrectLast10((int) correct10);
-        response.setCorrectLast30((int) correct30);
-        response.setTotalAttempts(total);
-        response.setTotalStars(user.getTotalStars());
-        response.setMessage("המשך לתרגל — אתה עושה עבודה מצוינת! ⭐");
-        return response;
-    }
-
-    private ProgressStatusResponse buildDefaultStatus() {
-        //חוסכת כתיבת NULL כשרוצים לאתחל מצב בסיסי
-        return buildDefaultStatus(null);
-    }
-
-    private ProgressStatusResponse buildDefaultStatus(User user) {
-        //יוצרים אובייקט תגובה התחלתי
-        ProgressStatusResponse response = new ProgressStatusResponse();
-        response.setSuccess(true);
-        response.setCurrentLevel(MIN_LEVEL);
-        response.setSpaceshipStatus(SpaceshipStatus.MOVING.name());
-        response.setCorrectLast10(0);
-        response.setCorrectLast30(0);
-        response.setTotalAttempts(0);
-        response.setTotalStars(user != null ? user.getTotalStars() : 0);
-        response.setMessage("עוד לא התחלת נושא זה. בוא נתחיל! 🚀");
-        return response;
-    }
-
 
     private QuestionResponse buildQuestionResponse(Question question, Long subSubjectId,
                                                    String weakness, String displayName) {
@@ -779,20 +636,6 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                 ? "Student" : user.getFullName().trim();
     }
 
-    private String resolveMessage(SpaceshipStatus status, String weakness, boolean lastCorrect) {
-        switch (status) {
-            case BOOSTING:
-                return "כל הכבוד! עלית רמה! 🚀 מחכה לך שאלת בונוס — 50 כוכבים על הפרק!";
-            case STOPPED:
-                return weakness != null
-                        ? "אתה מתקשה ב-" + formatQuestionType(weakness) + " – בוא נתרגל אותו יותר! 🎯"
-                        : "בוא נתרגל קצת יותר לאט — אתה כמעט שם! 💪";
-            default:
-                return lastCorrect ? "מצוין! תשובה נכונה! ✅" : "לא נורא, נסה שוב! 💡";
-        }
-    }
-
-
     private void saveAttempt(User user, SubSubject subSubject, Long questionId,
                              Boolean isCorrect, Integer difficultyLevel,
                              String questionType, String userAnswer,
@@ -836,13 +679,6 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     }
 
 
-    private List<ExerciseAttempt> fetchRecent(Long userId, Long subSubjectId, int limit) {
-        //מסתכלים על מה תלמיד עשה לאחרונה לפי זמן תשובה-רלוונטיים ביותר
-        return attemptRepository.findByUserIdAndSubSubjectId(userId, subSubjectId,
-                PageRequest.of(0, limit, Sort.by("answeredAt").descending()));
-    }
-
-
     private User resolveUser(Long userId) {
         //מבטיחה שהמערכת עובדת רק עם משתמשים שבאמת קיימים במסד הנתונים
         Optional<User> userOptional = userRepository.findById(userId);
@@ -863,29 +699,6 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     }
 
 
-    private long countCorrect(List<ExerciseAttempt> attempts) {
-        //סיכום של ביצועים של תלמיד - שנדע רמת הצלחה של תלמיד
-        long count = 0;
-        for (ExerciseAttempt attempt : attempts) {
-            if (Boolean.TRUE.equals(attempt.getIsCorrect())) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-
-    private List<ExerciseAttempt> slice(List<ExerciseAttempt> list, int max) {
-        //לקחת רשימה של תרגילים ולהחזיר רק את ה-X הראשונים מתוכה, בלי לגרום לקריסה אם ביקשת יותר ממה שיש
-        if (list.size() > max) {
-            // מחזירים רק חלק מהרשימה (מההתחלה ועד max)
-            return list.subList(0, max);
-        }
-        // אם הרשימה קטנה מהמקסימום, מחזירים את כל מה שיש בה
-        return list;
-    }
-
-
     private String formatQuestionType(String questionType) {
         //מתודת תרגום
         switch (questionType) {
@@ -901,31 +714,5 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
             default:                     return questionType;
         }
     }
-
-
-        static class TypeStats {
-        //מונה חכם שיודע לחשב אחוז שגיאות של תלמיד בנושא מסוים
-            int total = 0;
-            int wrong = 0;
-            // מתודה שמקבלת פרמטר ומעדכנת את הנתונים
-            void record(boolean isWrong) {
-                // תמיד מוסיפים 1 לסך הכל השאלות שראינו
-                this.total = this.total + 1;
-                // אם התשובה הייתה שגויה, מוסיפים 1 למונה הטעויות
-                if (isWrong == true) {
-                    this.wrong = this.wrong + 1;
-                }
-            }
-            // מתודה שמחשבת את האחוז
-            double errorRate() {
-                // מונעים חילוק באפס (אם עוד לא פתרנו שאלות)
-                if (this.total == 0) {
-                    return 0.0;
-                }
-                // מבצעים חילוק רגיל ומחזירים את האחוז
-                double rate = (double) this.wrong / this.total;
-                return rate;
-            }
-        }
 
 }

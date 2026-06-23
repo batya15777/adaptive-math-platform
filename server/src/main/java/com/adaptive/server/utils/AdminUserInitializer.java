@@ -2,6 +2,7 @@ package com.adaptive.server.utils;
 
 import com.adaptive.server.entity.User;
 import com.adaptive.server.repository.UserRepository;
+import com.adaptive.server.service.PasswordService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,6 +31,7 @@ public class AdminUserInitializer implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(AdminUserInitializer.class);
 
     private final UserRepository userRepository;
+    private final PasswordService passwordService;
 
     @Value("${app.admin.email:admin@adaptive.com}")
     private String adminEmail;
@@ -38,8 +40,9 @@ public class AdminUserInitializer implements CommandLineRunner {
     @Value("${app.admin.full-name:Admin User}")
     private String adminFullName;
 
-    public AdminUserInitializer(UserRepository userRepository) {
+    public AdminUserInitializer(UserRepository userRepository, PasswordService passwordService) {
         this.userRepository = userRepository;
+        this.passwordService = passwordService;
     }
 
     @Override
@@ -51,9 +54,7 @@ public class AdminUserInitializer implements CommandLineRunner {
         }
         User admin = new User(
                 adminFullName,
-                // Same hashing the login path uses (MD5 of fullName + password), so the
-                // seeded credentials authenticate without any special-casing.
-                GenerateHash.hashMd5(adminFullName, adminPassword),
+                passwordService.hash(adminPassword),
                 adminEmail,
                 null,   // age
                 null,   // gender

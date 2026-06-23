@@ -1,3 +1,7 @@
+/* Regular leveled practice — themed full-screen flow, matching the daily-practice look.
+   Follows light/dark via the shared --mg-* tokens (spaceTokens.css). */
+
+/* wrong-answer shake (applied to the question card) */
 @keyframes shake {
     0%,  100% { transform: translateX(0)           rotate(0deg); }
     15%        { transform: translateX(-9px)         rotate(-1deg); }
@@ -7,7 +11,48 @@
     75%        { transform: translateX(-3px); }
     90%        { transform: translateX(3px); }
 }
+.shake { animation: shake 0.55s ease-in-out; }
 
-.shake {
-    animation: shake 0.55s ease-in-out;
+.qg-root { min-height: 100vh; padding: 18px 18px 48px; }
+.qg-topbar { max-width: 1080px; margin: 0 auto; } /* wide top bar: logo far right, back far left */
+.qg-inner { max-width: 640px; margin: 6px auto 0; display: flex; flex-direction: column; gap: 18px; }
+
+/* header: subject name + status badges */
+.qg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.qg-title { margin: 0; font-size: clamp(22px, 4vw, 28px); font-weight: 800; color: var(--mg-ts); text-transform: capitalize; }
+.qg-badges { display: flex; align-items: center; gap: 8px; }
+.qg-badge { font-size: 13px; font-weight: 700; border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
+.qg-badge--star { color: var(--mg-stars); font-variant-numeric: tabular-nums; }
+.qg-badge--adapt { color: #fff; background: var(--mg-cta); }
+.qg-badge--streak { color: #fff; background: linear-gradient(135deg, #F59E0B, #F97316); box-shadow: 0 0 10px rgba(245, 158, 11, .4); }
+
+.qg-bonus-banner {
+    padding: 10px 14px; border-radius: 12px; font-weight: 700; font-size: 14px;
+    color: var(--mg-warning); background: var(--mg-s2); border: 1px solid var(--mg-bd);
+}
+
+.qg-msg { margin: 0; text-align: center; color: var(--mg-tm); font-size: 15px; }
+.qg-msg--err { color: var(--mg-danger); }
+
+.qg-card { padding: 24px; min-height: 200px; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+
+/* footer controls inside the card */
+.qg-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.qg-next { width: 100%; }
+
+/* progress toward the next level */
+.qg-progress { display: flex; flex-direction: column; gap: 6px; }
+.qg-progress-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--mg-tm); }
+.qg-bar { width: 100%; height: 12px; border-radius: 999px; background: var(--mg-s2); border: 1px solid var(--mg-bd); overflow: hidden; }
+.qg-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--mg-cta); transition: width .35s var(--mg-ease); }
+.qg-bar > i.qg-bar-sub { background: linear-gradient(135deg, #F59E0B, #F97316); }
+.qg-sublevel { margin: 0; font-size: 12px; color: var(--mg-warning); }
+
+.qg-tutor { margin-top: 6px; }
+
+/* trophy overlay (bonus solved) */
+.qg-trophy {
+    position: fixed; inset: 0; z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, .55); pointer-events: none;
 }

@@ -12,7 +12,7 @@ import com.adaptive.server.repository.SubSubjectRepository;
 import com.adaptive.server.repository.SubjectRepository;
 import com.adaptive.server.repository.TopicRepository;
 import com.adaptive.server.repository.UserRepository;
-import com.adaptive.server.utils.GenerateHash;
+import com.adaptive.server.service.PasswordService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -34,14 +34,14 @@ public class ServerApplication {
     }
 
     @Bean
-    CommandLineRunner createMockUser(UserRepository userRepository) {
+    CommandLineRunner createMockUser(UserRepository userRepository, PasswordService passwordService) {
         return args -> {
             String testEmail = "test@example.com";
 
             if (!userRepository.existsByEmail(testEmail)) {
                 String myUsername = "jon";
                 String myPassword = "wow";
-                String hash = GenerateHash.hashMd5(myUsername, myPassword);
+                String hash = passwordService.hash(myPassword);
 
                 User mockUser = new User(
                         myUsername,
@@ -58,14 +58,14 @@ public class ServerApplication {
     }
 
     @Bean
-    CommandLineRunner createMockUser2(UserRepository userRepository) {
+    CommandLineRunner createMockUser2(UserRepository userRepository, PasswordService passwordService) {
         return args -> {
             String testEmail = "a@a.aa";
 
             if (!userRepository.existsByEmail(testEmail)) {
                 String myUsername = "דליה";
                 String myPassword = "aa";
-                String hash = GenerateHash.hashMd5(myUsername, myPassword);
+                String hash = passwordService.hash(myPassword);
 
                 User mockUser = new User(
                         myUsername,

@@ -18,7 +18,7 @@ export const DAILY_STRINGS = {
         // completion
         doneTitle: "All done! 🎉",
         donePraise: { male: "Amazing work — you nailed your daily practice!", female: "Amazing work — you nailed your daily practice!", neutral: "Amazing work — you nailed your daily practice!" },
-        doneBonus: "+{bonus} bonus points",
+        doneBonus: "🌟 You earned {bonus} stars!",
         doneStars: "You now have {stars} stars ⭐",
         alreadyDone: "You've already finished today's practice — see you tomorrow! 🌟",
     },
@@ -36,7 +36,7 @@ export const DAILY_STRINGS = {
         // completion
         doneTitle: "כל הכבוד! 🎉",
         donePraise: { male: "עבודה מדהימה — סיימת את התרגול היומי!", female: "עבודה מדהימה — סיימת את התרגול היומי!", neutral: "עבודה מדהימה — סיימתם את התרגול היומי!" },
-        doneBonus: "+{bonus} נקודות בונוס",
+        doneBonus: "🌟 זכית ב-{bonus} כוכבים!",
         doneStars: "יש לך עכשיו {stars} כוכבים ⭐",
         alreadyDone: "כבר סיימת את התרגול היומי — נתראה מחר! 🌟",
     },
@@ -54,7 +54,7 @@ export const DAILY_STRINGS = {
         // completion
         doneTitle: "Готово! 🎉",
         donePraise: { male: "Отличная работа — вы справились с ежедневной практикой!", female: "Отличная работа — вы справились с ежедневной практикой!", neutral: "Отличная работа — вы справились с ежедневной практикой!" },
-        doneBonus: "+{bonus} бонусных очков",
+        doneBonus: "🌟 Вы получили {bonus} звёзд!",
         doneStars: "Теперь у вас {stars} звёзд ⭐",
         alreadyDone: "Вы уже завершили сегодняшнюю практику — до завтра! 🌟",
     },

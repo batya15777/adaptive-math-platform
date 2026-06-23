@@ -15,7 +15,9 @@ import "./appTopBar.css";
 //   minimal — hide the language + theme controls (keep logo + logout).
 //   backTo  — exercise mode: show only a "← back" button (to that path) + the logo, with
 //             no theme / language / logout, so nothing distracts the student mid-question.
-export function AppTopBar({ minimal = false, backTo = null }) {
+//   onBack  — optional custom back handler (e.g. navigate with state); overrides backTo's
+//             default navigation while keeping the same exercise-mode layout.
+export function AppTopBar({ minimal = false, backTo = null, onBack = null }) {
     const { logoutUser } = useContext(AuthContext);
     const { profileData, options, updateProfile, loading } = useProfile();
     const { language } = useLanguage();
@@ -34,8 +36,8 @@ export function AppTopBar({ minimal = false, backTo = null }) {
         <header className="appbar">
             <Link to="/home" className="appbar-logo" aria-label="MathGalaxy"><MathGalaxyLogo size="md" /></Link>
             <div className="appbar-controls">
-                {backTo ? (
-                    <button type="button" className="appbar-back" onClick={() => navigate(backTo)}>← {nav.back}</button>
+                {(backTo || onBack) ? (
+                    <button type="button" className="appbar-back" onClick={onBack || (() => navigate(backTo))}>← {nav.back}</button>
                 ) : (
                     <>
                         {!minimal && <ThemeToggle />}
