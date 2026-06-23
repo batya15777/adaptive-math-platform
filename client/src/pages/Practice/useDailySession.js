@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getNextQuestion, submitAnswer, claimDailyBonus } from '../../service/progressApi.js';
+import { PRACTICE_MODE, getUsedQuestionIds, recordUsedQuestionId } from '../../utils/practiceExclusions.js';
 import { format } from '../../i18n/languages.js';
 import {
     bumpDailyProgress, readDailySession, writeDailySession, clearDailySession,
@@ -45,28 +46,32 @@ export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOA
 
     const showQuestion = useCallback((tp, q) => {
         seenRef.current.add(q.questionId);
+        // Claim this id for Daily today so Recommended Practice will exclude it.
+        recordUsedQuestionId(PRACTICE_MODE.DAILY, userId, q.questionId);
         setTopic(tp); setQuestion(q);
         setAttempt(1); setFeedback(null); setError('');
         setPhase('answering'); setBusy(false);
-    }, []);
+    }, [userId]);
 
     // Loads a *fresh* (unseen) question for slot `startIdx`, re-rolling across topics if
     // the engine returns one already shown (see pickFreshQuestion). State updates happen
     // in the promise callbacks, so this is safe to call straight from an effect.
     const loadQuestion = useCallback((startIdx) => {
         if (ordered.length === 0) return undefined;
+        // Exclude whatever Recommended Practice has already used today, so the two never overlap.
+        const excludeIds = getUsedQuestionIds(PRACTICE_MODE.RECOMMENDED, userId);
         return pickFreshQuestion({
             orderedTopics: ordered,
             startIndex: startIdx,
             seen: seenRef.current,
-            fetch: (id) => getNextQuestion(id, language).then(res => res.data),
+            fetch: (id) => getNextQuestion(id, language, excludeIds).then(res => res.data),
         })
             .then(picked => {
                 if (picked) showQuestion(picked.topic, picked.question);
                 else { setPhase('error'); setBusy(false); }
             })
             .catch(() => { setError(qt.errLoadQuestion); setPhase('error'); setBusy(false); });
-    }, [ordered, language, qt, showQuestion]);
+    }, [ordered, language, qt, showQuestion, userId]);
 
     // First question once topics are available — unless we restored one from storage.
     useEffect(() => {

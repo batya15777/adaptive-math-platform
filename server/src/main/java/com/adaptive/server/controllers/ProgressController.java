@@ -81,10 +81,13 @@ public class ProgressController {
             @CookieValue(value = "session_token", required = false) String sessionToken,
             @RequestParam Long subSubjectId,
             @RequestParam(defaultValue = "he") String language,
-            @RequestParam(defaultValue = "false") boolean mc) {
+            @RequestParam(defaultValue = "false") boolean mc,
+            // ids to skip so Daily and Recommended practice never serve the same question today
+            @RequestParam(required = false) java.util.List<Long> excludeQuestionIds) {
         SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
-        QuestionResponse result = levelManagerService.getNextQuestion(userId, subSubjectId, language, mc);
+        java.util.List<Long> exclude = excludeQuestionIds != null ? excludeQuestionIds : java.util.Collections.emptyList();
+        QuestionResponse result = levelManagerService.getNextQuestion(userId, subSubjectId, language, mc, exclude);
         return ResponseEntity.ok(result);
     }
 

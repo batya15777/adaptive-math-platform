@@ -283,6 +283,14 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
     @Transactional
     public QuestionResponse getNextQuestion(Long userId, Long subSubjectId, String language, boolean multipleChoice) {
+        return getNextQuestion(userId, subSubjectId, language, multipleChoice, java.util.Collections.emptyList());
+    }
+
+    // excludeQuestionIds: ids the caller must NOT receive — used to keep the Daily Practice set
+    // and the Recommended Practice set disjoint on the same day (each flow excludes the other's
+    // questions). An active (resume) question that is in this set is dropped and regenerated.
+    public QuestionResponse getNextQuestion(Long userId, Long subSubjectId, String language, boolean multipleChoice,
+                                            java.util.List<Long> excludeQuestionIds) {
         // Difficulty comes from the student's level (sub-level forces the easiest). The
         // multipleChoice flag is derived from difficulty here, so the client renders MC
         // for easy questions and a typed box for the hardest.
@@ -308,11 +316,15 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         // Resume the same question on page reload — only generate a new one once resolved.
         Long activeId = progress.getActiveQuestionId();
         if (activeId != null) {
-            Optional<Question> active = questionRepository.findById(activeId);
-            if (active.isPresent() && active.get().getStatus() == QuestionStatus.CURRENT) {
-                return buildQuestionResponse(active.get(), subSubjectId, null, displayNameOf(user));
+            boolean excluded = excludeQuestionIds != null && excludeQuestionIds.contains(activeId);
+            if (!excluded) {
+                Optional<Question> active = questionRepository.findById(activeId);
+                if (active.isPresent() && active.get().getStatus() == QuestionStatus.CURRENT) {
+                    return buildQuestionResponse(active.get(), subSubjectId, null, displayNameOf(user));
+                }
             }
-            // Stale pointer (question was resolved without clearing the field) — clear it.
+            // Stale pointer (resolved without clearing), OR the active question belongs to the
+            // other practice flow today (excluded) — drop it and generate a fresh question.
             progress.setActiveQuestionId(null);
         }
 
