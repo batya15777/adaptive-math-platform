@@ -7,19 +7,18 @@ import { getAdminStrings } from "../../components/Admin/adminStrings.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
 import { format } from "../../i18n/languages.js";
 
-// "Smart" page for managing the subjects of one topic.
 // The topic info (name/active) comes from the backend response, so the title is
-// correct even on a direct visit / refresh of /admin/topics/:topicId/subjects.
+// correct even on a direct visit / refresh.
 export const AdminSubjects = () => {
     const { topicId } = useParams();
     const { language, dir } = useLanguage();
     const t = getAdminStrings(language);
     const navigate = useNavigate();
 
-    const [data, setData] = useState(null); // { topicName, topicActive, activeSubjectCount, subjects }
+    const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [editing, setEditing] = useState(null); // null = closed, {} = create, {id,name} = edit
+    const [editing, setEditing] = useState(null);
 
     const load = useCallback(() => {
         return getTopicSubjects(topicId)
@@ -45,35 +44,59 @@ export const AdminSubjects = () => {
     const handleToggle = (subject) => {
         setSubjectActive(subject.id, !subject.active)
             .then(load)
-            // The UI already disables the blocked cases; any 409 here falls back to generic.
             .catch(() => setError(t.errGeneric));
     };
 
     const title = data ? format(t.subjectsOf, { topic: data.topicName }) : t.subjectsTitle;
+    const activeCount = data?.subjects?.filter((s) => s.active).length ?? 0;
 
     return (
-        <div dir={dir} style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
-            <p style={{ marginTop: 0 }}><Link to="/admin/topics">{t.backToTopics}</Link></p>
-            <h1>{title}</h1>
-            {data && !data.topicActive && (
-                <p style={{ color: "#6c757d", fontSize: 13 }}>{t.statusDraft}</p>
-            )}
-            <p style={{ color: "#888", fontSize: 14 }}>{t.subjectsHint}</p>
-            <button onClick={() => setEditing({})} style={{ marginBottom: 16 }}>+ {t.newSubject}</button>
-            {error && <p style={{ color: "#dc3545" }}>{error}</p>}
-            {loading ? (
-                <p style={{ color: "#888" }}>{t.loading}</p>
-            ) : data ? (
-                <SubjectsTable
-                    subjects={data.subjects}
-                    topicActive={data.topicActive}
-                    activeSubjectCount={data.activeSubjectCount}
-                    onEdit={setEditing}
-                    onToggle={handleToggle}
-                    onManageSubSubjects={(s) => navigate(`/admin/subjects/${s.id}/sub-subjects`)}
-                    t={t}
-                />
-            ) : null}
+        <div dir={dir}>
+            <div className="adm-page-header">
+                <div>
+                    <Link to="/admin/topics" className="adm-back-link" style={{ display: "inline-flex", marginBottom: 8 }}>
+                        ← {t.backToTopics}
+                    </Link>
+                    <h1 className="adm-page-title">📖 {title}</h1>
+                    {data && !data.topicActive && (
+                        <span className="adm-badge adm-badge--draft" style={{ display: "inline-flex", marginTop: 4 }}>{t.statusDraft}</span>
+                    )}
+                    <p className="adm-page-subtitle" style={{ marginTop: 6 }}>{t.subjectsHint}</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    {!loading && data && (
+                        <span style={{ fontSize: 12, color: "var(--adm-txt-muted)" }}>
+                            {activeCount} {t.statusActive} / {data.subjects.length}
+                        </span>
+                    )}
+                    <button className="adm-btn adm-btn--primary" onClick={() => setEditing({})}>
+                        + {t.newSubject}
+                    </button>
+                </div>
+            </div>
+
+            {error && <div className="adm-notice adm-notice--error">⚠ {error}</div>}
+
+            <div className="adm-card">
+                {loading ? (
+                    <div className="adm-loading">⏳ {t.loading}</div>
+                ) : data?.subjects?.length === 0 ? (
+                    <div className="adm-empty">
+                        <div className="adm-empty-icon">📖</div>
+                        {t.noData}
+                    </div>
+                ) : data ? (
+                    <SubjectsTable
+                        subjects={data.subjects}
+                        topicActive={data.topicActive}
+                        activeSubjectCount={data.activeSubjectCount}
+                        onEdit={setEditing}
+                        onToggle={handleToggle}
+                        onManageSubSubjects={(s) => navigate(`/admin/subjects/${s.id}/sub-subjects`)}
+                        t={t}
+                    />
+                ) : null}
+            </div>
 
             <NameFormModal
                 open={editing !== null}

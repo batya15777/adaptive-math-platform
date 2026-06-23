@@ -5,11 +5,15 @@ import { clusterColor, clusterName, tooltipContentStyle } from "./mlVisuals.js";
 // Donut showing how students are distributed across clusters, with the cohort
 // total in the hole. Pure: receives `groups`, `t`, `locale`.
 export const ClusterDistributionChart = ({ groups, t }) => {
-    const data = (groups || []).map((g, i) => ({
-        name: clusterName(g.label, `#${g.clusterId}`),
-        value: g.memberCount,
-        color: clusterColor(i),
-    }));
+    const data = (groups || []).map((g, i) => {
+        const fullName = clusterName(g.label, `#${g.clusterId}`);
+        return {
+            name: fullName.length > 18 ? fullName.slice(0, 17) + "…" : fullName,
+            fullName,
+            value: g.memberCount,
+            color: clusterColor(i),
+        };
+    });
     const total = data.reduce((sum, d) => sum + (d.value || 0), 0);
 
     return (
@@ -36,16 +40,36 @@ export const ClusterDistributionChart = ({ groups, t }) => {
                             <Tooltip content={<DonutTooltip total={total} t={t} />} />
                             <Legend
                                 verticalAlign="bottom"
-                                height={28}
+                                layout="horizontal"
                                 iconType="circle"
-                                formatter={(value) => <span style={{ color: "#555", fontSize: 12 }}>{value}</span>}
+                                iconSize={9}
+                                wrapperStyle={{
+                                    paddingTop: 10,
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    justifyContent: "center",
+                                    gap: "4px 14px",
+                                    lineHeight: "1.6",
+                                }}
+                                formatter={(value) => (
+                                    <span style={{
+                                        color: "var(--adm-txt-2, #555)",
+                                        fontSize: 11,
+                                        whiteSpace: "nowrap",
+                                        maxWidth: 120,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        display: "inline-block",
+                                        verticalAlign: "middle",
+                                    }}>{value}</span>
+                                )}
                             />
                         </PieChart>
                     </ResponsiveContainer>
                     {/* Total in the donut hole */}
                     <div style={center}>
-                        <span style={{ fontSize: 30, fontWeight: 800, color: "#222", lineHeight: 1 }}>{total}</span>
-                        <span style={{ fontSize: 11, color: COLORS.muted }}>{t.membersUnit}</span>
+                        <span style={{ fontSize: 30, fontWeight: 800, color: "var(--adm-txt, #222)", lineHeight: 1 }}>{total}</span>
+                        <span style={{ fontSize: 11, color: "var(--adm-txt-muted)" }}>{t.membersUnit}</span>
                     </div>
                 </div>
             )}
@@ -57,10 +81,11 @@ const DonutTooltip = ({ active, payload, total, t }) => {
     if (!active || !payload || !payload.length) return null;
     const p = payload[0];
     const pct = total > 0 ? Math.round((p.value / total) * 100) : 0;
+    const displayName = p.payload?.fullName || p.name;
     return (
-        <div style={tooltipContentStyle}>
-            <div style={{ fontWeight: 700, color: "#2b2b35", marginBottom: 2 }}>{p.name}</div>
-            <div style={{ color: COLORS.muted }}>{p.value} {t.membersUnit} · {pct}%</div>
+        <div style={{ ...tooltipContentStyle, background: "var(--adm-surface, #fff)", border: "1px solid var(--adm-bd)", color: "var(--adm-txt)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>{displayName}</div>
+            <div style={{ color: "var(--adm-txt-muted)", fontSize: 12 }}>{p.value} {t.membersUnit} · {pct}%</div>
         </div>
     );
 };

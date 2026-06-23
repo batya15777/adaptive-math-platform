@@ -68,5 +68,6 @@ const row = { display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }
 const statsGrid = { display: "grid", gridTemplateColumns: "repeat(2, minmax(130px, 1fr))", gap: 12, flex: 1 };
 const tile = {
     display: "flex", flexDirection: "column", gap: 2, alignItems: "flex-start",
-    padding: "12px 14px", backgroundColor: "#f8f9fb", borderRadius: 12, border: "1px solid #eee",
+    padding: "12px 14px", backgroundColor: "var(--adm-surface-2, #f8f9fb)",
+    borderRadius: 12, border: "1px solid var(--adm-bd, #eee)",
 };

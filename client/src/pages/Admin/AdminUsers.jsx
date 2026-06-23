@@ -9,8 +9,6 @@ import { AuthContext } from "../../context/AuthContextSetup.js";
 
 const PAGE_SIZE = 20;
 
-// "Smart" page: owns data fetching, server-side search/filter/pagination and
-// loading/error state. The table itself is a separate presentational component.
 export const AdminUsers = () => {
     const { language, locale, dir } = useLanguage();
     const t = getAdminStrings(language);
@@ -23,13 +21,12 @@ export const AdminUsers = () => {
     const [notice, setNotice] = useState("");
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
-    const [role, setRole] = useState(""); // "" = All
-    const [status, setStatus] = useState(""); // "" = default (ACTIVE + BLOCKED)
-    const [version, setVersion] = useState(0); // bump to refetch after a mutation
-    const [editing, setEditing] = useState(null); // null | user being edited
+    const [role, setRole] = useState("");
+    const [status, setStatus] = useState("");
+    const [version, setVersion] = useState(0);
+    const [editing, setEditing] = useState(null);
     const [editError, setEditError] = useState("");
 
-    // Debounce the search box (setState lives in the timer callback, not the effect body).
     useEffect(() => {
         const id = setTimeout(() => setDebouncedSearch(search), 300);
         return () => clearTimeout(id);
@@ -44,7 +41,6 @@ export const AdminUsers = () => {
         return () => { active = false; };
     }, [page, debouncedSearch, role, status, version, t.usersLoadError]);
 
-    // Page reset + loading flag live in the handlers (not in the effect body) for eslint.
     const goToPage = (next) => { setLoading(true); setPage(next); };
     const onSearch = (v) => { setSearch(v); setPage(0); setLoading(true); };
     const onRole = (v) => { setRole(v); setPage(0); setLoading(true); };
@@ -52,8 +48,7 @@ export const AdminUsers = () => {
 
     const onChangeRole = (u, nextRole) => {
         if (!window.confirm(t.changeRoleConfirm)) return;
-        setNotice("");
-        setError("");
+        setNotice(""); setError("");
         updateUserRole(u.id, nextRole)
             .then(() => { setNotice(t.roleChangeSuccess); setVersion((v) => v + 1); })
             .catch((e) => setError(e.response?.status === 409 ? t.roleChangeBlocked : t.roleChangeError));
@@ -61,11 +56,9 @@ export const AdminUsers = () => {
 
     const onSetStatus = (u, nextStatus) => {
         const confirmMsg = nextStatus === "DELETED" ? t.softDeleteConfirm
-            : nextStatus === "BLOCKED" ? t.blockConfirm
-            : t.unblockConfirm;
+            : nextStatus === "BLOCKED" ? t.blockConfirm : t.unblockConfirm;
         if (!window.confirm(confirmMsg)) return;
-        setNotice("");
-        setError("");
+        setNotice(""); setError("");
         setUserStatus(u.id, nextStatus)
             .then(() => { setNotice(t.statusChangeSuccess); setVersion((v) => v + 1); })
             .catch((e) => setError(e.response?.status === 409 ? t.statusChangeBlocked : t.statusChangeError));
@@ -86,60 +79,91 @@ export const AdminUsers = () => {
     const hasResults = data.users.length > 0;
 
     return (
-        <div style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
-            <h1>{t.usersTitle}</h1>
+        <div dir={dir}>
+            <div className="adm-page-header">
+                <div>
+                    <h1 className="adm-page-title">👥 {t.usersTitle}</h1>
+                    <p className="adm-page-subtitle">
+                        {data.totalElements > 0 && `${data.totalElements} ${t.filterAll.toLowerCase()}`}
+                    </p>
+                </div>
+            </div>
 
-            <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
-                <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => onSearch(e.target.value)}
-                    placeholder={t.searchPlaceholder}
-                    style={{ padding: 8, minWidth: 260 }}
-                />
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14, color: "#6c757d" }}>{t.filterRole}:</span>
-                    <select value={role} onChange={(e) => onRole(e.target.value)} style={{ padding: 6 }}>
+            {notice && <div className="adm-notice adm-notice--success">✓ {notice}</div>}
+            {error   && <div className="adm-notice adm-notice--error">⚠ {error}</div>}
+
+            {/* Search + filter toolbar */}
+            <div className="adm-toolbar">
+                <div className="adm-search">
+                    <span className="adm-search-icon">🔍</span>
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => onSearch(e.target.value)}
+                        placeholder={t.searchPlaceholder}
+                    />
+                </div>
+                <div className="adm-filter-group">
+                    <span className="adm-filter-label">{t.filterRole}:</span>
+                    <select className="adm-select" value={role} onChange={(e) => onRole(e.target.value)}>
                         <option value="">{t.filterAll}</option>
                         <option value="STUDENT">{t.filterStudents}</option>
                         <option value="ADMIN">{t.filterAdmins}</option>
                     </select>
-                </label>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14, color: "#6c757d" }}>{t.filterStatus}:</span>
-                    <select value={status} onChange={(e) => onStatus(e.target.value)} style={{ padding: 6 }}>
+                </div>
+                <div className="adm-filter-group">
+                    <span className="adm-filter-label">{t.filterStatus}:</span>
+                    <select className="adm-select" value={status} onChange={(e) => onStatus(e.target.value)}>
                         <option value="">{t.statusOptDefault}</option>
                         <option value="ACTIVE">{t.statusOptActive}</option>
                         <option value="BLOCKED">{t.statusOptBlocked}</option>
                         <option value="DELETED">{t.statusOptDeleted}</option>
                         <option value="ALL">{t.statusOptAll}</option>
                     </select>
-                </label>
+                </div>
             </div>
 
-            {notice && <p style={{ color: "#28a745" }}>{notice}</p>}
-            {error && <p style={{ color: "#dc3545" }}>{error}</p>}
-            {loading ? (
-                <p style={{ color: "#888" }}>{t.loading}</p>
-            ) : hasResults ? (
-                <>
-                    <UsersTable users={data.users} t={t} locale={locale} onChangeRole={onChangeRole} onSetStatus={onSetStatus} onEdit={onEdit} currentUserId={user?.id} />
-
-                    <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "center" }}>
-                        <button onClick={() => goToPage(page - 1)} disabled={page <= 0}>{t.prev}</button>
-                        <span>
-                            {format(t.usersPageStatus, {
-                                page: data.page + 1,
-                                total: Math.max(data.totalPages, 1),
-                                count: data.totalElements,
-                            })}
-                        </span>
-                        <button onClick={() => goToPage(page + 1)} disabled={page >= data.totalPages - 1}>{t.next}</button>
+            <div className="adm-card">
+                {loading ? (
+                    <div className="adm-loading">⏳ {t.loading}</div>
+                ) : hasResults ? (
+                    <>
+                        <UsersTable
+                            users={data.users}
+                            t={t}
+                            locale={locale}
+                            onChangeRole={onChangeRole}
+                            onSetStatus={onSetStatus}
+                            onEdit={onEdit}
+                            currentUserId={user?.id}
+                        />
+                        <div className="adm-pagination">
+                            <button
+                                className="adm-btn adm-btn--ghost adm-btn--sm"
+                                onClick={() => goToPage(page - 1)}
+                                disabled={page <= 0}
+                            >{t.prev}</button>
+                            <span style={{ flex: 1, textAlign: "center" }}>
+                                {format(t.usersPageStatus, {
+                                    page: data.page + 1,
+                                    total: Math.max(data.totalPages, 1),
+                                    count: data.totalElements,
+                                })}
+                            </span>
+                            <button
+                                className="adm-btn adm-btn--ghost adm-btn--sm"
+                                onClick={() => goToPage(page + 1)}
+                                disabled={page >= data.totalPages - 1}
+                            >{t.next}</button>
+                        </div>
+                    </>
+                ) : (
+                    <div className="adm-empty">
+                        <div className="adm-empty-icon">🔍</div>
+                        {t.noResults}
                     </div>
-                </>
-            ) : (
-                <p style={{ color: "#888" }}>{t.noResults}</p>
-            )}
+                )}
+            </div>
 
             {editing && (
                 <UserEditModal

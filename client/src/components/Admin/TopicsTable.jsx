@@ -1,51 +1,52 @@
-// Presentational topics table. Receives data, callbacks and strings (t) via props
-// only. There is no delete action by design — topics are published/disabled, not
-// removed. "Publish" is disabled for empty topics (a topic with no subjects must
-// not reach students).
+// Presentational topics table. No delete — topics are published/disabled, not removed.
 export const TopicsTable = ({ topics, onEdit, onToggle, onManageSubjects, t }) => (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-            <tr>
-                {[t.colId, t.colName, t.colStatus, t.colSubjects, t.colActions].map((h, i) => (
-                    <th key={i} style={th}>{h}</th>
-                ))}
-            </tr>
-        </thead>
-        <tbody>
-            {topics.map((topic) => (
-                <tr key={topic.id}>
-                    <td style={cell}>{topic.id}</td>
-                    <td style={cell}>{topic.name}</td>
-                    <td style={cell}>
-                        <span style={statusBadge(topic.active)}>
-                            {topic.active ? t.statusActive : t.statusDraft}
-                        </span>
-                    </td>
-                    <td style={cell}>{topic.subjectCount}</td>
-                    <td style={cell}>
-                        <button onClick={() => onManageSubjects(topic)}>{t.manageSubjects}</button>{" "}
-                        <button onClick={() => onEdit(topic)}>{t.edit}</button>{" "}
-                        {topic.active ? (
-                            <button onClick={() => onToggle(topic)}>{t.disable}</button>
-                        ) : (
-                            <button
-                                onClick={() => onToggle(topic)}
-                                disabled={topic.activeSubjectCount === 0}
-                                title={topic.activeSubjectCount === 0 ? t.cannotPublishEmpty : ""}
-                            >
-                                {t.publish}
-                            </button>
-                        )}
-                    </td>
+    <div className="adm-table-wrap">
+        <table className="adm-table">
+            <thead>
+                <tr>
+                    {[t.colId, t.colName, t.colStatus, t.colSubjects, t.colActions].map((h, i) => (
+                        <th key={i}>{h}</th>
+                    ))}
                 </tr>
-            ))}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {topics.map((topic) => (
+                    <tr key={topic.id}>
+                        <td style={{ color: "var(--adm-txt-muted)", fontSize: 12 }}>{topic.id}</td>
+                        <td style={{ fontWeight: 600 }}>{topic.name}</td>
+                        <td>
+                            <span className={`adm-badge adm-badge--${topic.active ? "active-topic" : "draft"}`}>
+                                {topic.active ? t.statusActive : t.statusDraft}
+                            </span>
+                        </td>
+                        <td style={{ color: "var(--adm-txt-2)" }}>{topic.subjectCount}</td>
+                        <td>
+                            <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+                                <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => onManageSubjects(topic)}>
+                                    📚 {t.manageSubjects}
+                                </button>
+                                <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => onEdit(topic)}>
+                                    ✏️ {t.edit}
+                                </button>
+                                {topic.active ? (
+                                    <button className="adm-btn adm-btn--warning adm-btn--sm" onClick={() => onToggle(topic)}>
+                                        {t.disable}
+                                    </button>
+                                ) : (
+                                    <button
+                                        className="adm-btn adm-btn--success adm-btn--sm"
+                                        onClick={() => onToggle(topic)}
+                                        disabled={topic.activeSubjectCount === 0}
+                                        title={topic.activeSubjectCount === 0 ? t.cannotPublishEmpty : ""}
+                                    >
+                                        ✓ {t.publish}
+                                    </button>
+                                )}
+                            </span>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
 );
-
-const th = { textAlign: "start", borderBottom: "2px solid #ddd", padding: 8 };
-const cell = { borderBottom: "1px solid #eee", padding: 8 };
-const statusBadge = (active) => ({
-    padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 700,
-    color: "#fff", background: active ? "#28a745" : "#6c757d",
-});
