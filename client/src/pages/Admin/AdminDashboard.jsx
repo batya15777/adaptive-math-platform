@@ -111,7 +111,6 @@ export const AdminDashboard = () => {
 
     // Leaderboard
     const leaderboard = data?.leaderboard || [];
-    const maxStars = leaderboard[0]?.totalStars || 1;
 
     // Radar — subject success rates (up to 7 sub-subjects, showing performance spread)
     const radarData = (data?.hardestSubSubjects || []).slice(0, 7).map((s) => ({
