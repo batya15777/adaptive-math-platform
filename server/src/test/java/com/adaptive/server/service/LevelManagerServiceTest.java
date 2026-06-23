@@ -536,6 +536,40 @@ class LevelManagerServiceTest {
             verify(archiveRepository, times(1)).save(any(QuestionArchive.class));
         }
 
+        @Test @DisplayName("Active question NOT excluded → resumed (regular refresh keeps the same question)")
+        void activeQuestion_resumedWhenNotExcluded() {
+            StudentProgress p = progressAt(3);
+            p.setActiveQuestionId(555L);
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
+            Question active = new Question(testSubSubject, "8 / 4", "2", List.of("8 / 4 = 2"), null, "he", 3, QuestionStatus.CURRENT);
+            active.setId(555L);
+            when(questionRepository.findById(555L)).thenReturn(Optional.of(active));
+
+            QuestionResponse r = service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false);
+
+            assertEquals(555L, r.getQuestionId());
+            verify(calculationGenerator, never())
+                    .createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class));
+        }
+
+        @Test @DisplayName("Active question IN excludeQuestionIds → dropped, fresh one generated (Daily/Recommended separation)")
+        void excludedActiveQuestion_regeneratesInstead() {
+            StudentProgress p = progressAt(3);
+            p.setActiveQuestionId(555L); // would normally resume — but it's excluded below
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID)).thenReturn(Optional.of(p));
+            when(attemptRepository.findByUserIdAndSubSubjectId(eq(USER_ID), eq(SUB_SUBJECT_ID), any(Pageable.class)))
+                    .thenReturn(Collections.emptyList());
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
+                    .thenReturn(stubQuestion(3));
+            when(questionRepository.save(any())).thenReturn(stubSavedQuestion(3));
+
+            QuestionResponse r = service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "he", false, List.of(555L));
+
+            assertNotEquals(555L, r.getQuestionId());
+            verify(calculationGenerator)
+                    .createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class));
+        }
+
         @Test @DisplayName("QuestionResponse contains expression, correctAnswer, difficultyLevel, and questionId")
         void response_containsGeneratedQuestionData() {
             StudentProgress p = progressAt(4);

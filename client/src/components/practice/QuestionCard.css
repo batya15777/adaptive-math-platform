@@ -13,6 +13,19 @@
   font-size: clamp(30px, 6vw, 46px); font-weight: 800; color: var(--mg-ts);
   text-align: center; letter-spacing: 1px; padding: 8px 0;
 }
+/* Long word problems: a readable paragraph that wraps naturally and grows the card. No huge
+   font, no forced LTR (the element inherits the page's RTL/LTR), no line overlap. */
+.qc-expr--long {
+  font-size: clamp(20px, 2.4vw, 30px);
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.5;
+  max-width: 760px;
+  margin-inline: auto;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
 .qc-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .qc-option {
   padding: 16px; font: inherit; font-size: 19px; font-weight: 700; color: var(--mg-ts);

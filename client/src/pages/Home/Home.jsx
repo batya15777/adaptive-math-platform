@@ -85,7 +85,7 @@ export const Home = () => {
     const daily = user?.id != null ? getDailyProgress(user.id, DAILY_GOAL) : { done: 0, goal: DAILY_GOAL };
     const dailyPct = Math.round((daily.done / daily.goal) * 100);
 
-    const play = (id) => navigate(id ? `/math-training/${id}/play` : '/math-training');
+    const play = (id, state) => navigate(id ? `/math-training/${id}/play` : '/math-training', state ? { state } : undefined);
 
     return (
         <div className="mg-space home-root" data-theme={theme} dir={dir}>
@@ -163,7 +163,7 @@ export const Home = () => {
                                             <span aria-hidden="true">🎯</span>
                                         </div>
                                     )}
-                                    <button type="button" className="sc-btn sc-btn--green" onClick={() => play(recoId)}>{g(t.practiceNowBtn)}</button>
+                                    <button type="button" className="sc-btn sc-btn--green" onClick={() => play(recoId, { mode: 'recommended', subSubjectName: recoName })}>{g(t.practiceNowBtn)}</button>
                                 </div>
                             </div>
 

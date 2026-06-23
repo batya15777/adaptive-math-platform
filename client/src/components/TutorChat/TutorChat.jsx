@@ -32,15 +32,35 @@ const formatDate = (value, locale) => {
         : date.toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
 };
 
-// Math expressions like "8 - 19 - 16 - 9" or negatives like "-5 - 3" get reordered
-// inside RTL (Hebrew) text because the signs are bidi-neutral. Wrap each math run in
-// an LTR-isolated span so it always reads left-to-right, while the surrounding text
-// keeps its own direction. Matches multi-operand expressions (with an optional
-// leading sign) and standalone negative numbers. The lookbehind skips a
-// Hebrew-prefixed hyphen (e.g. "ל-10", "ב-5"), so those connectors are NOT mistaken
-// for a math minus.
-const renderContent = (text) => {
-    const regex = /(?<![א-ת])-?\d+(?:\s*[-+*/×÷=]\s*-?\d+)+|(?<![א-ת])-\d+/g;
+// Math expressions like "5x - 1 = -6" or "2(x + 3) = 10" get reordered inside RTL (Hebrew)
+// text because the signs/parens are bidi-neutral. We find each math run and wrap it in an
+// LTR-isolated span so it always reads left-to-right, while the surrounding Hebrew keeps its
+// own direction. The character class excludes Hebrew (א-ת) so a run can never swallow Hebrew
+// text, and we only WRAP a run when it truly looks like an expression (has an operator / '=' /
+// power / leading minus) — so lone numbers ("יש לך 3 ניסיונות") and plain words stay untouched.
+// The lookbehind skips a Hebrew-prefixed hyphen (e.g. "ל-10") so connectors aren't mistaken
+// for a math minus. This only affects display — the original message text is never changed.
+const MATH_CANDIDATE = /(?<![\wא-ת])-?[0-9A-Za-z(][0-9A-Za-z+\-*/×÷=^().\s]*[0-9A-Za-z)]|(?<![\wא-ת])-\d+(?:\.\d+)?/g;
+const looksLikeMath = (s) =>
+    /[=+×÷^]|\d\s*[-*/]\s*\d|[A-Za-z]\s*[-+*/=]/.test(s) || /^-\d/.test(s.trim());
+
+// The tutor LLM often wraps math in LaTeX it didn't need to ( \( … \) , \[ … \] , $…$ , \times ),
+// which the chat shows as literal backslashes/markup. Unwrap it for DISPLAY only — the stored
+// message text is never changed. Real parentheses (e.g. "2(x + 3)") are kept; only the
+// backslash-escaped delimiters/commands are removed.
+const stripInlineLatex = (text) =>
+    String(text ?? '')
+        .replace(/\\times/g, '×').replace(/\\div/g, '÷').replace(/\\cdot/g, '·')
+        .replace(/\\[()[\]]/g, '')   // \( \) \[ \]
+        .replace(/\${1,2}/g, '')      // $ , $$
+        .replace(/\\[,;:!]/g, ' ')    // LaTeX thin-spaces
+        .replace(/\\/g, '')           // any remaining stray backslash
+        .replace(/[ \t]{2,}/g, ' ')   // collapse the double spaces left behind
+        .replace(/ +([.,;:!?])/g, '$1'); // and the stray space before punctuation
+
+const renderContent = (rawText) => {
+    const text = stripInlineLatex(rawText);
+    const regex = new RegExp(MATH_CANDIDATE);
     const parts = [];
     let lastIndex = 0;
     let key = 0;
@@ -49,10 +69,16 @@ const renderContent = (text) => {
         if (match.index > lastIndex) {
             parts.push(text.slice(lastIndex, match.index));
         }
+        // Real expression → isolate it LTR; otherwise keep it as plain text so words and
+        // lone numbers are never reordered or restyled.
         parts.push(
-            <span key={`expr-${key++}`} className="tutor-chat__expr" dir="ltr">
-                {match[0]}
-            </span>,
+            looksLikeMath(match[0])
+                ? (
+                    <span key={`expr-${key++}`} className="tutor-chat__expr" dir="ltr">
+                        {match[0]}
+                    </span>
+                )
+                : match[0],
         );
         lastIndex = match.index + match[0].length;
     }

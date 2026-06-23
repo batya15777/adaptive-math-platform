@@ -1,7 +1,14 @@
 import api from './api.js';
 
 export const getStatus         = (subSubjectId)           => api.get(`/progress/status/sub-subject/${subSubjectId}`);
-export const getNextQuestion   = (subSubjectId, language)  => api.get('/progress/next-question', { params: { subSubjectId, language } });
+// excludeQuestionIds: ids the server must NOT return (keeps Daily and Recommended practice
+// disjoint on the same day). Sent comma-separated so Spring binds it to List<Long>.
+export const getNextQuestion   = (subSubjectId, language, excludeQuestionIds) => api.get('/progress/next-question', {
+    params: {
+        subSubjectId, language,
+        ...(excludeQuestionIds && excludeQuestionIds.length ? { excludeQuestionIds: excludeQuestionIds.join(',') } : {}),
+    },
+});
 export const submitAnswer      = (body)                    => api.post('/progress/submit-answer', body);
 export const revealSolution    = (body)                    => api.post('/progress/reveal-solution', body);
 export const getBonusQuestion  = (subSubjectId, language)  => api.get('/progress/bonus-question', { params: { subSubjectId, language } });
