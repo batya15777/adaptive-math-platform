@@ -18,6 +18,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import java.util.List;
 
 @SpringBootApplication
 @EnableAsync
+@EnableScheduling
 public class ServerApplication {
 
     public static void main(String[] args) {
@@ -138,45 +140,45 @@ public class ServerApplication {
                     new int[]{2, 2}, "X + X + X + X",
                     new int[]{3, 2}, "X + X + X + X + X",
                     // advanced: 4 then 5 then 6
-                    new int[]{1, 3}, "X + X + X + X",
-                    new int[]{2, 3}, "X + X + X + X + X",
-                    new int[]{3, 3}, "X + X + X + X + X + X"
+                    new int[]{1, 3}, "X + X + X",
+                    new int[]{2, 3}, "X + X + X + X",
+                    new int[]{3, 3}, "X + X + X + X + X"
             ), subSubjectRepository, templateRepository);
 
             seedSubject(calculation, "sub", List.of(
                     new int[]{1, 1}, "X - X",
                     new int[]{2, 1}, "X - X - X",
-                    new int[]{3, 1}, "X - X - X - X",
+                    new int[]{3, 1}, "X - X + X - X",
                     new int[]{1, 2}, "X - X - X",
                     new int[]{2, 2}, "X - X - X - X",
                     new int[]{3, 2}, "X - X - X - X - X",
-                    new int[]{1, 3}, "X - X - X - X",
-                    new int[]{2, 3}, "X - X - X - X - X",
-                    new int[]{3, 3}, "X - X - X - X - X - X"
+                    new int[]{1, 3}, "X - X - X",
+                    new int[]{2, 3}, "X - X + X - X",
+                    new int[]{3, 3}, "X + X - X + X - X"
             ), subSubjectRepository, templateRepository);
 
             seedSubject(calculation, "mult", List.of(
                     new int[]{1, 1}, "X * X",
-                    new int[]{2, 1}, "X * X * X",
-                    new int[]{3, 1}, "X * X * X * X",
-                    new int[]{1, 2}, "X * X * X",
-                    new int[]{2, 2}, "X * X * X * X",
-                    new int[]{3, 2}, "X * X * X * X * X",
-                    new int[]{1, 3}, "X * X * X * X",
-                    new int[]{2, 3}, "X * X * X * X * X",
-                    new int[]{3, 3}, "X * X * X * X * X * X"
+                    new int[]{2, 1}, "X * X + X",
+                    new int[]{3, 1}, "X * X + X * X",
+                    new int[]{1, 2}, "X * X - X",
+                    new int[]{2, 2}, "X * X + X * X",
+                    new int[]{3, 2}, "X * X - X + X * X",
+                    new int[]{1, 3}, "X * X * X",
+                    new int[]{2, 3}, "X * X + X * X",
+                    new int[]{3, 3}, "X * X + X * X * X"
             ), subSubjectRepository, templateRepository);
 
             seedSubject(calculation, "div", List.of(
                     new int[]{1, 1}, "X / X",
-                    new int[]{2, 1}, "X / X / X",
-                    new int[]{3, 1}, "X / X / X / X",
-                    new int[]{1, 2}, "X / X / X",
-                    new int[]{2, 2}, "X / X / X / X",
+                    new int[]{2, 1}, "X / X + X",
+                    new int[]{3, 1}, "X / X - X / X",
+                    new int[]{1, 2}, "X / X * X",
+                    new int[]{2, 2}, "X / X + X / X",
                     new int[]{3, 2}, "X / X / X / X / X",
-                    new int[]{1, 3}, "X / X / X / X",
-                    new int[]{2, 3}, "X / X / X / X / X",
-                    new int[]{3, 3}, "X / X / X / X / X / X"
+                    new int[]{1, 3}, "X / X * X",
+                    new int[]{2, 3}, "X / X + X * X",
+                    new int[]{3, 3}, "X / X / X - X * X"
             ), subSubjectRepository, templateRepository);
         };
     }

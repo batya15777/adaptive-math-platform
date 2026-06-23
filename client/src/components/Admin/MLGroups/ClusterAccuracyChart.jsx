@@ -23,17 +23,17 @@ export const ClusterAccuracyChart = ({ groups, t }) => {
         <Card title={t.chartAccuracyTitle}>
             <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={data} margin={{ top: 18, right: 8, left: -16, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef1f5" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--adm-bd, #eef1f5)" />
                     <XAxis
-                        dataKey="name" interval={0} tickLine={false} axisLine={{ stroke: "#e6e8ee" }}
-                        tick={{ fontSize: 11, fill: "#666" }} height={48} angle={data.length > 4 ? -15 : 0} textAnchor={data.length > 4 ? "end" : "middle"}
+                        dataKey="name" interval={0} tickLine={false} axisLine={false}
+                        tick={{ fontSize: 11, fill: "var(--adm-txt-muted, #666)" }} height={48} angle={data.length > 4 ? -15 : 0} textAnchor={data.length > 4 ? "end" : "middle"}
                     />
                     <YAxis
                         domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`}
-                        tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#999" }}
+                        tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--adm-txt-muted, #999)" }}
                     />
                     <Tooltip
-                        cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                        cursor={{ fill: "var(--adm-tr-hover, rgba(0,0,0,0.04))" }}
                         contentStyle={tooltipContentStyle}
                         itemStyle={tooltipItemStyle}
                         labelStyle={tooltipLabelStyle}
@@ -41,7 +41,7 @@ export const ClusterAccuracyChart = ({ groups, t }) => {
                     />
                     <Bar dataKey="accuracy" radius={[6, 6, 0, 0]} maxBarSize={64} isAnimationActive animationDuration={800}>
                         {data.map((d) => <Cell key={d.id} fill={d.fill} />)}
-                        <LabelList dataKey="accuracy" position="top" formatter={(v) => `${v}%`} style={{ fontSize: 11, fill: "#555", fontWeight: 600 }} />
+                        <LabelList dataKey="accuracy" position="top" formatter={(v) => `${v}%`} style={{ fontSize: 11, fill: "var(--adm-txt-2, #555)", fontWeight: 600 }} />
                     </Bar>
                 </BarChart>
             </ResponsiveContainer>

@@ -22,6 +22,7 @@ import com.adaptive.server.service.errorpattern.ArithmeticErrorAnalyzer;
 import com.adaptive.server.service.errorpattern.ErrorPatternService;
 import com.adaptive.server.service.errorpattern.PolynomialErrorAnalyzer;
 import com.adaptive.server.service.errorpattern.VerbalErrorAnalyzer;
+import com.adaptive.server.service.sse.AdminSseService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -49,6 +50,7 @@ class LevelManagerServiceTest {
     private QuestionArchiveRepository  archiveRepository;   // NEW
     private ClusterContextService      clusterContextService; // NEW (cluster-aware generation)
     private AiQuestionService          aiQuestionService;     // NEW (cluster-aware generation)
+    private AdminSseService            adminSseService;
 
     private LevelManagerService service;
 
@@ -71,6 +73,7 @@ class LevelManagerServiceTest {
         archiveRepository    = mock(QuestionArchiveRepository.class);
         clusterContextService = mock(ClusterContextService.class);
         aiQuestionService     = mock(AiQuestionService.class);
+        adminSseService       = mock(AdminSseService.class);
         // Default: students have no cluster, so generation behaves exactly as before.
         when(clusterContextService.forUser(any())).thenReturn(ClusterContext.neutral());
 
@@ -82,7 +85,8 @@ class LevelManagerServiceTest {
                 archiveRepository, clusterContextService, aiQuestionService,
                 new ErrorPatternService(
                         List.of(new ArithmeticErrorAnalyzer(), new PolynomialErrorAnalyzer(), new VerbalErrorAnalyzer()),
-                        new ArithmeticErrorAnalyzer())); // NEW args
+                        new ArithmeticErrorAnalyzer()),
+                adminSseService);
 
         testUser = mock(User.class);
         when(testUser.getId()).thenReturn(USER_ID);

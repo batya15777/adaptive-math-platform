@@ -7,18 +7,17 @@ import { getAdminStrings } from "../../components/Admin/adminStrings.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
 import { format } from "../../i18n/languages.js";
 
-// "Smart" page for managing the sub-subjects of one subject.
-// Parent subject/topic info comes from the backend response → correct title and a
-// correct "back" link even on a direct visit / refresh.
+// Parent subject/topic info comes from the backend response → correct title and
+// a correct "back" link even on a direct visit / refresh.
 export const AdminSubSubjects = () => {
     const { subjectId } = useParams();
     const { language, dir } = useLanguage();
     const t = getAdminStrings(language);
 
-    const [data, setData] = useState(null); // { subjectName, subjectActive, subjectSystem, topicId, activeSubSubjectCount, subSubjects }
+    const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [editing, setEditing] = useState(null); // null = closed, {} = create, {id,name} = edit
+    const [editing, setEditing] = useState(null);
 
     const load = useCallback(() => {
         return getSubjectSubSubjects(subjectId)
@@ -29,8 +28,6 @@ export const AdminSubSubjects = () => {
 
     useEffect(() => { load(); }, [load]);
 
-    // 409 has several causes here (duplicate / no templates / protected / last-active),
-    // so never assume "duplicate": show a clear backend message if present, else generic.
     const showError = (e) => {
         const backendMsg = e.response?.data?.message;
         if (e.response?.status === 400) setError(t.errSubSubjectRequired);
@@ -50,39 +47,62 @@ export const AdminSubSubjects = () => {
             .catch(showError);
     };
 
-    const title = data ? format(t.subSubjectsOf, { subject: data.subjectName }) : t.subSubjectsTitle;
+    const title = data ? format(t.subSubjectsOf, { subject: data.subjectName }) : t.subSubjectsTitle || "Sub-subjects";
+    const activeCount = data?.subSubjects?.filter((ss) => ss.active).length ?? 0;
+    const backTo = data ? `/admin/topics/${data.topicId}/subjects` : "/admin/topics";
 
     return (
-        <div dir={dir} style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
-            <p style={{ marginTop: 0 }}>
-                <Link to={data ? `/admin/topics/${data.topicId}/subjects` : "/admin/topics"}>{t.backToSubjects}</Link>
-            </p>
-            <h1>{title}</h1>
-            {data && !data.subjectActive && (
-                <p style={{ color: "#6c757d", fontSize: 13 }}>{t.statusDraft}</p>
-            )}
-            <p style={{ color: "#888", fontSize: 14 }}>{t.subSubjectsHint}</p>
+        <div dir={dir}>
+            <div className="adm-page-header">
+                <div>
+                    <Link to={backTo} className="adm-back-link" style={{ display: "inline-flex", marginBottom: 8 }}>
+                        ← {t.backToSubjects}
+                    </Link>
+                    <h1 className="adm-page-title">📝 {title}</h1>
+                    {data && !data.subjectActive && (
+                        <span className="adm-badge adm-badge--draft" style={{ display: "inline-flex", marginTop: 4 }}>{t.statusDraft}</span>
+                    )}
+                    <p className="adm-page-subtitle" style={{ marginTop: 6 }}>{t.subSubjectsHint}</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    {!loading && data && (
+                        <span style={{ fontSize: 12, color: "var(--adm-txt-muted)" }}>
+                            {activeCount} {t.statusActive} / {data.subSubjects.length}
+                        </span>
+                    )}
+                    {data?.subjectSystem ? (
+                        <span style={{ fontSize: 13, color: "var(--adm-txt-muted)" }}>
+                            🔒 {t.protectedSubjectNoAdd}
+                        </span>
+                    ) : (
+                        <button className="adm-btn adm-btn--primary" onClick={() => setEditing({})}>
+                            + {t.newSubSubject}
+                        </button>
+                    )}
+                </div>
+            </div>
 
-            {/* Cannot add sub-subjects to a protected system subject (e.g. Calculation). */}
-            {data?.subjectSystem ? (
-                <p style={{ color: "#6c757d", fontSize: 14 }}>🔒 {t.protectedSubjectNoAdd}</p>
-            ) : (
-                <button onClick={() => setEditing({})} style={{ marginBottom: 16 }}>+ {t.newSubSubject}</button>
-            )}
+            {error && <div className="adm-notice adm-notice--error">⚠ {error}</div>}
 
-            {error && <p style={{ color: "#dc3545" }}>{error}</p>}
-            {loading ? (
-                <p style={{ color: "#888" }}>{t.loading}</p>
-            ) : data ? (
-                <SubSubjectsTable
-                    subSubjects={data.subSubjects}
-                    subjectActive={data.subjectActive}
-                    activeSubSubjectCount={data.activeSubSubjectCount}
-                    onEdit={setEditing}
-                    onToggle={handleToggle}
-                    t={t}
-                />
-            ) : null}
+            <div className="adm-card">
+                {loading ? (
+                    <div className="adm-loading">⏳ {t.loading}</div>
+                ) : data?.subSubjects?.length === 0 ? (
+                    <div className="adm-empty">
+                        <div className="adm-empty-icon">📝</div>
+                        {t.noData}
+                    </div>
+                ) : data ? (
+                    <SubSubjectsTable
+                        subSubjects={data.subSubjects}
+                        subjectActive={data.subjectActive}
+                        activeSubSubjectCount={data.activeSubSubjectCount}
+                        onEdit={setEditing}
+                        onToggle={handleToggle}
+                        t={t}
+                    />
+                ) : null}
+            </div>
 
             <NameFormModal
                 open={editing !== null}
