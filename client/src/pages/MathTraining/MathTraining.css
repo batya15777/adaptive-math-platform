@@ -1,0 +1,77 @@
+/* Training drill-down (subject → topic → practice) — themed galaxy flow.
+   Light/dark via the shared --mg-* tokens. Generic: card content is data-driven. */
+.mt-root { min-height: 100vh; padding: 18px 18px 56px; }
+.mt-topbar { max-width: 1080px; margin: 0 auto; } /* wide: logo far right, controls far left */
+/* Out-specify `.mg-space .sc-content { z-index:1 }` so the language dropdown opens over cards. */
+.mg-space.mt-root .mt-topbar { position: relative; z-index: 30; }
+.mt-topbar .ts-btn { height: 40px; } /* align language select with theme toggle + logout */
+.mt-inner { max-width: 980px; margin: 8px auto 0; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+.mt-head { text-align: center; }
+.mt-title { margin: 0 0 6px; font-size: clamp(28px, 5vw, 40px); font-weight: 800; color: var(--mg-ts); }
+.mt-sub { margin: 0; color: var(--mg-tm); font-size: 15px; }
+.mt-sub::before { content: "✦ "; color: var(--mg-accent); }
+
+/* step indicator pill */
+.mt-steps { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--mg-card); border: 1px solid var(--mg-bd); box-shadow: var(--mg-cardsh); }
+.mt-step { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: var(--mg-tm); }
+.mt-step.is-active { color: var(--mg-ts); }
+.mt-step.is-done { color: var(--mg-accent); }
+.mt-step-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; color: var(--mg-tm); background: var(--mg-s2); border: 1px solid var(--mg-bd); }
+.mt-step.is-active .mt-step-num { color: #fff; background: var(--mg-cta); border-color: transparent; }
+.mt-step.is-done .mt-step-num { color: #fff; background: var(--mg-accent); border-color: transparent; }
+.mt-step-sep { color: var(--mg-tm); opacity: .6; }
+
+/* breadcrumb */
+.mt-crumbs { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.mt-crumb { color: var(--mg-tm); background: none; border: none; padding: 0; font: inherit; cursor: default; }
+.mt-crumb.is-link { color: var(--mg-accent); cursor: pointer; font-weight: 700; }
+.mt-crumb.is-link:hover { text-decoration: underline; }
+.mt-crumb.is-current { color: var(--mg-ts); font-weight: 700; }
+.mt-crumb-sep { color: var(--mg-tm); opacity: .55; }
+
+.mt-msg { margin: 8px 0; color: var(--mg-tm); font-size: 15px; }
+.mt-msg--err { color: var(--mg-danger); }
+
+/* card grids */
+.mt-grid { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.mt-grid--one { max-width: 720px; margin: 0 auto; grid-template-columns: 1fr; }
+
+/* base glass card */
+.mt-card { position: relative; border: 1px solid var(--mg-bd); border-radius: 22px; background: var(--mg-card); box-shadow: var(--mg-cardsh); cursor: pointer; transition: transform .15s var(--mg-ease), border-color .15s var(--mg-ease), box-shadow .15s var(--mg-ease); text-align: start; }
+.mt-card:hover { transform: translateY(-3px); border-color: var(--mg-accent); box-shadow: 0 12px 30px rgba(124, 77, 255, .22); }
+.mt-card.is-selected { border-color: var(--mg-accent); box-shadow: 0 0 0 1px var(--mg-accent), 0 12px 30px rgba(124, 77, 255, .25); }
+
+/* step 1 — big discipline card (horizontal) */
+.mt-card--lg { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 26px 28px; }
+.mt-card--lg .mt-card-body { flex: 1; text-align: center; }
+.mt-card--lg .mt-card-title { font-size: clamp(24px, 3.5vw, 32px); }
+.mt-card-hint { margin-top: 6px; color: var(--mg-tm); font-size: 14px; }
+.mt-card-enter { width: 44px; height: 44px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--mg-accent); background: var(--mg-s2); border: 1px solid var(--mg-bd); }
+
+/* step 2 — topic card (vertical: title top, icon center) */
+.mt-card--topic { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 28px 18px; min-height: 200px; justify-content: center; }
+
+/* step 3 — practice card (title + orbit, stats, start) */
+.mt-card--practice { display: flex; flex-direction: column; gap: 14px; padding: 22px 22px 18px; }
+.mt-practice-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mt-stats { display: flex; align-items: center; justify-content: space-around; gap: 10px; }
+.mt-stat { text-align: center; flex: 1; }
+.mt-stat + .mt-stat { border-inline-start: 1px solid var(--mg-bd); }
+.mt-stat-v { font-size: 24px; font-weight: 800; color: var(--mg-ts); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.mt-stat-l { font-size: 12px; color: var(--mg-tm); margin-top: 2px; }
+.mt-start { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; color: var(--mg-accent); font-weight: 800; font-size: 14px; }
+
+.mt-card-title { font-size: 19px; font-weight: 800; color: var(--mg-ts); }
+
+/* orbital icon (planet + ring + glyph) — matches the sketch's operation planets */
+.mt-orb { position: relative; width: 64px; height: 64px; flex: none; display: flex; align-items: center; justify-content: center; }
+.mt-orb-planet { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 22px; background: radial-gradient(circle at 36% 30%, #fff 2%, #c9b6ff 20%, #7c4dff 72%); box-shadow: 0 6px 16px rgba(124, 77, 255, .42); }
+.mt-orb::after { content: ""; position: absolute; left: -4px; right: -4px; top: 50%; height: 22px; transform: translateY(-50%) rotate(-22deg); border-radius: 50%; border: 2px solid rgba(124, 77, 255, .35); pointer-events: none; }
+.mt-orb--lg { width: 92px; height: 92px; }
+.mt-orb--lg .mt-orb-planet { width: 74px; height: 74px; font-size: 30px; }
+.mt-orb--lg::after { height: 32px; }
+.mt-orb--topic .mt-orb-planet { font-size: 30px; background: radial-gradient(circle at 36% 30%, #fff 2%, #d4c6ff 22%, #8b5cf6 74%); }
+
+/* bottom step badge */
+.mt-badge { margin-top: 4px; padding: 8px 18px; border-radius: 999px; font-size: 13.5px; font-weight: 700; color: var(--mg-ts); background: var(--mg-card); border: 1px solid var(--mg-bd); box-shadow: var(--mg-cardsh); }
