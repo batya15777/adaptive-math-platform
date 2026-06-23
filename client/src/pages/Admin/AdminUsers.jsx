@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import { getUsers, updateUserRole, setUserStatus, updateUser } from "../../service/adminApi.js";
 import { UsersTable } from "../../components/Admin/UsersTable.jsx";
 import { UserEditModal } from "../../components/Admin/UserEditModal.jsx";
+import { FilterDropdown } from "../../components/Admin/FilterDropdown.jsx";
 import { getAdminStrings } from "../../components/Admin/adminStrings.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
 import { format } from "../../i18n/languages.js";
@@ -103,24 +104,28 @@ export const AdminUsers = () => {
                         placeholder={t.searchPlaceholder}
                     />
                 </div>
-                <div className="adm-filter-group">
-                    <span className="adm-filter-label">{t.filterRole}:</span>
-                    <select className="adm-select" value={role} onChange={(e) => onRole(e.target.value)}>
-                        <option value="">{t.filterAll}</option>
-                        <option value="STUDENT">{t.filterStudents}</option>
-                        <option value="ADMIN">{t.filterAdmins}</option>
-                    </select>
-                </div>
-                <div className="adm-filter-group">
-                    <span className="adm-filter-label">{t.filterStatus}:</span>
-                    <select className="adm-select" value={status} onChange={(e) => onStatus(e.target.value)}>
-                        <option value="">{t.statusOptDefault}</option>
-                        <option value="ACTIVE">{t.statusOptActive}</option>
-                        <option value="BLOCKED">{t.statusOptBlocked}</option>
-                        <option value="DELETED">{t.statusOptDeleted}</option>
-                        <option value="ALL">{t.statusOptAll}</option>
-                    </select>
-                </div>
+                <FilterDropdown
+                    label={t.filterRole}
+                    value={role}
+                    onChange={onRole}
+                    options={[
+                        { value: "",        label: t.filterAll },
+                        { value: "STUDENT", label: t.filterStudents },
+                        { value: "ADMIN",   label: t.filterAdmins },
+                    ]}
+                />
+                <FilterDropdown
+                    label={t.filterStatus}
+                    value={status}
+                    onChange={onStatus}
+                    options={[
+                        { value: "",        label: t.statusOptDefault },
+                        { value: "ACTIVE",  label: t.statusOptActive },
+                        { value: "BLOCKED", label: t.statusOptBlocked },
+                        { value: "DELETED", label: t.statusOptDeleted },
+                        { value: "ALL",     label: t.statusOptAll },
+                    ]}
+                />
             </div>
 
             <div className="adm-card">

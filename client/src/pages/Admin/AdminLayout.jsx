@@ -44,30 +44,15 @@ export const AdminLayout = () => {
 
     return (
         <div className="admin-shell" data-theme={theme}>
-            {/* ── Top Navigation Bar ─────────────────────────────────────── */}
+            {/* ── Top Navigation (direction forced LTR in CSS — always logo-left, controls-right) */}
             <header className="adm-topnav">
-                <div className="adm-topnav-inner" dir={dir}>
-                    {/* Brand */}
+                {/* Row 1: brand + controls */}
+                <div className="adm-topnav-header">
                     <div className="adm-topnav-brand">
                         <MathGalaxyLogo size="sm" />
                         <span className="adm-topnav-badge">Admin</span>
                     </div>
 
-                    {/* Nav links */}
-                    <nav className="adm-topnav-links" aria-label="Admin navigation">
-                        {NAV_ITEMS.map(({ to, icon, key }) => (
-                            <NavLink
-                                key={to}
-                                to={to}
-                                className={({ isActive }) => "adm-topnav-link" + (isActive ? " active" : "")}
-                            >
-                                <span className="adm-topnav-link-icon">{icon}</span>
-                                <span>{t[key]}</span>
-                            </NavLink>
-                        ))}
-                    </nav>
-
-                    {/* Controls */}
                     <div className="adm-topnav-controls">
                         <ThemedSelect
                             value={profileData.language}
@@ -100,9 +85,23 @@ export const AdminLayout = () => {
                         </button>
                     </div>
                 </div>
+
+                {/* Row 2: nav links (always LTR order) */}
+                <nav className="adm-topnav-nav" aria-label="Admin navigation">
+                    {NAV_ITEMS.map(({ to, icon, key }) => (
+                        <NavLink
+                            key={to}
+                            to={to}
+                            className={({ isActive }) => "adm-topnav-link" + (isActive ? " active" : "")}
+                        >
+                            <span className="adm-topnav-link-icon">{icon}</span>
+                            <span>{t[key]}</span>
+                        </NavLink>
+                    ))}
+                </nav>
             </header>
 
-            {/* ── Page Body ──────────────────────────────────────────────── */}
+            {/* ── Page content — dir follows app language for RTL/LTR text ── */}
             <div className="adm-page-body" dir={dir}>
                 <div className="adm-content">
                     <Outlet />

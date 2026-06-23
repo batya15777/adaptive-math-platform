@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContextSetup.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
@@ -6,12 +6,13 @@ import { getLevelManagerStrings } from './levelManagerStrings.js';
 import { AuthLayout } from '../../components/auth/AuthLayout.jsx';
 import { SurveyForm } from './SurveyForm.jsx';
 import { AssessmentQuestion } from './AssessmentQuestion.jsx';
+import { markSurveyComplete } from '../../service/authApi.js';
 import './levelSurvey.css';
 
 // PHASES: 'survey' → 'question' → 'done'
 
 export const LevelManagerPage = () => {
-    const { user }   = useContext(AuthContext);
+    const { user, completeSurvey } = useContext(AuthContext);
     const navigate   = useNavigate();
     const { language } = useLanguage();
     const t = getLevelManagerStrings(language);
@@ -21,20 +22,33 @@ export const LevelManagerPage = () => {
     const [subSubjectId,       setSubSubjectId]       = useState(null);
     const [subSubjectName,     setSubSubjectName]     = useState('');
 
-    // If already done (e.g. direct URL visit), skip to home
+    // Ref prevents the done-phase effect from firing more than once.
+    // This is critical: completeSurvey() changes the `user` object in AuthContext,
+    // which would re-trigger the effect (user is a dep) without this guard,
+    // causing an infinite markSurveyComplete() → completeSurvey() → re-render loop.
+    const completionCalledRef = useRef(false);
+
+    // Redirect users who are already done (direct URL visit or page refresh while done).
+    // The `phase !== 'done'` guard prevents this from firing mid-completion and
+    // conflicting with the navigation below.
     useEffect(() => {
-        if (user && localStorage.getItem(`survey_done_${user.id}`)) {
+        if (phase !== 'done' && user?.hasCompletedSurvey) {
             navigate('/home', { replace: true });
         }
-    }, [user, navigate]);
-
-    // When phase reaches 'done', mark complete and go to math training
-    useEffect(() => {
-        if (phase === 'done' && user) {
-            localStorage.setItem(`survey_done_${user.id}`, '1');
-            navigate('/math-training', { replace: true });
-        }
     }, [phase, user, navigate]);
+
+    // When the last assessment question is answered, persist to the server and lift the gate.
+    // .finally() ensures navigate always runs (success or network failure).
+    useEffect(() => {
+        if (phase !== 'done' || !user || completionCalledRef.current) return;
+        completionCalledRef.current = true;
+
+        markSurveyComplete()
+            .finally(() => {
+                completeSurvey();                           // patch React state — gate lifts on next render
+                navigate('/math-training', { replace: true });
+            });
+    }, [phase, user, completeSurvey, navigate]);
 
     const handleSurveyComplete = (ssId, questionData, ssName) => {
         setSubSubjectId(ssId);

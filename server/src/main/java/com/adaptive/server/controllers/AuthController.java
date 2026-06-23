@@ -85,4 +85,12 @@ public class AuthController {
         return ResponseEntity.ok(new UserResponseDTO(token.getUser()));
     }
 
+    @PostMapping("/survey-complete")
+    public ResponseEntity<BasicResponse> surveyComplete(
+            @CookieValue(value = "session_token", required = false) String sessionToken) {
+        SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
+        authService.markSurveyComplete(token.getUser().getId());
+        return ResponseEntity.ok(new BasicResponse(true, "Survey marked complete."));
+    }
+
 }

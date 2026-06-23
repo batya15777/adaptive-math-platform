@@ -10,6 +10,7 @@ import { getTop10 } from '../../service/leaderboardApi.js';
 import { Stars } from '../../components/ui/Stars.jsx';
 import { AppTopBar } from '../../components/ui/AppTopBar.jsx';
 import { HomeHero } from './HomeHero.jsx';
+import { HomeNotifications } from './HomeNotifications.jsx';
 import { bumpDailyStreak, getDailyProgress } from './homeLocal.js';
 import { DAILY_GOAL, DAILY_BONUS } from '../Practice/dailyLogic.js';
 import '../../styles/spaceTokens.css';
@@ -93,6 +94,9 @@ export const Home = () => {
                 <AppTopBar />
 
                 <HomeHero displayName={displayName} continueTopic={continueTopic} t={t} g={g} onPlay={play} />
+
+                {/* Admin/teacher broadcast messages (last 7 days) — moved here from Profile settings */}
+                <HomeNotifications t={t} locale={locale} />
 
                 {loading && <div className="home-msg">{t.loading}</div>}
                 {err && <div className="home-msg home-msg--err">{err}</div>}

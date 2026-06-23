@@ -108,11 +108,12 @@ public class ServerApplication {
             QuestionTemplateRepository templateRepository) {
 
         return args -> {
-            // Subject.topic is required — ensure a "Math" topic exists and the
-            // Calculation subject is linked to it (covers a fresh insert and an
-            // older row whose topic_id was never set).
-            Topic math = topicRepository.findByName("Math")
-                    .orElseGet(() -> topicRepository.save(new Topic("Math")));
+            // Subject.topic is required — ensure the single "Mathematics" topic exists and
+            // the Calculation subject is linked to it (covers a fresh insert and an older
+            // row whose topic_id was never set). Use the same canonical topic name across
+            // every seeder so students see one "Mathematics" card, not two.
+            Topic math = topicRepository.findByName("Mathematics")
+                    .orElseGet(() -> topicRepository.save(new Topic("Mathematics")));
 
             Subject calculation = subjectRepository.findByName("Calculation")
                     .orElse(null);
@@ -191,8 +192,8 @@ public class ServerApplication {
             SubSubjectAiConfigRepository aiConfigRepository) {
 
         return args -> {
-            Topic math = topicRepository.findByName("Math")
-                    .orElseGet(() -> topicRepository.save(new Topic("Math")));
+            Topic math = topicRepository.findByName("Mathematics")
+                    .orElseGet(() -> topicRepository.save(new Topic("Mathematics")));
 
             Subject verbal = subjectRepository.findByName("Verbal Problems").orElse(null);
             if (verbal == null) {
@@ -216,7 +217,7 @@ public class ServerApplication {
     }
 
     /**
-     * Seeds the "Polynomial" subject (under the Math topic) with a single code-generated
+     * Seeds the "Polynomial" subject (under the Mathematics topic) with a single code-generated
      * "Linear Equations" sub-subject. No templates and no AI config — questions are produced
      * procedurally by {@code PolynomialGenerator}.
      */
@@ -227,8 +228,8 @@ public class ServerApplication {
             SubSubjectRepository subSubjectRepository) {
 
         return args -> {
-            Topic math = topicRepository.findByName("Math")
-                    .orElseGet(() -> topicRepository.save(new Topic("Math")));
+            Topic math = topicRepository.findByName("Mathematics")
+                    .orElseGet(() -> topicRepository.save(new Topic("Mathematics")));
 
             Subject polynomial = subjectRepository.findByName("Polynomial").orElse(null);
             if (polynomial == null) {

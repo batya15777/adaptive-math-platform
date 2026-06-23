@@ -107,6 +107,7 @@ export const MathTraining = () => {
 
     // On mount: load topics. If we arrived back from the game (state carries the topic +
     // subject), restore the sub-subjects view so "back" lands on that subject's tab.
+    // De-duplicate topics by name to guard against accidental duplicate DB rows.
     useEffect(() => {
         const topic = location.state?.topic;
         const subject = location.state?.subject;
@@ -116,7 +117,11 @@ export const MathTraining = () => {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             load(() => getSubSubjects(subject.id), setSubSubjects);
         } else {
-            load(getTopics, setTopics);
+            load(getTopics, (data) => {
+                // Remove duplicate topic names (e.g. two "Mathematics" rows in the DB).
+                const seen = new Set();
+                setTopics(data.filter(tp => seen.has(tp.name) ? false : seen.add(tp.name)));
+            });
         }
     }, [load, location.state]);
 

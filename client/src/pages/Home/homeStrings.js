@@ -47,6 +47,11 @@ export const HOME_STRINGS = {
         teaserTitle: "Want to climb the ranking?",
         teaserSub: { male: "Just a bit more practice and you're there!", female: "Just a bit more practice and you're there!", neutral: "Just a bit more practice and you're there!" },
         viewLeaderboard: "View leaderboard →",
+
+        // Admin messages (moved here from Profile settings)
+        notificationsHistory: "Messages from your teacher",
+        notificationsEmpty: "No messages in the last 7 days",
+        notificationsLoading: "Loading messages…",
     },
     he: {
         student: "תלמיד/ה",
@@ -92,6 +97,11 @@ export const HOME_STRINGS = {
         teaserTitle: "רוצה לעלות בדירוג?",
         teaserSub: { male: "רק עוד קצת תרגול ואתה שם!", female: "רק עוד קצת תרגול ואת שם!", neutral: "רק עוד קצת תרגול ואתם שם!" },
         viewLeaderboard: "לצפייה בטבלת המובילים →",
+
+        // הודעות מנהל (הועברו לכאן מהגדרות הפרופיל)
+        notificationsHistory: "הודעות מהמורה",
+        notificationsEmpty: "אין הודעות מ-7 הימים האחרונים",
+        notificationsLoading: "טוען הודעות…",
     },
     ru: {
         student: "Ученик",
@@ -137,6 +147,11 @@ export const HOME_STRINGS = {
         teaserTitle: "Хотите подняться в рейтинге?",
         teaserSub: { male: "Ещё немного практики — и вы там!", female: "Ещё немного практики — и вы там!", neutral: "Ещё немного практики — и вы там!" },
         viewLeaderboard: "Открыть таблицу лидеров →",
+
+        // Сообщения от администратора (перенесены сюда из настроек профиля)
+        notificationsHistory: "Сообщения от учителя",
+        notificationsEmpty: "Нет сообщений за последние 7 дней",
+        notificationsLoading: "Загрузка сообщений…",
     },
 };
 

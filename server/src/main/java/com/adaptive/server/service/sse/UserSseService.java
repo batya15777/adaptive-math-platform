@@ -1,5 +1,7 @@
 package com.adaptive.server.service.sse;
 
+import com.adaptive.server.entity.BroadcastMessage;
+import com.adaptive.server.repository.BroadcastMessageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -7,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -18,6 +21,11 @@ public class UserSseService {
     private static final long EMITTER_TIMEOUT_MS = 300_000L;
 
     private final CopyOnWriteArrayList<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+    private final BroadcastMessageRepository broadcastRepo;
+
+    public UserSseService(BroadcastMessageRepository broadcastRepo) {
+        this.broadcastRepo = broadcastRepo;
+    }
 
     public SseEmitter subscribe() {
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
@@ -30,6 +38,8 @@ public class UserSseService {
     }
 
     public void sendBroadcast(String message) {
+        // Persist first so the message survives a page reload
+        broadcastRepo.save(new BroadcastMessage(message, LocalDateTime.now()));
         log.info("Broadcasting message to {} connected user(s)", emitters.size());
         send(SseEmitter.event().name("broadcast").data(message));
     }

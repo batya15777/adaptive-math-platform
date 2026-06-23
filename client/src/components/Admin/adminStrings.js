@@ -34,6 +34,8 @@ export const ADMIN_STRINGS = {
         colOccurrences: "Occurrences",
         analyticsLoadError: "Failed to load analytics.",
         noData: "No data yet.",
+        commonErrorsInsight: "Focus on the top error patterns to improve student outcomes.",
+        commonErrorsTotal: "Total: {total} occurrences across {count} error types",
         broadcastPlaceholder: "Type a message to send to all students…",
         broadcastSend: "Send to all students",
         // ml groups
@@ -220,6 +222,8 @@ export const ADMIN_STRINGS = {
         colOccurrences: "מספר הופעות",
         analyticsLoadError: "לא הצלחתי לטעון את הנתונים.",
         noData: "אין עדיין נתונים.",
+        commonErrorsInsight: "התמקד/י בדפוסי הטעות המובילים כדי לשפר את הישגי התלמידים.",
+        commonErrorsTotal: "סה״כ: {total} הופעות על פני {count} סוגי טעויות",
         broadcastPlaceholder: "הקלד/י הודעה לכל התלמידים…",
         broadcastSend: "שלח לכל התלמידים",
         // ml groups
@@ -406,6 +410,8 @@ export const ADMIN_STRINGS = {
         colOccurrences: "Количество",
         analyticsLoadError: "Не удалось загрузить аналитику.",
         noData: "Пока нет данных.",
+        commonErrorsInsight: "Сосредоточьтесь на самых частых ошибках, чтобы улучшить результаты учеников.",
+        commonErrorsTotal: "Всего: {total} случаев по {count} типам ошибок",
         broadcastPlaceholder: "Введите сообщение для всех учеников…",
         broadcastSend: "Отправить всем ученикам",
         // ml groups
