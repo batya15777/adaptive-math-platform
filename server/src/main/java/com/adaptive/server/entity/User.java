@@ -56,6 +56,11 @@ public class User {
     @Column(name = "selected_avatar_id")
     private String selectedAvatarId;
 
+    // Tracks whether the student has completed the one-time initial survey.
+    // DB default false — existing rows are treated as incomplete until they log in.
+    @Column(name = "has_completed_survey", nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT FALSE")
+    private boolean hasCompletedSurvey = false;
+
     public User() {
     }
 
@@ -170,5 +175,13 @@ public class User {
 
     public void setSelectedAvatarId(String selectedAvatarId) {
         this.selectedAvatarId = selectedAvatarId;
+    }
+
+    public boolean isHasCompletedSurvey() {
+        return hasCompletedSurvey;
+    }
+
+    public void setHasCompletedSurvey(boolean hasCompletedSurvey) {
+        this.hasCompletedSurvey = hasCompletedSurvey;
     }
 }

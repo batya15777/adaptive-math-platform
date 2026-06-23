@@ -44,7 +44,11 @@ const ProtectedRoute = ({ element }) => {
 const AuthRoute = ({ element }) => {
   const { user, authLoading } = useContext(AuthContext);
   if (authLoading) return null;
-  if (user) return <Navigate to={user.role === "ADMIN" ? "/admin/dashboard" : "/"} replace />;
+  if (user) {
+    if (user.role === "ADMIN") return <Navigate to="/admin/dashboard" replace />;
+    if (!user.hasCompletedSurvey) return <Navigate to="/level-survey" replace />;
+    return <Navigate to="/home" replace />;
+  }
   return element;
 };
 
@@ -54,6 +58,16 @@ const AdminRoute = ({ element }) => {
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== "ADMIN") return <Navigate to="/" replace />;
+  return element;
+};
+
+// Student route that also requires the initial survey to have been completed.
+// Admins never hit this guard — use AdminRoute for admin-only paths.
+const SurveyGatedRoute = ({ element }) => {
+  const { user, authLoading } = useContext(AuthContext);
+  if (authLoading) return null;
+  if (!user) return <Navigate to="/welcome" replace />;
+  if (!user.hasCompletedSurvey) return <Navigate to="/level-survey" replace />;
   return element;
 };
 
@@ -77,7 +91,7 @@ function AppRoutes() {
 
         {/* Daily practice — a focused exercise flow with its own top bar, outside the
             DashboardLayout so the sidebar/nav doesn't clutter the question screen */}
-        <Route path="/daily-practice" element={<ProtectedRoute element={<DailyPractice />} />} />
+        <Route path="/daily-practice" element={<SurveyGatedRoute element={<DailyPractice />} />} />
 
         {/* Admin area — guarded layout (language switcher + dir) with nested pages */}
         <Route path="/admin" element={<AdminRoute element={<AdminLayout />} />}>
@@ -97,8 +111,8 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* Dashboard - only accessible when logged in */}
-        <Route path="/" element={<ProtectedRoute element={<DashboardLayout />} />}>
+        {/* Dashboard - only accessible when logged in AND survey is done */}
+        <Route path="/" element={<SurveyGatedRoute element={<DashboardLayout />} />}>
           <Route index element={<Navigate to="/home" replace />} />
           <Route path="home" element={<Home />} />
           <Route

@@ -58,6 +58,14 @@
 .chip-bar > i { display: block; height: 100%; background: var(--mg-cta); }
 .home-allbtn { margin-top: auto; }
 
+/* ============================ Admin / teacher messages ============================ */
+.home-notif-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.home-notif { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--mg-s2); border: 1px solid var(--mg-bd); }
+.home-notif-ico { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.home-notif-body { flex: 1; min-width: 0; }
+.home-notif-msg { font-size: 13.5px; color: var(--mg-ts); line-height: 1.5; word-break: break-word; }
+.home-notif-date { font-size: 11px; color: var(--mg-tm); margin-top: 3px; }
+
 /* ============================ Leaderboard teaser ============================ */
 .home-teaser { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 24px; flex-wrap: wrap; }
 .home-teaser-cta { display: flex; flex-direction: column; gap: 8px; min-width: 220px; }

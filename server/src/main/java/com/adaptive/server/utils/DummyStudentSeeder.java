@@ -3,11 +3,13 @@ package com.adaptive.server.utils;
 import com.adaptive.server.entity.ExerciseAttempt;
 import com.adaptive.server.entity.SubSubject;
 import com.adaptive.server.entity.Subject;
+import com.adaptive.server.entity.Topic;
 import com.adaptive.server.entity.User;
 import com.adaptive.server.entity.enums.CalculationOperation;
 import com.adaptive.server.repository.ExerciseAttemptRepository;
 import com.adaptive.server.repository.SubSubjectRepository;
 import com.adaptive.server.repository.SubjectRepository;
+import com.adaptive.server.repository.TopicRepository;
 import com.adaptive.server.repository.UserRepository;
 import com.adaptive.server.service.PasswordService;
 import org.slf4j.Logger;
@@ -81,6 +83,7 @@ public class DummyStudentSeeder implements CommandLineRunner {
     private final ExerciseAttemptRepository attemptRepository;
     private final SubjectRepository subjectRepository;
     private final SubSubjectRepository subSubjectRepository;
+    private final TopicRepository topicRepository;
     private final PasswordService passwordService;
 
     /** Resolved once per run: the Calculation operation → its sub-subject FK row. */
@@ -90,11 +93,13 @@ public class DummyStudentSeeder implements CommandLineRunner {
                               ExerciseAttemptRepository attemptRepository,
                               SubjectRepository subjectRepository,
                               SubSubjectRepository subSubjectRepository,
+                              TopicRepository topicRepository,
                               PasswordService passwordService) {
         this.userRepository = userRepository;
         this.attemptRepository = attemptRepository;
         this.subjectRepository = subjectRepository;
         this.subSubjectRepository = subSubjectRepository;
+        this.topicRepository = topicRepository;
         this.passwordService = passwordService;
     }
 
@@ -214,13 +219,22 @@ public class DummyStudentSeeder implements CommandLineRunner {
         User u = new User(fullName, passwordService.hash(PASSWORD), email, age, gender, LocalDateTime.now());
         u.setRole("STUDENT");
         u.setAccountStatus("ACTIVE");
+        u.setHasCompletedSurvey(true); // dummy students bypass the survey gate
         return userRepository.save(u);
     }
 
     /** Get-or-create the Calculation subject + its add/sub/mult/div sub-subjects (self-sufficient). */
     private Map<CalculationOperation, SubSubject> resolveCalcSubSubjects() {
+        // Subject requires a non-null topic — get or create the parent topic first.
+        Topic mathTopic = topicRepository.findByName("Mathematics")
+                .orElseGet(() -> topicRepository.save(new Topic("Mathematics")));
+
         Subject calculation = subjectRepository.findByName("Calculation")
-                .orElseGet(() -> subjectRepository.save(new Subject("Calculation")));
+                .orElseGet(() -> {
+                    Subject s = new Subject("Calculation");
+                    s.setTopic(mathTopic);
+                    return subjectRepository.save(s);
+                });
 
         Map<CalculationOperation, SubSubject> map = new EnumMap<>(CalculationOperation.class);
         for (CalculationOperation op : new CalculationOperation[]{ ADD, SUB, MULT, DIV }) {

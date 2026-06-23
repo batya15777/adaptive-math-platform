@@ -8,6 +8,7 @@ public class UserResponseDTO {
     private String username;
     private String gender;
     private String role;
+    private boolean hasCompletedSurvey;
 
     public UserResponseDTO(User user) {
         this.id = user.getId();
@@ -15,6 +16,7 @@ public class UserResponseDTO {
         this.username = user.getFullName();
         this.gender = user.getGender();
         this.role = user.getRole();
+        this.hasCompletedSurvey = user.isHasCompletedSurvey();
     }
 
     public Long getId() {
@@ -35,5 +37,9 @@ public class UserResponseDTO {
 
     public String getRole() {
         return role;
+    }
+
+    public boolean isHasCompletedSurvey() {
+        return hasCompletedSurvey;
     }
 }

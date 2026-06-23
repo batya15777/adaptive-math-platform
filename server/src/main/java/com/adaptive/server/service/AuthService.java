@@ -269,6 +269,14 @@ public class AuthService {
         return new BasicResponse(true, "Password has been reset successfully. Please log in.");
     }
 
+    @Transactional
+    public void markSurveyComplete(Long userId) {
+        userRepository.findById(userId).ifPresent(u -> {
+            u.setHasCompletedSurvey(true);
+            userRepository.save(u);
+        });
+    }
+
     private String generateVerificationCode() {
         return String.valueOf(ThreadLocalRandom.current().nextInt(100000, 1000000));
     }

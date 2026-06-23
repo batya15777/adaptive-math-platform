@@ -17,6 +17,7 @@ export const MATH_TRAINING_STRINGS = {
         emptySubSubjects: "No practices under this topic yet.",
         // per-step subtitles
         subSubjects: "Practise at your own pace, anytime, anywhere",
+        subPillars: "Choose a category to start training",
         subTopics: "Choose a topic to start from",
         subPractices: "Choose a level and start solving",
         // step indicator
@@ -50,6 +51,7 @@ export const MATH_TRAINING_STRINGS = {
         emptySubSubjects: "אין עדיין תרגולים תחת נושא זה.",
         // per-step subtitles
         subSubjects: "תרגלו בקצב שלכם, בכל זמן ובכל מקום",
+        subPillars: "בחרו קטגוריה להתחיל להתאמן",
         subTopics: "בחרו תת נושא שממנו תרצו להתחיל",
         subPractices: "בחרו רמה והתחילו לפתור",
         // step indicator
@@ -67,7 +69,7 @@ export const MATH_TRAINING_STRINGS = {
         // backend name → display name
         names: {
             math: "מתמטיקה",
-            calculation: "חישוב", polynomial: "פולינומים", verbal: "בעיות מילוליות",
+            calculation: "חישובים", polynomial: "פולינומים", verbal: "בעיות מילוליות",
             add: "חיבור", sub: "חיסור", mult: "כפל", div: "חילוק",
             fractions: "שברים", decimals: "מספרים עשרוניים",
             roads: "דרכים", percentages: "אחוזים",
@@ -83,6 +85,7 @@ export const MATH_TRAINING_STRINGS = {
         emptySubSubjects: "Под этой темой пока нет тренировок.",
         // per-step subtitles
         subSubjects: "Тренируйтесь в своём темпе, в любое время и в любом месте",
+        subPillars: "Выберите категорию для тренировки",
         subTopics: "Выберите тему, с которой хотите начать",
         subPractices: "Выберите уровень и начните решать",
         // step indicator

@@ -18,7 +18,8 @@ import java.util.HexFormat;
 public class PasswordService {
 
     private static final String BCRYPT_PREFIX = "$2";
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    private static final int BCRYPT_STRENGTH = 12;
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(BCRYPT_STRENGTH);
 
     public String hash(String rawPassword) {
         return encoder.encode(rawPassword);
@@ -37,11 +38,21 @@ public class PasswordService {
     }
 
     public boolean needsUpgrade(String storedHash) {
-        return !isBcrypt(storedHash);
+        if (!isBcrypt(storedHash)) return true;           // MD5 → always upgrade
+        return bcryptCost(storedHash) < BCRYPT_STRENGTH;  // BCrypt < 12 → upgrade
     }
 
     private boolean isBcrypt(String storedHash) {
         return storedHash != null && storedHash.startsWith(BCRYPT_PREFIX);
+    }
+
+    /** Reads the work factor embedded in a BCrypt hash string ($2a$NN$ format). */
+    private int bcryptCost(String hash) {
+        try {
+            return Integer.parseInt(hash.substring(4, 6));
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private String legacyMd5(String fullName, String rawPassword) {

@@ -1,15 +1,11 @@
-import { useContext, useEffect, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContextSetup.js';
+import { useEffect, useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import { useLanguage } from '../../i18n/useLanguage.js';
 import { BroadcastAlert } from '../BroadcastAlert.jsx';
 
-// Thin student shell: the survey gate + direction + broadcast alerts only. The themed header
-// + primary nav live in the shared AppTopBar (rendered inside each page's own purple/space
-// background), so there is no separate white bar or duplicate navigation here.
+// Thin student shell: direction + broadcast alerts. Survey gate lives in SurveyGatedRoute
+// in App.jsx (server-side flag), so no localStorage check needed here.
 const DashboardLayout = () => {
-    const { user, authLoading } = useContext(AuthContext);
-    const navigate = useNavigate();
     const { dir } = useLanguage();
     const [broadcasts, setBroadcasts] = useState([]);
 
@@ -18,16 +14,6 @@ const DashboardLayout = () => {
         es.addEventListener("broadcast", (e) => setBroadcasts(prev => [...prev, e.data]));
         return () => es.close();
     }, []);
-
-    // Survey gate: redirect to placement survey until it has been completed exactly once.
-    // Guard against authLoading so a hard-refresh race condition (user briefly null) can't
-    // produce a `survey_done_undefined` key that never matches and triggers a false redirect.
-    useEffect(() => {
-        if (authLoading) return;
-        if (user && !localStorage.getItem(`survey_done_${user.id}`)) {
-            navigate('/level-survey', { replace: true });
-        }
-    }, [user, authLoading, navigate]);
 
     return (
         <div dir={dir}>

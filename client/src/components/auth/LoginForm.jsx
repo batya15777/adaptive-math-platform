@@ -45,7 +45,9 @@ function LoginForm() {
                 if (response.data.success) {
                     const loggedInUser = response.data.loginData.user;
                     loginUser(loggedInUser);
-                    navigate(loggedInUser?.role === "ADMIN" ? "/admin/dashboard" : "/");
+                    // AuthRoute handles the redirect for all cases (admin/survey/home)
+                    // so we do not call navigate() here — that would fire two concurrent
+                    // navigations and trigger React Router's throttle warning.
                 } else {
                     // Distinct message for a non-active (blocked/deleted) account.
                     const msg = response.data.message || "";

@@ -13,6 +13,7 @@ import com.adaptive.server.responses.TopicResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -52,7 +53,17 @@ public class TrainingService {
 
     @Transactional(readOnly = true)
     public List<TopicResponse> getTopics() {
+        // De-duplicate by name in case the DB has multiple rows with the same topic name
+        // (e.g. caused by the seeder running on two separate server starts).
+        // toMap keeps the first occurrence; LinkedHashMap preserves the sorted order.
         return topicRepository.findByActiveTrueOrderByNameAsc().stream()
+                .collect(Collectors.toMap(
+                        t -> t.getName(),
+                        t -> t,
+                        (existing, duplicate) -> existing,
+                        LinkedHashMap::new
+                ))
+                .values().stream()
                 .map(TopicResponse::new)
                 .collect(Collectors.toList());
     }

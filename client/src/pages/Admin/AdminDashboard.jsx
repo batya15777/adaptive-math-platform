@@ -192,22 +192,32 @@ export const AdminDashboard = () => {
                                 <h3 className="adm-card-title">🎯 {t.cardSuccessRate}</h3>
                             </div>
                             <div className="adm-card-body" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                <ResponsiveContainer width="100%" height={200}>
-                                    <PieChart>
+                                {/* Fixed 200×200 square ensures the donut is a geometrically perfect circle */}
+                                <div style={{ display: "flex", justifyContent: "center" }}>
+                                    <PieChart width={200} height={200}>
                                         <Pie
                                             data={pieData}
-                                            cx="50%" cy="50%"
+                                            cx={100} cy={100}
                                             innerRadius={60} outerRadius={90}
                                             paddingAngle={3}
                                             dataKey="value"
+                                            stroke="none"
                                         >
                                             {pieData.map((_, i) => <Cell key={i} fill={pieColors[i]} />)}
                                         </Pie>
-                                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: isDark ? "#8B93A7" : "#6B7280" }} />
                                         <Tooltip content={<CustomTooltip />} />
                                     </PieChart>
-                                </ResponsiveContainer>
-                                <div style={{ textAlign: "center" }}>
+                                </div>
+                                {/* Legend rendered outside the chart for correct vertical centering */}
+                                <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 4 }}>
+                                    {pieData.map((entry, i) => (
+                                        <span key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: isDark ? "#8B93A7" : "#6B7280" }}>
+                                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: pieColors[i], display: "inline-block", flexShrink: 0 }} />
+                                            {entry.name}
+                                        </span>
+                                    ))}
+                                </div>
+                                <div style={{ textAlign: "center", marginTop: 12 }}>
                                     <div style={{ fontSize: 36, fontWeight: 800, color: "#7C4DFF", lineHeight: 1 }}>{successRate}%</div>
                                     <div style={{ fontSize: 12, color: "var(--adm-txt-muted)", marginTop: 4 }}>{t.cardSuccessRate}</div>
                                 </div>
@@ -217,25 +227,37 @@ export const AdminDashboard = () => {
 
                     {/* ── Row 2: Common errors + Leaderboard with avatars ── */}
                     <div className="adm-charts-row" style={{ marginBottom: 20 }}>
-                        <div className="adm-card">
+                        <div className="adm-card adm-card--col">
                             <div className="adm-card-header">
                                 <h3 className="adm-card-title">⚠ {t.commonErrorsTitle}</h3>
                             </div>
                             <div className="adm-card-body">
                                 {errorsData.length ? (
-                                    <ResponsiveContainer width="100%" height={240}>
-                                        <BarChart data={errorsData} layout="vertical" margin={{ top: 4, right: 24, left: 10, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
-                                            <XAxis type="number" tick={axisStyle} axisLine={false} tickLine={false} />
-                                            <YAxis dataKey="name" type="category" tick={axisStyle} axisLine={false} tickLine={false} width={110} />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey={t.colOccurrences} fill="#EF4444" radius={[0, 6, 6, 0]}>
-                                                {errorsData.map((_, i) => (
-                                                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                    <>
+                                        <ResponsiveContainer width="100%" height={Math.max(100, errorsData.length * 52 + 24)}>
+                                            <BarChart data={errorsData} layout="vertical" margin={{ top: 4, right: 24, left: 10, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+                                                <XAxis type="number" tick={axisStyle} axisLine={false} tickLine={false} />
+                                                <YAxis dataKey="name" type="category" tick={axisStyle} axisLine={false} tickLine={false} width={110} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey={t.colOccurrences} fill="#EF4444" radius={[0, 6, 6, 0]}>
+                                                    {errorsData.map((_, i) => (
+                                                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                                    ))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                        <div className="adm-errors-insight">
+                                            <span className="adm-errors-insight-total">
+                                                {(t.commonErrorsTotal || "Total: {total} occurrences across {count} error types")
+                                                    .replace("{total}", errorsData.reduce((s, e) => s + (e[t.colOccurrences] || 0), 0).toLocaleString(locale))
+                                                    .replace("{count}", errorsData.length)}
+                                            </span>
+                                            <span className="adm-errors-insight-tip">
+                                                💡 {t.commonErrorsInsight || "Focus on the top error patterns to improve student outcomes."}
+                                            </span>
+                                        </div>
+                                    </>
                                 ) : <div className="adm-empty">{t.noData}</div>}
                             </div>
                         </div>
