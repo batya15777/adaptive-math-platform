@@ -1,17 +1,83 @@
-import { useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getTopics, getSubjects, getSubSubjects } from '../../service/trainingApi.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
+import { useProfile } from '../../contexts/useProfile.js';
+import { format } from '../../i18n/languages.js';
 import { getMathTrainingStrings } from './mathTrainingStrings.js';
+import { Stars } from '../../components/ui/Stars.jsx';
+import { AppTopBar } from '../../components/ui/AppTopBar.jsx';
+import '../../styles/spaceTokens.css';
+import './MathTraining.css';
 
-// Drill-down: topic → subject → sub-subjects (with the student's progress on each).
-// Clicking a sub-subject opens the question game for it.
-// Renders under DashboardLayout, which owns `dir` — so no dir on this root.
+// Backend sends subject/topic/practice names in English. Translate the known ones, with a
+// graceful fallback to the backend value — so adding more subjects later just works.
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const nameKey = (raw) => {
+    const n = (raw || '').toLowerCase();
+    if (n.includes('math')) return 'math';
+    if (n.includes('quadratic')) return 'quadraticEquations';
+    if (n.includes('linear')) return 'linearEquations';
+    if (n.includes('road')) return 'roads';
+    if (n.includes('percent')) return 'percentages';
+    if (n.includes('calc')) return 'calculation';
+    if (n.includes('poly')) return 'polynomial';
+    if (n.includes('verbal') || n.includes('word')) return 'verbal';
+    if (n.includes('add')) return 'add';
+    if (n.includes('sub')) return 'sub';
+    if (n.includes('mult')) return 'mult';
+    if (n.includes('div')) return 'div';
+    if (n.includes('frac')) return 'fractions';
+    if (n.includes('dec')) return 'decimals';
+    return null;
+};
+const trName = (raw, t) => { const k = nameKey(raw); return (k && t.names?.[k]) || cap(raw); };
+const GLYPH = {
+    add: '+', sub: '−', mult: '×', div: '÷', fractions: '½', decimals: '.5',
+    calculation: '🧮', polynomial: 'x²', verbal: '💬', math: '➗',
+    roads: '🛣️', percentages: '%', linearEquations: '📈', quadraticEquations: 'x²',
+};
+const glyphFor = (raw) => GLYPH[nameKey(raw)] || '★';
+
+// A small purple orbital "planet" with the item's glyph (matches the sketch).
+const Orb = ({ raw, variant = '' }) => (
+    <span className={`mt-orb ${variant}`} aria-hidden="true">
+        <span className="mt-orb-planet">{glyphFor(raw)}</span>
+    </span>
+);
+
+// Step pill: Subjects ① ‹ Topics ② ‹ Levels ③ — current highlighted, earlier ones ticked.
+const StepIndicator = ({ step, t }) => {
+    const labels = [t.stepSubjects, t.stepTopics, t.stepPractices];
+    return (
+        <div className="mt-steps">
+            {labels.map((label, i) => {
+                const n = i + 1;
+                const state = n === step ? 'is-active' : n < step ? 'is-done' : '';
+                return (
+                    <Fragment key={n}>
+                        {i > 0 && <span className="mt-step-sep">‹</span>}
+                        <span className={`mt-step ${state}`}>
+                            <span className="mt-step-num">{n < step ? '✓' : n}</span>
+                            {label}
+                        </span>
+                    </Fragment>
+                );
+            })}
+        </div>
+    );
+};
+
+// Drill-down: subject (topic) → topic (subject) → practice (sub-subject, with progress).
+// Clicking a practice opens the regular exercise (QuestionGame) for it.
 export const MathTraining = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { language } = useLanguage();
+    const { language, dir } = useLanguage();
+    const { profileData } = useProfile();
+    const theme = (profileData.theme || 'LIGHT').toLowerCase();
     const t = getMathTrainingStrings(language);
+
     const [topics,      setTopics]      = useState([]);
     const [subjects,    setSubjects]    = useState([]);
     const [subSubjects, setSubSubjects] = useState([]);
@@ -42,21 +108,19 @@ export const MathTraining = () => {
     // On mount: load topics. If we arrived back from the game (state carries the topic +
     // subject), restore the sub-subjects view so "back" lands on that subject's tab.
     useEffect(() => {
-        // Local names avoid shadowing the strings dictionary `t` above.
         const topic = location.state?.topic;
         const subject = location.state?.subject;
         if (topic && subject) {
-            getTopics().then(r => setTopics(r.data)).catch(() => {});              // for breadcrumb back
-            getSubjects(topic.id).then(r => setSubjects(r.data)).catch(() => {});  // for breadcrumb back
-            // `load` owns the async state transition for this restored navigation state.
+            getTopics().then(r => setTopics(r.data)).catch(() => {});
+            getSubjects(topic.id).then(r => setSubjects(r.data)).catch(() => {});
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            load(() => getSubSubjects(subject.id), setSubSubjects);                // the restored view
+            load(() => getSubSubjects(subject.id), setSubSubjects);
         } else {
             load(getTopics, setTopics);
         }
     }, [load, location.state]);
 
-    // Step 2 — pick a topic → its subjects
+    // Step 2 — pick a subject (topic) → its topics (subjects)
     const handleTopicClick = (topic) => {
         setSelectedTopic(topic);
         setSelectedSubject(null);
@@ -64,7 +128,7 @@ export const MathTraining = () => {
         load(() => getSubjects(topic.id), setSubjects);
     };
 
-    // Step 3 — pick a subject → its sub-subjects (with progress)
+    // Step 3 — pick a topic (subject) → its practices (sub-subjects, with progress)
     const handleSubjectClick = (subject) => {
         setSelectedSubject(subject);
         load(() => getSubSubjects(subject.id), setSubSubjects);
@@ -84,143 +148,107 @@ export const MathTraining = () => {
         setError('');
     };
 
+    const step = selectedSubject ? 3 : selectedTopic ? 2 : 1;
+    const subtitle = step === 1 ? t.subSubjects : step === 2 ? t.subTopics : t.subPractices;
+
     return (
-        <div style={page}>
-            <h2 style={{ color: '#333', marginBottom: '8px' }}>{t.title}</h2>
+        <div className="mg-space mt-root" data-theme={theme} dir={dir}>
+            <Stars />
+            <div className="sc-content mt-topbar"><AppTopBar /></div>
 
-            {/* Breadcrumb */}
-            <div style={crumbBar}>
-                <span style={selectedTopic ? crumbLink : crumbCurrent} onClick={selectedTopic ? goToTopics : undefined}>
-                    {t.topics}
-                </span>
-                {selectedTopic && (
-                    <>
-                        <span style={crumbSep}>›</span>
-                        <span style={selectedSubject ? crumbLink : crumbCurrent} onClick={selectedSubject ? goToSubjects : undefined}>
-                            {selectedTopic.name}
-                        </span>
-                    </>
+            <div className="sc-content mt-inner">
+                <header className="mt-head">
+                    <h1 className="mt-title">{t.title}</h1>
+                    <p className="mt-sub">{subtitle}</p>
+                </header>
+
+                <StepIndicator step={step} t={t} />
+
+                <div className="mt-crumbs">
+                    <button type="button" className={`mt-crumb${selectedTopic ? ' is-link' : ' is-current'}`} onClick={selectedTopic ? goToTopics : undefined}>
+                        {t.stepSubjects}
+                    </button>
+                    {selectedTopic && (
+                        <>
+                            <span className="mt-crumb-sep">›</span>
+                            <button type="button" className={`mt-crumb${selectedSubject ? ' is-link' : ' is-current'}`} onClick={selectedSubject ? goToSubjects : undefined}>
+                                {trName(selectedTopic.name, t)}
+                            </button>
+                        </>
+                    )}
+                    {selectedSubject && (
+                        <>
+                            <span className="mt-crumb-sep">›</span>
+                            <span className="mt-crumb is-current">{trName(selectedSubject.name, t)}</span>
+                        </>
+                    )}
+                </div>
+
+                {loading && <p className="mt-msg">{t.loading}</p>}
+                {error && <p className="mt-msg mt-msg--err">{error}</p>}
+
+                {/* Step 1: subjects (disciplines) */}
+                {!selectedTopic && !loading && (
+                    <div className={`mt-grid${topics.length === 1 ? ' mt-grid--one' : ''}`}>
+                        {topics.map(topic => (
+                            <button key={topic.id} type="button" className="mt-card mt-card--lg" onClick={() => handleTopicClick(topic)}>
+                                <Orb raw={topic.name} variant="mt-orb--lg" />
+                                <span className="mt-card-body">
+                                    <div className="mt-card-title">{trName(topic.name, t)}</div>
+                                    <div className="mt-card-hint">{t.enterHint}</div>
+                                </span>
+                                <span className="mt-card-enter" aria-hidden="true">‹</span>
+                            </button>
+                        ))}
+                        {topics.length === 0 && !error && <p className="mt-msg">{t.emptyTopics}</p>}
+                    </div>
                 )}
-                {selectedSubject && (
-                    <>
-                        <span style={crumbSep}>›</span>
-                        <span style={crumbCurrent}>{selectedSubject.name}</span>
-                    </>
+
+                {/* Step 2: topics (areas) */}
+                {selectedTopic && !selectedSubject && !loading && (
+                    <div className="mt-grid">
+                        {subjects.map(subject => (
+                            <button key={subject.id} type="button" className="mt-card mt-card--topic" onClick={() => handleSubjectClick(subject)}>
+                                <div className="mt-card-title">{trName(subject.name, t)}</div>
+                                <Orb raw={subject.name} variant="mt-orb--lg mt-orb--topic" />
+                            </button>
+                        ))}
+                        {subjects.length === 0 && !error && <p className="mt-msg">{t.emptySubjects}</p>}
+                    </div>
                 )}
-            </div>
 
-            {loading && <p style={{ color: '#888' }}>{t.loading}</p>}
-            {error   && <p style={{ color: '#dc3545' }}>{error}</p>}
-
-            {/* Level 1: topics */}
-            {!selectedTopic && !loading && (
-                <Grid>
-                    {topics.map(topic => (
-                        <SelectCard key={topic.id} onClick={() => handleTopicClick(topic)}>
-                            <span style={cardTitle}>{topic.name}</span>
-                        </SelectCard>
-                    ))}
-                    {topics.length === 0 && !error && <Empty>{t.emptyTopics}</Empty>}
-                </Grid>
-            )}
-
-            {/* Level 2: subjects */}
-            {selectedTopic && !selectedSubject && !loading && (
-                <Grid>
-                    {subjects.map(subject => (
-                        <SelectCard key={subject.id} onClick={() => handleSubjectClick(subject)}>
-                            <span style={cardTitle}>{subject.name}</span>
-                        </SelectCard>
-                    ))}
-                    {subjects.length === 0 && !error && <Empty>{t.emptySubjects}</Empty>}
-                </Grid>
-            )}
-
-            {/* Level 3: sub-subjects with progress */}
-            {selectedSubject && !loading && (
-                <Grid>
-                    {subSubjects.map(sub => (
-                        <div
-                            key={sub.id}
-                            style={statsCard}
-                            onClick={() => navigate(`/math-training/${sub.id}/play`, { state: { subSubjectName: sub.name, topic: selectedTopic, subject: selectedSubject } })}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#007bff'; e.currentTarget.style.boxShadow = '0 2px 8px #007bff33'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = '#ddd';     e.currentTarget.style.boxShadow = 'none'; }}
-                        >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={cardTitle}>{sub.name}</span>
-                                <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '14px' }}>{t.play}</span>
-                            </div>
-                            <div style={statsRow}>
+                {/* Step 3: practices (sub-subjects) with progress */}
+                {selectedSubject && !loading && (
+                    <div className="mt-grid">
+                        {subSubjects.map(sub => (
+                            <button
+                                key={sub.id}
+                                type="button"
+                                className="mt-card mt-card--practice"
+                                onClick={() => navigate(`/math-training/${sub.id}/play`, { state: { subSubjectName: sub.name, topic: selectedTopic, subject: selectedSubject } })}
+                            >
+                                <div className="mt-practice-head">
+                                    <span className="mt-card-title">{trName(sub.name, t)}</span>
+                                    <Orb raw={sub.name} />
+                                </div>
                                 {/* Three independent metrics — do NOT merge:
-                                    רמה  (Level)      = currentLevel — progression tier (advances every N correct).
-                                    נפתרו (Solved)    = questionsSolved — correct answers in this sub-subject.
-                                    קושי (Difficulty) = difficultyLevel — the cluster/ML-adjusted difficulty
-                                                        actually played (from attempts), which can sit above the level. */}
-                                <Stat label={t.statLevel}      value={sub.currentLevel} />
-                                <Stat label={t.statSolved}     value={sub.questionsSolved} />
-                                <Stat label={t.statDifficulty} value={sub.difficultyLevel} />
-                            </div>
-                        </div>
-                    ))}
-                    {subSubjects.length === 0 && !error && <Empty>{t.emptySubSubjects}</Empty>}
-                </Grid>
-            )}
+                                    Level      = currentLevel — progression tier.
+                                    Solved     = questionsSolved — correct answers in this practice.
+                                    Difficulty = difficultyLevel — the ML-adjusted difficulty actually played. */}
+                                <div className="mt-stats">
+                                    <div className="mt-stat"><div className="mt-stat-v">{sub.currentLevel}</div><div className="mt-stat-l">{t.statLevel}</div></div>
+                                    <div className="mt-stat"><div className="mt-stat-v">{sub.questionsSolved}</div><div className="mt-stat-l">{t.statSolved}</div></div>
+                                    <div className="mt-stat"><div className="mt-stat-v">{sub.difficultyLevel}</div><div className="mt-stat-l">{t.statDifficulty}</div></div>
+                                </div>
+                                <span className="mt-start">▶ {t.start}</span>
+                            </button>
+                        ))}
+                        {subSubjects.length === 0 && !error && <p className="mt-msg">{t.emptySubSubjects}</p>}
+                    </div>
+                )}
+
+                <div className="mt-badge">🚀 {format(t.stepOf, { n: step, total: 3 })}</div>
+            </div>
         </div>
     );
 };
-
-// ── small presentational helpers ──────────────────────────────────────────────
-
-const Grid = ({ children }) => (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginTop: '16px' }}>{children}</div>
-);
-
-const SelectCard = ({ children, onClick }) => (
-    <div
-        onClick={onClick}
-        style={selectCard}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = '#007bff'; e.currentTarget.style.boxShadow = '0 2px 8px #007bff33'; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = '#ddd';     e.currentTarget.style.boxShadow = 'none'; }}
-    >
-        {children}
-    </div>
-);
-
-const Stat = ({ label, value }) => (
-    <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#007bff' }}>{value}</div>
-        <div style={{ fontSize: '12px', color: '#888' }}>{label}</div>
-    </div>
-);
-
-const Empty = ({ children }) => (
-    <p style={{ color: '#888', fontStyle: 'italic' }}>{children}</p>
-);
-
-// ── styles ─────────────────────────────────────────────────────────────────────
-
-const page = { padding: '20px', maxWidth: '720px', margin: '0 auto', fontFamily: 'Arial, sans-serif' };
-
-const crumbBar     = { display: 'flex', alignItems: 'center', gap: '8px', margin: '8px 0 4px', fontSize: '14px' };
-const crumbLink    = { color: '#007bff', cursor: 'pointer', fontWeight: 'bold' };
-const crumbCurrent = { color: '#333', fontWeight: 'bold' };
-const crumbSep     = { color: '#aaa' };
-
-const cardTitle = { fontSize: '16px', fontWeight: 'bold', color: '#333', textTransform: 'capitalize' };
-
-const selectCard = {
-    minWidth: '140px', padding: '20px', borderRadius: '8px',
-    border: '1px solid #ddd', backgroundColor: '#f9f9f9', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    transition: 'border-color 0.15s, box-shadow 0.15s',
-};
-
-const statsCard = {
-    minWidth: '220px', padding: '16px 20px', borderRadius: '8px',
-    border: '1px solid #ddd', backgroundColor: '#f0f8ff',
-    display: 'flex', flexDirection: 'column', gap: '12px',
-    cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s',
-};
-
-const statsRow = { display: 'flex', justifyContent: 'space-around', gap: '12px' };

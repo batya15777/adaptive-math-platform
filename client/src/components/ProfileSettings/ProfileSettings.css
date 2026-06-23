@@ -1,0 +1,68 @@
+/* Profile settings — themed identity + preferences page (light/dark via --mg-* tokens). */
+.ps-root { min-height: 100vh; padding: 18px 18px 56px; }
+.ps-topbar { max-width: 1080px; margin: 0 auto; }
+.mg-space.ps-root .ps-topbar { position: relative; z-index: 30; } /* language dropdown over cards */
+.ps-topbar .ts-btn { height: 40px; }
+.ps-inner { max-width: 960px; margin: 4px auto 0; display: flex; flex-direction: column; gap: 18px; }
+
+.ps-head { text-align: center; }
+.ps-title { margin: 0 0 6px; font-size: clamp(26px, 4.5vw, 34px); font-weight: 800; color: var(--mg-ts); }
+.ps-title::after { content: " ✦"; color: var(--mg-accent); }
+.ps-sub { margin: 0; color: var(--mg-tm); font-size: 14.5px; }
+
+.ps-card { background: var(--mg-card); border: 1px solid var(--mg-bd); border-radius: 22px; box-shadow: var(--mg-cardsh); padding: 22px; }
+.ps-msg { margin: 0; text-align: center; color: var(--mg-tm); font-size: 15px; }
+.ps-msg--err { color: var(--mg-danger); }
+.ps-ok { padding: 12px 16px; border-radius: 14px; background: rgba(34, 197, 94, .12); border: 1px solid rgba(34, 197, 94, .3); color: var(--mg-success); font-weight: 700; font-size: 14px; text-align: center; }
+
+/* ── profile card (avatar + identity + actions) ──────────────────────────── */
+.ps-profile { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.ps-avatar-wrap { position: relative; flex: none; }
+.ps-avatar-glow { position: absolute; inset: -8px; border-radius: 50%; background: radial-gradient(circle, rgba(124, 77, 255, .55), transparent 70%); filter: blur(6px); z-index: 0; }
+.ps-avatar-wrap .av-bubble { position: relative; z-index: 1; border: 3px solid var(--mg-card); box-shadow: 0 0 0 3px var(--mg-accent); }
+.ps-identity { flex: 1; min-width: 220px; }
+.ps-name { display: flex; align-items: center; gap: 8px; font-size: 26px; font-weight: 800; color: var(--mg-ts); }
+.ps-email { margin: 4px 0 12px; color: var(--mg-tm); font-size: 14px; }
+.ps-badges { display: flex; gap: 10px; flex-wrap: wrap; }
+.ps-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: var(--mg-s2); border: 1px solid var(--mg-bd); font-size: 13px; font-weight: 700; color: var(--mg-ts); }
+.ps-profile-actions { display: flex; flex-direction: column; gap: 10px; min-width: 180px; }
+
+/* ── settings grid ───────────────────────────────────────────────────────── */
+.ps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.ps-setcard { display: flex; flex-direction: column; gap: 12px; }
+.ps-setcard-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: var(--mg-tm); }
+.ps-setcard-h .ic { font-size: 16px; }
+.ps-setcard-sub { color: var(--mg-tm); font-size: 13px; }
+.ps-mini-avatar { display: flex; align-items: center; gap: 12px; }
+.ps-mini-avatar .av-bubble { box-shadow: 0 0 0 2px var(--mg-accent); }
+.ps-mini-name { font-weight: 700; color: var(--mg-ts); font-size: 14px; }
+
+.ps-stars-big { font-size: 34px; font-weight: 800; color: var(--mg-ts); font-variant-numeric: tabular-nums; }
+.ps-avatars-row { display: flex; align-items: center; }
+.ps-avatars-row .av-bubble { margin-inline-start: -10px; border: 2px solid var(--mg-card); }
+.ps-avatars-row .av-bubble:first-child { margin-inline-start: 0; }
+
+.ps-ach { display: flex; align-items: center; gap: 14px; }
+.ps-ach-medal { font-size: 38px; }
+.ps-ach-name { font-weight: 800; color: var(--mg-ts); font-size: 15px; }
+.ps-ach-desc { color: var(--mg-tm); font-size: 12.5px; }
+
+.ps-link { background: none; border: none; padding: 0; color: var(--mg-accent); font: inherit; font-weight: 700; font-size: 13.5px; cursor: pointer; align-self: flex-start; }
+.ps-link:hover { text-decoration: underline; }
+
+/* ── edit modal ──────────────────────────────────────────────────────────── */
+.ps-overlay { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(20, 14, 45, .55); backdrop-filter: blur(3px); }
+.ps-modal { width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; background: var(--mg-card); border: 1px solid var(--mg-bd); border-radius: 22px; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); padding: 24px; }
+.ps-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.ps-modal-title { margin: 0; font-size: 20px; font-weight: 800; color: var(--mg-ts); }
+.ps-modal-title::after { content: " ✦"; color: var(--mg-accent); }
+.ps-modal-x { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--mg-bd); background: var(--mg-s2); color: var(--mg-ts); cursor: pointer; font-size: 15px; }
+.ps-modal-x:hover { border-color: var(--mg-accent); }
+.ps-edit-avatar { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 18px; }
+.ps-field { margin-bottom: 14px; }
+.ps-field label { display: flex; gap: 6px; align-items: baseline; margin-bottom: 6px; font-size: 13px; font-weight: 700; color: var(--mg-ts); }
+.ps-field .ro { font-size: 11px; color: var(--mg-tm); font-weight: 600; }
+.ps-input { width: 100%; height: 44px; padding: 0 14px; box-sizing: border-box; background: var(--mg-s2); border: 1px solid var(--mg-bd); border-radius: 12px; color: var(--mg-ts); font: inherit; font-size: 14px; }
+.ps-input:disabled { opacity: .7; cursor: not-allowed; }
+.ps-modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+.ps-modal-actions .sc-btn { flex: 1; }

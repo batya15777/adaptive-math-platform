@@ -1,17 +1,16 @@
 import { useContext, useEffect, useState } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContextSetup.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
-import { getNavStrings } from '../navStrings.js';
 import { BroadcastAlert } from '../BroadcastAlert.jsx';
-// import { CalendarDays, BarChart3, Files, ShoppingCart, House, BookUser } from 'lucide-react';
-// import styles from './DashboardLayout.module.css';
 
+// Thin student shell: the survey gate + direction + broadcast alerts only. The themed header
+// + primary nav live in the shared AppTopBar (rendered inside each page's own purple/space
+// background), so there is no separate white bar or duplicate navigation here.
 const DashboardLayout = () => {
     const { user, authLoading } = useContext(AuthContext);
     const navigate = useNavigate();
-    const { language, dir } = useLanguage();
-    const t = getNavStrings(language);
+    const { dir } = useLanguage();
     const [broadcasts, setBroadcasts] = useState([]);
 
     useEffect(() => {
@@ -30,48 +29,13 @@ const DashboardLayout = () => {
         }
     }, [user, authLoading, navigate]);
 
-    // const location = useLocation();
-
-    const navItems = [
-        { key: 'home',         label: t.home,         path: '/home'},
-        { key: 'dashboard',    label: t.myDashboard,  path: '/dashboard'},
-        { key: 'mathTraining', label: t.mathTraining, path: '/math-training'},
-        { key: 'leaderboard',  label: t.leaderboard,  path: '/leaderboard'},
-        { key: 'settings',     label: t.settings,     path: '/profile-settings'}
-    ];
-
     return (
         <div dir={dir}>
             <BroadcastAlert
                 messages={broadcasts}
                 onDismiss={(i) => setBroadcasts(prev => prev.filter((_, idx) => idx !== i))}
             />
-            <aside >
-                <div >
-                    {t.brand}
-                </div>
-                <nav >
-                    {navItems.map((item) => {
-                        // const Icon = item.icon;
-                        // const isActive = location.pathname.includes(item.path);
-
-                        return (
-                            <Link
-                                key={item.key}
-                                to={item.path}
-
-                            >
-                                {/*<Icon size={20} />*/}
-                                <span>{item.label}</span>
-                            </Link>
-                        );
-                    })}
-                </nav>
-            </aside>
-
-            <main >
-                <Outlet />
-            </main>
+            <Outlet />
         </div>
     );
 };

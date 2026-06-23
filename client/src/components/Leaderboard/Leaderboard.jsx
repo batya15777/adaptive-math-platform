@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { getTop10 } from '../../service/leaderboardApi.js';
-import { AVATARS } from '../../assets/avatars/index.js';
+import { resolveAvatar } from '../ProfileSettings/avatarCatalog.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
 import { getLeaderboardStrings } from './leaderboardStrings.js';
 import './leaderboard.css';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-// Circular profile picture for a leaderboard row. `pictureId` indexes into AVATARS
-// (UserProfile.pictureId on the server). Falls back to a default icon when the id is
-// missing or out of range — e.g. a user who never set a profile picture.
-const LeaderAvatar = ({ pictureId }) => {
-    const src = pictureId == null ? undefined : AVATARS[pictureId];
+// Circular profile picture for a leaderboard row. Resolved from the SAME single source of
+// truth as the profile: the student's chosen avatar (selectedAvatarId) → legacy pictureId
+// slot → a gender default. Always the up-to-date DiceBear avatar from the shared catalog.
+const LeaderAvatar = ({ selectedAvatarId, pictureId, gender }) => {
+    const src = resolveAvatar({ selectedAvatarId, pictureId, gender })?.image;
     if (!src) {
         return <span className="lb-avatar lb-avatar--fallback" aria-hidden="true">👤</span>;
     }
@@ -54,7 +54,7 @@ export const Leaderboard = ({ highlightName }) => {
                                 <span className={'lb-rank' + (i < 3 ? ' lb-rank--medal' : '')}>
                                     {i < 3 ? MEDALS[i] : `#${i + 1}`}
                                 </span>
-                                <LeaderAvatar pictureId={entry.pictureId} />
+                                <LeaderAvatar selectedAvatarId={entry.selectedAvatarId} pictureId={entry.pictureId} gender={entry.gender} />
                                 <span className="lb-name">{entry.fullName}</span>
                                 <span className="lb-stars">⭐ {(entry.totalStars ?? 0).toLocaleString(locale)}</span>
                             </li>

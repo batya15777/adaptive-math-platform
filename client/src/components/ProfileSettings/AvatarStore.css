@@ -1,0 +1,45 @@
+/* Avatar store — a themed overlay panel (light/dark via --mg-* tokens). */
+.as-overlay { position: fixed; inset: 0; z-index: 85; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; background: rgba(20, 14, 45, .55); backdrop-filter: blur(3px); }
+.as-panel { width: 100%; max-width: 820px; background: var(--mg-card); border: 1px solid var(--mg-bd); border-radius: 24px; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); padding: 24px; }
+
+.as-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.as-title { margin: 0; font-size: clamp(20px, 3vw, 26px); font-weight: 800; color: var(--mg-ts); }
+.as-title::before { content: "✦ "; color: var(--mg-accent); }
+.as-stars { margin: 6px 0 0; font-size: 14px; font-weight: 700; color: var(--mg-ts); }
+.as-x { width: 36px; height: 36px; flex: none; border-radius: 50%; border: 1px solid var(--mg-bd); background: var(--mg-s2); color: var(--mg-ts); cursor: pointer; font-size: 16px; }
+.as-x:hover { border-color: var(--mg-accent); }
+
+.as-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 18px; }
+.as-tab { padding: 8px 16px; border-radius: 999px; border: 1px solid var(--mg-bd); background: var(--mg-s2); color: var(--mg-ts); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color .15s var(--mg-ease), background .15s var(--mg-ease); }
+.as-tab:hover { border-color: var(--mg-accent); }
+.as-tab.is-active { color: #fff; background: var(--mg-cta); border-color: transparent; }
+
+.as-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+.as-empty { grid-column: 1 / -1; text-align: center; color: var(--mg-tm); padding: 28px 0; }
+
+.as-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 12px 14px; border-radius: 18px; background: var(--mg-s2); border: 1px solid var(--mg-bd); transition: transform .15s var(--mg-ease), border-color .15s var(--mg-ease), box-shadow .15s var(--mg-ease); }
+.as-card:hover { transform: translateY(-2px); }
+.as-card.is-selected { border-color: var(--mg-accent); box-shadow: 0 0 0 1px var(--mg-accent), 0 0 22px rgba(124, 77, 255, .3); }
+.as-card.rarity-epic { background: linear-gradient(160deg, rgba(124, 77, 255, .16), rgba(91, 140, 255, .10)); }
+
+.as-bubble-wrap { position: relative; }
+.as-card.is-selected .av-bubble { box-shadow: 0 0 0 3px var(--mg-accent); }
+.as-lock { position: absolute; inset-block-end: -2px; inset-inline-end: -2px; width: 22px; height: 22px; border-radius: 50%; background: var(--mg-card); border: 1px solid var(--mg-bd); display: flex; align-items: center; justify-content: center; font-size: 11px; }
+
+.as-name { font-size: 13.5px; font-weight: 800; color: var(--mg-ts); text-align: center; }
+.as-price { font-size: 12.5px; font-weight: 700; color: var(--mg-tm); font-variant-numeric: tabular-nums; }
+.as-price.is-free { color: var(--mg-success); }
+
+.as-tag { position: absolute; top: 8px; inset-inline-end: 8px; font-size: 9.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+.as-tag--free { color: #fff; background: var(--mg-success); }
+.as-tag--selected { color: #fff; background: var(--mg-cta); }
+
+.as-btn { width: 100%; padding: 8px; border-radius: 12px; border: none; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; transition: filter .15s var(--mg-ease); }
+.as-btn--select { color: var(--mg-accent); background: var(--mg-card); border: 1px solid var(--mg-bd); }
+.as-btn--select:hover { border-color: var(--mg-accent); }
+.as-btn--buy { color: #fff; background: var(--mg-cta); box-shadow: var(--mg-glow); }
+.as-btn--buy:hover { filter: brightness(1.05); }
+.as-btn--need { color: var(--mg-tm); background: var(--mg-s2); border: 1px solid var(--mg-bd); cursor: not-allowed; font-weight: 700; }
+.as-btn--selected { color: var(--mg-accent); background: rgba(124, 77, 255, .12); border: 1px solid var(--mg-accent); cursor: default; }
+
+.as-footer { display: flex; justify-content: center; margin-top: 18px; }

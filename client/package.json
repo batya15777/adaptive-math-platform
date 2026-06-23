@@ -11,6 +11,8 @@
     "test": "node --test \"src/**/*.test.js\""
   },
   "dependencies": {
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.2",
     "axios": "^1.16.1",
     "framer-motion": "^12.40.0",
     "lottie-react": "^2.4.1",

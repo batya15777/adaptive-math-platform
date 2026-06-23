@@ -8,6 +8,8 @@ public class UpdateProfileRequest {
     private ProfileTheme theme;
     private Language language;
     private Long pictureId;
+    private String fullName;   // identity fields live on the User entity (see UserProfileService)
+    private String gender;     // "male" | "female" | "" (matches registration)
 
     public UpdateProfileRequest() {}
 
@@ -19,4 +21,10 @@ public class UpdateProfileRequest {
 
     public Long getPictureId() { return pictureId; }
     public void setPictureId(Long pictureId) { this.pictureId = pictureId; }
+
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
 }

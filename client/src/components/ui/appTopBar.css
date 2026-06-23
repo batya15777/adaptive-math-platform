@@ -1,9 +1,31 @@
 /* Themed top bar for in-app screens (Home, Leaderboard). Groups are pinned to
    PHYSICAL sides (logo right, controls left) and the controls run LTR, so the
    bar never flips or shifts when the page language/direction changes. */
-.appbar { position: relative; min-height: 52px; z-index: 30; } /* keep the language dropdown above the hero */
+/* padding-bottom gives a consistent, collapse-proof gap between the nav and each page's
+   title/content — across ALL student pages, since they all render this one component. */
+.appbar { position: relative; z-index: 30; display: flex; flex-direction: column; gap: 16px; padding-bottom: 38px; } /* keep the language dropdown above the hero */
+/* Row 1 — the positioning context for the side-pinned logo + controls. */
+.appbar-bar { position: relative; min-height: 52px; }
 .appbar-logo { position: absolute; top: 50%; right: 2px; transform: translateY(-50%); text-decoration: none; }
 .appbar-controls { position: absolute; top: 50%; left: 2px; transform: translateY(-50%); direction: ltr; display: flex; align-items: center; gap: 12px; }
+
+/* Row 2 — primary nav. Items sit directly on the page's space background (NO white
+   capsule/frame): the row is transparent, centered and airy, and ONLY the active route
+   gets the gradient pill. Centered with a comfortable gap — not stretched edge-to-edge. */
+.appbar-nav { width: 100%; max-width: 1040px; margin: 0 auto; display: flex; justify-content: center; gap: 32px; background: transparent; border: none; box-shadow: none; overflow-x: auto; scrollbar-width: none; }
+.appbar-nav::-webkit-scrollbar { display: none; }
+.appbar-nav-item { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 22px; color: var(--mg-tm); font-weight: 700; font-size: 14.5px; text-decoration: none; white-space: nowrap; transition: color .15s var(--mg-ease), background .15s var(--mg-ease); }
+.appbar-nav-item:hover { color: var(--mg-ts); background: rgba(124, 77, 255, .10); } /* subtle only */
+.appbar-nav-item.is-active,
+.appbar-nav-item.is-active:hover { color: #fff; background: linear-gradient(135deg, #7c4dff, #2f80ed); box-shadow: 0 6px 18px rgba(124, 77, 255, .35); }
+.appbar-nav-ic { font-size: 15px; }
+@media (max-width: 600px) {
+  .appbar { gap: 12px; padding-bottom: 24px; }
+  .appbar-nav { justify-content: flex-start; gap: 14px; }
+  .appbar-nav-item { padding: 9px 14px; }
+  .appbar-nav-label { display: none; } /* compact: icons only on small screens */
+  .appbar-nav-ic { font-size: 18px; }
+}
 .appbar-lang { width: 160px; }
 .appbar-logout, .appbar-back {
   height: 40px; padding: 0 16px; background: transparent; border: 1px solid var(--mg-bd);
