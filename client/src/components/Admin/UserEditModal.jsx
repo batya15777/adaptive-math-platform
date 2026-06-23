@@ -1,12 +1,11 @@
 import { useState } from "react";
 
-// Edit basic user details (fullName/email/age/gender). Presentational: receives the
-// user + strings via props, hands the values back via onSubmit, and shows the parent's
-// error without closing on failure. The parent remounts this via key={user.id}, so the
-// initial form is seeded once from initialUser — no effect/render-time setState needed.
+// Edit basic user details (fullName/email/age/gender).
+// Presentational: receives the user + strings via props, hands values back via onSubmit.
+// The parent remounts this via key={user.id}, so the initial form is seeded once.
 export const UserEditModal = ({ initialUser, onSubmit, onClose, dir = "ltr", t, error }) => {
     const [form, setForm] = useState(() => ({
-        fullName: initialUser?.username ?? "",   // AdminUserDto.username = fullName
+        fullName: initialUser?.username ?? "",
         email: initialUser?.email ?? "",
         age: initialUser?.age ?? "",
         gender: initialUser?.gender ?? "male",
@@ -25,42 +24,42 @@ export const UserEditModal = ({ initialUser, onSubmit, onClose, dir = "ltr", t, 
     };
 
     return (
-        <div style={overlay} onClick={onClose}>
-            <form style={{ ...box, direction: dir }} onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-                <h3 style={{ marginTop: 0 }}>{t.editUserTitle}</h3>
+        <div className="adm-overlay" onClick={onClose}>
+            <form
+                className="adm-modal"
+                style={{ direction: dir }}
+                onClick={(e) => e.stopPropagation()}
+                onSubmit={submit}
+            >
+                <h3 className="adm-modal-title">✏️ {t.editUserTitle}</h3>
 
-                <label style={lbl}>{t.colName}
-                    <input value={form.fullName} onChange={set("fullName")} style={inp} autoFocus />
-                </label>
-                <label style={lbl}>{t.colEmail}
-                    <input type="email" value={form.email} onChange={set("email")} style={inp} />
-                </label>
-                <label style={lbl}>{t.colAge}
-                    <input type="number" min="1" max="120" value={form.age} onChange={set("age")} style={inp} />
-                </label>
-                <label style={lbl}>{t.colGender}
-                    <select value={form.gender} onChange={set("gender")} style={inp}>
+                <div className="adm-field">
+                    <label className="adm-field-label">{t.colName}</label>
+                    <input className="adm-field-input" value={form.fullName} onChange={set("fullName")} autoFocus />
+                </div>
+                <div className="adm-field">
+                    <label className="adm-field-label">{t.colEmail}</label>
+                    <input type="email" className="adm-field-input" value={form.email} onChange={set("email")} />
+                </div>
+                <div className="adm-field">
+                    <label className="adm-field-label">{t.colAge}</label>
+                    <input type="number" min="1" max="120" className="adm-field-input" value={form.age} onChange={set("age")} />
+                </div>
+                <div className="adm-field">
+                    <label className="adm-field-label">{t.colGender}</label>
+                    <select className="adm-field-select" value={form.gender} onChange={set("gender")}>
                         <option value="male">{t.genderMale}</option>
                         <option value="female">{t.genderFemale}</option>
                     </select>
-                </label>
+                </div>
 
-                {error && <p style={{ color: "#dc3545", marginTop: 4 }}>{error}</p>}
+                {error && <div className="adm-notice adm-notice--error" style={{ marginTop: 0 }}>⚠ {error}</div>}
 
-                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}>
-                    <button type="button" onClick={onClose}>{t.cancel}</button>
-                    <button type="submit" style={saveBtn}>{t.save}</button>
+                <div className="adm-modal-actions">
+                    <button type="button" className="adm-btn adm-btn--ghost" onClick={onClose}>{t.cancel}</button>
+                    <button type="submit" className="adm-btn adm-btn--primary">{t.save}</button>
                 </div>
             </form>
         </div>
     );
 };
-
-const overlay = {
-    position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-};
-const box = { background: "#fff", borderRadius: 12, padding: 24, width: "min(440px, 92%)" };
-const lbl = { display: "block", fontSize: 13, color: "#444", marginBottom: 10 };
-const inp = { width: "100%", padding: 8, boxSizing: "border-box", marginTop: 4 };
-const saveBtn = { background: "#aa3bff", color: "#fff", border: 0, padding: "6px 14px", borderRadius: 6 };

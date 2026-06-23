@@ -6,8 +6,6 @@ import { NameFormModal } from "../../components/Admin/NameFormModal.jsx";
 import { getAdminStrings } from "../../components/Admin/adminStrings.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
 
-// "Smart" page: owns data fetching and modal/loading/error state.
-// Presentational pieces (TopicsTable, TopicFormModal) live in components/Admin/.
 export const AdminTopics = () => {
     const { language, dir } = useLanguage();
     const t = getAdminStrings(language);
@@ -16,7 +14,7 @@ export const AdminTopics = () => {
     const [topics, setTopics] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [editing, setEditing] = useState(null); // null = modal closed, {} = create, {id,name} = edit
+    const [editing, setEditing] = useState(null);
 
     const load = useCallback(() => {
         return getContentTopics()
@@ -48,23 +46,47 @@ export const AdminTopics = () => {
             });
     };
 
+    const activeCount = topics.filter((t) => t.active).length;
+
     return (
-        <div style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
-            <h1>{t.topicsTitle}</h1>
-            <p style={{ color: "#888", fontSize: 14 }}>{t.topicsHint}</p>
-            <button onClick={() => setEditing({})} style={{ marginBottom: 16 }}>+ {t.newTopic}</button>
-            {error && <p style={{ color: "#dc3545" }}>{error}</p>}
-            {loading ? (
-                <p style={{ color: "#888" }}>{t.loading}</p>
-            ) : (
-                <TopicsTable
-                    topics={topics}
-                    onEdit={setEditing}
-                    onToggle={handleToggle}
-                    onManageSubjects={(topic) => navigate(`/admin/topics/${topic.id}/subjects`)}
-                    t={t}
-                />
-            )}
+        <div dir={dir}>
+            <div className="adm-page-header">
+                <div>
+                    <h1 className="adm-page-title">📚 {t.topicsTitle}</h1>
+                    <p className="adm-page-subtitle">{t.topicsHint}</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    {!loading && (
+                        <span style={{ fontSize: 12, color: "var(--adm-txt-muted)" }}>
+                            {activeCount} {t.statusActive} / {topics.length}
+                        </span>
+                    )}
+                    <button className="adm-btn adm-btn--primary" onClick={() => setEditing({})}>
+                        + {t.newTopic}
+                    </button>
+                </div>
+            </div>
+
+            {error && <div className="adm-notice adm-notice--error">⚠ {error}</div>}
+
+            <div className="adm-card">
+                {loading ? (
+                    <div className="adm-loading">⏳ {t.loading}</div>
+                ) : topics.length === 0 ? (
+                    <div className="adm-empty">
+                        <div className="adm-empty-icon">📚</div>
+                        {t.noData}
+                    </div>
+                ) : (
+                    <TopicsTable
+                        topics={topics}
+                        onEdit={setEditing}
+                        onToggle={handleToggle}
+                        onManageSubjects={(topic) => navigate(`/admin/topics/${topic.id}/subjects`)}
+                        t={t}
+                    />
+                )}
+            </div>
 
             <NameFormModal
                 open={editing !== null}

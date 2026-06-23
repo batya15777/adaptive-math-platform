@@ -22,14 +22,14 @@ export const ErrorPatternsChart = ({ groups, t }) => {
             ) : (
                 <ResponsiveContainer width="100%" height={height}>
                     <BarChart data={data} layout="vertical" margin={{ top: 0, right: 28, left: 8, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eef1f5" />
-                        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#999" }} />
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--adm-bd, #eef1f5)" />
+                        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--adm-txt-muted, #999)" }} />
                         <YAxis
                             type="category" dataKey="name" width={150} tickLine={false}
-                            axisLine={{ stroke: "#e6e8ee" }} tick={{ fontSize: 12, fill: "#555" }}
+                            axisLine={false} tick={{ fontSize: 12, fill: "var(--adm-txt-2, #555)" }}
                         />
                         <Tooltip
-                            cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                            cursor={{ fill: "var(--adm-tr-hover, rgba(0,0,0,0.04))" }}
                             contentStyle={tooltipContentStyle}
                             itemStyle={tooltipItemStyle}
                             labelStyle={tooltipLabelStyle}
@@ -37,7 +37,7 @@ export const ErrorPatternsChart = ({ groups, t }) => {
                         />
                         <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={34} isAnimationActive animationDuration={800}>
                             {data.map((d, i) => <Cell key={d.code} fill={barColor(i)} />)}
-                            <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: "#666", fontWeight: 600 }} />
+                            <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: "var(--adm-txt-2, #666)", fontWeight: 600 }} />
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>

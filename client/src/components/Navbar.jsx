@@ -18,8 +18,10 @@ function Navbar() {
     // questions in the active language, so changing it mid-question is disruptive.
     const isExerciseScreen = /\/math-training\/[^/]+\/play$/.test(location.pathname);
 
-    // Pages that render their own themed top bar (AppTopBar) — hide this grey navbar there.
-    const hasOwnTopBar = ['/home', '/leaderboard', '/daily-practice', '/dashboard'].includes(location.pathname);
+    // Pages that render their own themed top bar — hide this grey navbar there.
+    // Admin pages have a full sidebar layout with their own controls.
+    const isAdminPage = location.pathname.startsWith('/admin');
+    const hasOwnTopBar = isAdminPage || ['/home', '/leaderboard', '/daily-practice', '/dashboard'].includes(location.pathname);
 
     const handleLogout = () => {
         logout()
