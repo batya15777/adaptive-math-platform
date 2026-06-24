@@ -319,12 +319,15 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
             boolean excluded = excludeQuestionIds != null && excludeQuestionIds.contains(activeId);
             if (!excluded) {
                 Optional<Question> active = questionRepository.findById(activeId);
-                if (active.isPresent() && active.get().getStatus() == QuestionStatus.CURRENT) {
+                if (active.isPresent()
+                        && active.get().getStatus() == QuestionStatus.CURRENT
+                        && language.equals(active.get().getLanguage())) {
                     return buildQuestionResponse(active.get(), subSubjectId, null, displayNameOf(user));
                 }
             }
-            // Stale pointer (resolved without clearing), OR the active question belongs to the
-            // other practice flow today (excluded) — drop it and generate a fresh question.
+            // Stale pointer (resolved without clearing), wrong language (user switched locale),
+            // or the active question belongs to the other practice flow today (excluded) —
+            // drop it and generate a fresh question in the correct language.
             progress.setActiveQuestionId(null);
         }
 

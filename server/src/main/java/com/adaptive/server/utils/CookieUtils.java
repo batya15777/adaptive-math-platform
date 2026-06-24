@@ -14,6 +14,7 @@ public class CookieUtils {
         Cookie cookie = new Cookie("session_token", token);
         cookie.setHttpOnly(true); // חסימה מ-JavaScript
         cookie.setPath("/");
+        cookie.setSecure(true);
         cookie.setMaxAge(rememberMe ? REMEMBER_ME_MAX_AGE : -1);
         response.addCookie(cookie);
     }
@@ -23,6 +24,7 @@ public class CookieUtils {
         Cookie cookie = new Cookie("session_token", null);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
+        cookie.setSecure(true);
         cookie.setMaxAge(0); // גיל 0 גורם לדפדפן למחוק את העוגייה מיד
         response.addCookie(cookie);
     }

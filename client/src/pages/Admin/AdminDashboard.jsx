@@ -70,7 +70,8 @@ export const AdminDashboard = () => {
     }, [t.analyticsLoadError]);
 
     useEffect(() => {
-        const es = new EventSource("http://localhost:8080/sse/admin", { withCredentials: true });
+        const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+        const es = new EventSource(`${base}/sse/admin`, { withCredentials: true });
         es.addEventListener("analytics", (e) => setData(JSON.parse(e.data)));
         return () => es.close();
     }, []);

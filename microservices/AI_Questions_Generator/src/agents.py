@@ -62,6 +62,14 @@ RULES:
 9. SAFETY — Never include violence, weapons, drugs, alcohol, adult content, or anything
    inappropriate for children.
 
+10. VARIETY — Never default to the same "safe" or round numbers across questions.
+    • Percentages: do NOT default to 10 %, 25 %, 50 %, or 100 %. Choose realistic but
+      varied values such as 15 %, 37 %, 62 %, 84 %.
+    • Prices, distances, quantities, counts: mix single-digit, double-digit, and
+      multi-digit numbers freely.
+    • Each question must feel numerically distinct — avoid re-using the same values
+      you just used in the previous question.
+
 OUTPUT — Return ONLY a valid JSON object.
 
 Open-answer mode:
