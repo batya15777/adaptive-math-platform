@@ -133,9 +133,9 @@ export const SurveyForm = ({ onComplete, t }) => {
                         onChange={setGrade}
                         placeholder={t.gradePlaceholder}
                         ariaLabel={t.gradeLabel}
-                        options={Array.from({ length: 6 }, (_, i) => i + 1).map(g => ({
-                            value: String(g),
-                            label: format(t.gradeOption, { grade: g }),
+                        options={t.gradeOptions.map((label, i) => ({
+                            value: String(i + 1),
+                            label,
                         }))}
                     />
                 </div>
