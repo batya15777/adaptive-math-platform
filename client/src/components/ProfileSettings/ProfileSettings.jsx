@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { useProfile } from '../../contexts/useProfile.js';
 import { AuthContext } from '../../context/AuthContextSetup.js';
+import { useAccessibility } from '../../context/AccessibilityContextSetup.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
 import { format } from '../../i18n/languages.js';
 import { getDashboardData } from '../../service/dashboardApi.js';
@@ -113,7 +114,7 @@ export const ProfileSettings = () => {
 
                 {loading && <p className="ps-msg">{t.loading}</p>}
                 {error && <p className="ps-msg ps-msg--err">{t.loadError}</p>}
-                {okMsg && <div className="ps-ok">{okMsg}</div>}
+                {okMsg && <div className="ps-ok" role="status" aria-live="polite">{okMsg}</div>}
                 {saveError && <p className="ps-msg ps-msg--err">{saveError}</p>}
 
                 {/* profile card */}
@@ -160,10 +161,7 @@ export const ProfileSettings = () => {
                         <span className="ps-setcard-sub">{labelFor(options.languages, profileData.language)}</span>
                     </div>
 
-                    <div className="ps-card ps-setcard">
-                        <div className="ps-setcard-h"><span className="ic">🔔</span>{t.sectionNotifications}</div>
-                        <NotificationsToggle hint={t.notificationsHint} />
-                    </div>
+                    <AccessibilityCard t={t} />
 
                     <div className="ps-card ps-setcard">
                         <div className="ps-setcard-h"><span className="ic">⭐</span>{t.sectionStars}</div>
@@ -229,26 +227,55 @@ export const ProfileSettings = () => {
     );
 };
 
-// Placeholder notifications toggle — local only. TODO(backend): persist a real preference.
-const NotificationsToggle = ({ hint }) => {
-    const [on, setOn] = useState(true);
+// Accessibility card (replaces the old notifications card). All real, client-only — preferences
+// live in localStorage via AccessibilityProvider and are applied site-wide to the student UI.
+const A11yToggle = ({ label, icon, on, onToggle }) => (
+    <div className="ps-a11y-row">
+        <span className="ps-a11y-label"><span className="ic" aria-hidden="true">{icon}</span>{label}</span>
+        <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label={label}
+            className={'ps-switch' + (on ? ' is-on' : '')}
+            onClick={onToggle}
+        >
+            <span className="ps-switch-knob" aria-hidden="true" />
+        </button>
+    </div>
+);
+
+const AccessibilityCard = ({ t }) => {
+    const { settings, update } = useAccessibility();
+    const sizes = [
+        { key: 'sm', glyph: 'A-', label: t.a11yTextSmall },
+        { key: 'md', glyph: 'A', label: t.a11yTextNormal },
+        { key: 'lg', glyph: 'A+', label: t.a11yTextLarge },
+    ];
     return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <span className="ps-setcard-sub">{hint}</span>
-            <button
-                type="button"
-                onClick={() => setOn(v => !v)}
-                aria-pressed={on}
-                style={{
-                    width: 46, height: 26, flex: 'none', borderRadius: 999, border: '1px solid var(--mg-bd)', cursor: 'pointer',
-                    background: on ? 'var(--mg-cta)' : 'var(--mg-s2)', position: 'relative', transition: 'background .15s ease',
-                }}
-            >
-                <span style={{
-                    position: 'absolute', top: 2, insetInlineStart: on ? 22 : 2, width: 20, height: 20, borderRadius: '50%',
-                    background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.3)', transition: 'inset-inline-start .15s ease',
-                }} />
-            </button>
+        <div className="ps-card ps-setcard ps-a11y">
+            <div className="ps-setcard-h"><span className="ic">♿</span>{t.sectionAccessibility}</div>
+            <span className="ps-setcard-sub">{t.a11yHint}</span>
+
+            <div className="ps-a11y-sizes" role="group" aria-label={t.a11yTextSize}>
+                <span className="ps-a11y-sizes-label">{t.a11yTextSize}</span>
+                <div className="ps-a11y-sizes-btns">
+                    {sizes.map((s) => (
+                        <button
+                            key={s.key}
+                            type="button"
+                            className={'ps-size-btn' + (settings.text === s.key ? ' is-active' : '')}
+                            aria-pressed={settings.text === s.key}
+                            aria-label={s.label}
+                            onClick={() => update({ text: s.key })}
+                        >{s.glyph}</button>
+                    ))}
+                </div>
+            </div>
+
+            <A11yToggle label={t.a11yContrast} icon="◐" on={settings.contrast} onToggle={() => update({ contrast: !settings.contrast })} />
+            <A11yToggle label={t.a11yMotion} icon="🎬" on={settings.motion} onToggle={() => update({ motion: !settings.motion })} />
+            <A11yToggle label={t.a11yFont} icon="🔤" on={settings.font} onToggle={() => update({ font: !settings.font })} />
         </div>
     );
 };

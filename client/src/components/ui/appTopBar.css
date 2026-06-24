@@ -7,7 +7,10 @@
 /* Row 1 — the positioning context for the side-pinned logo + controls. */
 .appbar-bar { position: relative; min-height: 52px; }
 .appbar-logo { position: absolute; top: 50%; right: 2px; transform: translateY(-50%); text-decoration: none; }
-.appbar-controls { position: absolute; top: 50%; left: 2px; transform: translateY(-50%); direction: ltr; display: flex; align-items: center; gap: 12px; }
+/* left: -16px nudges the controls a touch toward the screen edge — uniform on every student page
+   (shared component). Safe at any width: each page root has 18px side padding, so even when the
+   column fills a narrow screen the controls stay ~2px inside the edge. */
+.appbar-controls { position: absolute; top: 50%; left: -16px; transform: translateY(-50%); direction: ltr; display: flex; align-items: center; gap: 12px; }
 
 /* Row 2 — primary nav. Items sit directly on the page's space background (NO white
    capsule/frame): the row is transparent, centered and airy, and ONLY the active route

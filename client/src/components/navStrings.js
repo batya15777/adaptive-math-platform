@@ -20,6 +20,7 @@ export const NAV_STRINGS = {
         navTraining: "Practice",
         navLeaderboard: "Leaderboard",
         navProfile: "Profile",
+        navGames: "Games",
         navAria: "Main navigation",
     },
     he: {
@@ -39,6 +40,7 @@ export const NAV_STRINGS = {
         navTraining: "תרגול",
         navLeaderboard: "מובילים",
         navProfile: "פרופיל",
+        navGames: "משחקים",
         navAria: "ניווט ראשי",
     },
     ru: {
@@ -58,6 +60,7 @@ export const NAV_STRINGS = {
         navTraining: "Практика",
         navLeaderboard: "Лидеры",
         navProfile: "Профиль",
+        navGames: "Игры",
         navAria: "Основная навигация",
     },
 };
