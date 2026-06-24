@@ -193,7 +193,7 @@ export const AdminDashboard = () => {
                             </div>
                             <div className="adm-card-body" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                                 {/* Fixed 200×200 square ensures the donut is a geometrically perfect circle */}
-                                <div style={{ display: "flex", justifyContent: "center" }}>
+                                <div style={{ position: "relative", display: "inline-block" }}>
                                     <PieChart width={200} height={200}>
                                         <Pie
                                             data={pieData}
@@ -207,8 +207,20 @@ export const AdminDashboard = () => {
                                         </Pie>
                                         <Tooltip content={<CustomTooltip />} />
                                     </PieChart>
+                                    {/* Overlay centered over the donut hole */}
+                                    <div style={{
+                                        position: "absolute",
+                                        top: "50%", left: "50%",
+                                        transform: "translate(-50%, -50%)",
+                                        textAlign: "center",
+                                        pointerEvents: "none",
+                                        lineHeight: 1,
+                                    }}>
+                                        <div style={{ fontSize: 26, fontWeight: 800, color: "#7C4DFF" }}>{successRate}%</div>
+                                        <div style={{ fontSize: 10, color: isDark ? "#8B93A7" : "#6B7280", marginTop: 3 }}>{t.cardSuccessRate}</div>
+                                    </div>
                                 </div>
-                                {/* Legend rendered outside the chart for correct vertical centering */}
+                                {/* Legend */}
                                 <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 4 }}>
                                     {pieData.map((entry, i) => (
                                         <span key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: isDark ? "#8B93A7" : "#6B7280" }}>
@@ -216,10 +228,6 @@ export const AdminDashboard = () => {
                                             {entry.name}
                                         </span>
                                     ))}
-                                </div>
-                                <div style={{ textAlign: "center", marginTop: 12 }}>
-                                    <div style={{ fontSize: 36, fontWeight: 800, color: "#7C4DFF", lineHeight: 1 }}>{successRate}%</div>
-                                    <div style={{ fontSize: 12, color: "var(--adm-txt-muted)", marginTop: 4 }}>{t.cardSuccessRate}</div>
                                 </div>
                             </div>
                         </div>

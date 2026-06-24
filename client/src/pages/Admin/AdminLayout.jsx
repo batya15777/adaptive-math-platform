@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContextSetup.js";
 import { useLanguage } from "../../i18n/useLanguage.js";
@@ -27,6 +27,19 @@ export const AdminLayout = () => {
 
     const isDark = (profileData.theme || "LIGHT") === "DARK";
     const theme = isDark ? "dark" : "light";
+
+    useEffect(() => {
+        const bg = isDark ? "#0C1120" : "#EEF0FA";
+        document.documentElement.style.background = bg;
+        document.body.style.background = bg;
+        const root = document.getElementById("root");
+        if (root) root.style.borderInline = "none";
+        return () => {
+            document.documentElement.style.background = "";
+            document.body.style.background = "";
+            if (root) root.style.borderInline = "";
+        };
+    }, [isDark]);
 
     const langs = options.languages?.length
         ? options.languages
