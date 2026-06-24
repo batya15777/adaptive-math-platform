@@ -1,0 +1,7 @@
+# Keep the build context small and the build reproducible — the jar is built
+# inside the image from pom.xml + src, so local build output is never needed.
+target
+.idea
+.git
+*.iml
+HELP.md

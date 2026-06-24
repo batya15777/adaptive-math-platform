@@ -45,7 +45,7 @@ public class MLClusteringService {
     private final ExerciseAttemptRepository attemptRepository;
     private final StudentClusterAssignmentRepository assignmentRepository;
 
-    @Value("${ml.clustering.url:http://localhost:8001}")
+    @Value("${ml.clustering.url:http://localhost:8002}")
     private String clusteringUrl;
 
     public MLClusteringService(RestTemplateBuilder restTemplateBuilder,
