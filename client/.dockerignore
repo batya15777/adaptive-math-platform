@@ -1,0 +1,9 @@
+# Never copy these into the build context — node_modules is rebuilt with `npm ci`
+# inside the image, and copying the Windows-built one would corrupt the build.
+node_modules
+dist
+.git
+.idea
+.vscode
+npm-debug.log*
+*.log

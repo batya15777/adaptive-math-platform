@@ -4,7 +4,8 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PORT=8001
 
 WORKDIR /app
 
@@ -21,4 +22,6 @@ COPY src ./src
 
 EXPOSE 8001
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+# Render provides $PORT; bind 0.0.0.0 so the service is reachable. Shell form so
+# ${PORT} is expanded at runtime (falls back to 8001 for local `docker run`).
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
