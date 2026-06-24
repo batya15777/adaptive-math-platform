@@ -51,9 +51,12 @@
 }
 
 html {
-  /* Always reserve the scrollbar gutter so toggling page height (e.g. switching
-     language) never shifts the centered layout sideways. */
+  /* Always reserve the scrollbar gutter so toggling page height (e.g. switching language, or
+     moving between a short page and a scrolling one) never shifts the centered layout — and with
+     it the top header (logo / controls) — sideways. overflow-y:scroll is the cross-browser
+     fallback for where scrollbar-gutter isn't honored. */
   scrollbar-gutter: stable;
+  overflow-y: scroll;
 }
 
 body {

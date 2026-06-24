@@ -1,0 +1,106 @@
+/* ══ Games hub — one layout, two skins (follows the user's light/dark theme) ══ */
+/* No global `* { box-sizing: border-box }` in this app, so width:100% + padding would push the
+   card ~44px past its 640 container. The clipped overflow anchors differently under RTL vs LTR,
+   shifting the centered card sideways on language switch — the "screen jump". Scope border-box
+   here so padded elements stay inside their box and centering is identical in both directions. */
+.games-root, .games-root * { box-sizing: border-box; }
+.games-root { min-height: 100vh; padding: 18px 18px 56px; position: relative; overflow: hidden; }
+
+/* decorative floating planets (behind everything) */
+.games-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.mg-space[data-theme="light"] .games-bg { opacity: .6; }
+.games-planet { position: absolute; border-radius: 50%; }
+.games-planet--saturn { width: clamp(90px, 11vw, 150px); aspect-ratio: 1; top: 10%; left: 3%; background: radial-gradient(circle at 34% 30%, #b9a0ff, #6f4fc4 68%); box-shadow: 0 0 46px rgba(124, 77, 255, .5); animation: gp-float 9s ease-in-out infinite; }
+.games-planet--saturn::after { content: ''; position: absolute; left: 50%; top: 50%; width: 180%; height: 42%; transform: translate(-50%, -50%) rotate(-20deg); border-radius: 50%; border: 8px solid rgba(165, 135, 255, .32); }
+.games-planet--blue { width: clamp(40px, 5vw, 64px); aspect-ratio: 1; top: 30%; right: 5%; background: radial-gradient(circle at 35% 30%, #9cc0ff, #3f63d6 70%); box-shadow: 0 0 26px rgba(80, 120, 255, .5); animation: gp-float 12s ease-in-out infinite; animation-delay: -4s; }
+.games-planet--red { width: clamp(46px, 6vw, 76px); aspect-ratio: 1; bottom: 15%; right: 9%; background: radial-gradient(circle at 35% 30%, #ff9d8a, #c2483f 70%); box-shadow: 0 0 28px rgba(255, 90, 80, .4); animation: gp-float 10s ease-in-out infinite; animation-delay: -2s; }
+
+/* NB: `.mg-space .sc-content { z-index:1 }` (specificity 0,2,0) would otherwise pin this
+   wrapper to z-index 1 — equal to the stage below it — letting the game card paint over the
+   open language dropdown. Match that specificity and lift it so the dropdown stays on top. */
+/* 1080 like every other student page's top bar, so the logo + controls sit at the exact same
+   physical spot across all pages (this page used to be 1180, which nudged them ~50px out). */
+.mg-space .games-topbar { position: relative; z-index: 40; max-width: 1080px; margin: 0 auto; }
+.games-stagewrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; }
+.games-inner { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: clamp(24px, 4.5vh, 42px); align-items: center; }
+
+/* hero */
+.games-hero { text-align: center; margin-top: clamp(8px, 2vh, 20px); }
+.games-title { margin: 0 0 clamp(14px, 2vh, 20px); font-size: clamp(32px, 5.4vw, 50px); font-weight: 900; color: var(--mg-ts); }
+.mg-space[data-theme="dark"] .games-title { text-shadow: 0 0 28px rgba(124, 77, 255, .65); }
+.games-sub { margin: 0; color: var(--mg-tm); font-size: clamp(14px, 2.2vw, 18px); }
+.games-stars { margin: 16px auto 0; width: max-content; padding: 9px 20px; border-radius: 999px; font-weight: 800; font-size: 16px; color: var(--mg-ts); background: var(--mg-card); border: 1px solid var(--mg-bd); }
+.mg-space[data-theme="dark"] .games-stars { box-shadow: 0 0 22px rgba(124, 77, 255, .3); }
+
+/* ── stage / pedestal ── */
+.gp-stage { position: relative; width: 100%; }
+.gp-stage-rings { position: absolute; left: 50%; bottom: -30px; transform: translateX(-50%); width: 86%; height: 70px; pointer-events: none; z-index: 0; }
+.gp-stage-rings::before, .gp-stage-rings::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; }
+.gp-stage-rings::before { width: 100%; height: 100%; border: 1.5px solid rgba(150, 110, 255, .42); box-shadow: 0 0 30px rgba(124, 77, 255, .4); }
+.gp-stage-rings::after { width: 64%; height: 60%; border: 1.5px solid rgba(185, 150, 255, .55); }
+.mg-space[data-theme="light"] .gp-stage-rings::before { border-color: rgba(150, 110, 255, .26); box-shadow: 0 14px 30px rgba(120, 90, 190, .18); }
+.mg-space[data-theme="light"] .gp-stage-rings::after { border-color: rgba(170, 130, 240, .3); }
+
+/* main game card */
+.gp-card { position: relative; z-index: 1; width: 100%; padding: clamp(16px, 2.2vw, 22px); border-radius: 24px; background: var(--mg-card); border: 1px solid var(--mg-bd); display: flex; flex-direction: column; gap: 16px; }
+.mg-space[data-theme="light"] .gp-card { box-shadow: 0 24px 60px rgba(90, 70, 160, .16); }
+.mg-space[data-theme="dark"] .gp-card { border-color: rgba(150, 110, 255, .4); box-shadow: 0 0 50px rgba(124, 77, 255, .4), inset 0 0 30px rgba(124, 77, 255, .1); }
+
+/* battle preview — a dark game thumbnail (stays dark in both themes) */
+.gp-prev { position: relative; border-radius: 18px; padding: 14px; background: radial-gradient(120% 100% at 50% 0, rgba(70, 40, 130, .5), rgba(12, 8, 28, .9)); border: 1px solid rgba(124, 77, 255, .4); display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.gp-prev-stage { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 118px; padding: 0 clamp(6px, 3vw, 26px); }
+.gp-prev-floor { position: absolute; left: -10%; right: -10%; bottom: 0; height: 52%; background-image: linear-gradient(rgba(124, 138, 255, .4) 1px, transparent 1px), linear-gradient(90deg, rgba(124, 138, 255, .4) 1px, transparent 1px); background-size: 26px 26px; transform: perspective(190px) rotateX(62deg); transform-origin: bottom; -webkit-mask-image: linear-gradient(to top, #000 10%, transparent); mask-image: linear-gradient(to top, #000 10%, transparent); pointer-events: none; }
+.gp-prev-fighter { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.gp-prev-name { font-size: 11px; font-weight: 800; color: #d9d2ff; }
+.gp-prev-hearts { font-size: 12px; }
+.gp-prev-hearts .is-lost { opacity: .45; filter: grayscale(1); }
+.gp-prev-hp { position: relative; width: 86px; height: 12px; border-radius: 999px; background: rgba(0, 0, 0, .45); border: 1px solid rgba(255, 90, 120, .5); overflow: hidden; }
+.gp-prev-hp > i { display: block; height: 100%; background: linear-gradient(90deg, #ff8a5b, #ff3b6b); }
+.gp-prev-hp > b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #fff; }
+.gp-prev-char { width: clamp(74px, 13vw, 104px); display: block; }
+.gp-prev-char .gb-ship, .gp-prev-char .gb-mon { width: 100%; height: auto; display: block; }
+.gp-prev-char--ship .gb-ship { filter: drop-shadow(0 0 9px rgba(74, 163, 255, .75)); }
+.gp-prev-char--mon .gb-mon { filter: drop-shadow(0 0 11px rgba(180, 70, 255, .75)); }
+.gp-prev-beam { position: relative; z-index: 1; flex: 1; height: 3px; border-radius: 999px; background: linear-gradient(90deg, transparent, #6fd3ff, transparent); box-shadow: 0 0 10px #6fd3ff; opacity: .9; }
+.gp-prev-q { position: relative; z-index: 1; border-radius: 14px; padding: 11px 13px; background: rgba(20, 12, 40, .72); border: 1px solid rgba(124, 77, 255, .4); text-align: center; }
+.gp-prev-q-title { font-size: 11.5px; font-weight: 700; color: #c9bdff; }
+.gp-prev-q-expr { font-size: clamp(19px, 3.6vw, 26px); font-weight: 900; color: #fff; margin: 4px 0 9px; }
+.gp-prev-q-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.gp-prev-opt { padding: 8px 4px; border-radius: 10px; font-size: 14px; font-weight: 800; color: #eae6ff; background: rgba(70, 50, 120, .5); border: 1px solid rgba(150, 120, 255, .4); }
+.gp-prev-opt.is-correct { background: linear-gradient(180deg, rgba(34, 130, 66, .9), rgba(20, 84, 42, .95)); border-color: #4ade80; box-shadow: 0 0 12px rgba(74, 222, 128, .55); }
+
+/* card info + CTA */
+.gp-card-info { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.gp-card-title { margin: 2px 0 0; font-size: clamp(22px, 3.6vw, 28px); font-weight: 900; color: var(--mg-ts); }
+.gp-card-desc { margin: 0; color: var(--mg-tm); font-size: 14px; max-width: 460px; }
+.gp-card-cost { margin: 2px 0; padding: 7px 18px; border-radius: 999px; font-weight: 800; font-size: 15px; color: var(--mg-ts); background: var(--mg-card); border: 1px solid var(--mg-bd); }
+.gp-card-cta { margin-top: 6px; width: min(400px, 100%); font-size: 18px; padding: 14px; border-radius: 999px; background: linear-gradient(90deg, #7c4dff, #b14dff); border: none; color: #fff; animation: gp-pulse 2.8s ease-in-out infinite; transition: transform .12s var(--mg-ease); }
+.gp-card-cta:hover { transform: translateY(-2px); animation: none; box-shadow: 0 0 38px rgba(160, 100, 255, .85); }
+
+/* side floating info cards */
+.gp-aside { position: absolute; top: 44%; width: 86px; padding: 16px 10px; border-radius: 20px; background: var(--mg-card); border: 1px solid var(--mg-bd); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: gp-float 7s ease-in-out infinite; }
+.mg-space[data-theme="light"] .gp-aside { box-shadow: 0 16px 36px rgba(90, 70, 160, .14); }
+.mg-space[data-theme="dark"] .gp-aside { box-shadow: 0 0 26px rgba(124, 77, 255, .28); }
+.gp-aside--l { inset-inline-start: 0; }
+.gp-aside--r { inset-inline-end: 0; animation-delay: -3.5s; }
+.gp-aside-star { font-size: 26px; }
+.gp-aside-star--p { color: #b14dff; text-shadow: 0 0 14px rgba(177, 77, 255, .7); }
+.gp-aside-text { margin: 0; font-size: 13px; font-weight: 800; color: var(--mg-ts); line-height: 1.95; }
+
+/* "not enough stars" gate modal (shown before navigating to planet select) */
+.games-modal-overlay { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(8, 5, 20, .6); backdrop-filter: blur(4px); }
+.games-modal { width: 100%; max-width: 380px; padding: 28px 24px 22px; border-radius: 22px; text-align: center; background: var(--mg-card); border: 1px solid var(--mg-bd); box-shadow: 0 24px 60px rgba(20, 10, 50, .45); }
+.games-modal-emoji { font-size: 40px; }
+.games-modal-title { margin: 8px 0 6px; font-size: 22px; font-weight: 900; color: var(--mg-ts); }
+.games-modal-sub { margin: 0 0 18px; font-size: 14px; color: var(--mg-tm); }
+.games-modal-actions { display: flex; flex-direction: column; gap: 10px; }
+.games-modal-actions .sc-btn { width: 100%; }
+
+@keyframes gp-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+@keyframes gp-pulse { 0%, 100% { box-shadow: 0 0 22px rgba(140, 90, 255, .5); } 50% { box-shadow: 0 0 38px rgba(165, 105, 255, .85); } }
+
+/* responsive: drop the side cards when they'd overlap the central card */
+@media (max-width: 1080px) { .gp-aside { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .games-planet, .gp-aside, .gp-card-cta { animation: none; }
+}

@@ -33,6 +33,22 @@
 .ps-setcard-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: var(--mg-tm); }
 .ps-setcard-h .ic { font-size: 16px; }
 .ps-setcard-sub { color: var(--mg-tm); font-size: 13px; }
+
+/* accessibility card — same card look; a taller cell in the grid (others stay their size) */
+.ps-a11y { gap: 14px; }
+.ps-a11y-sizes { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ps-a11y-sizes-label { font-size: 13px; font-weight: 700; color: var(--mg-ts); }
+.ps-a11y-sizes-btns { display: inline-flex; gap: 6px; }
+.ps-size-btn { min-width: 40px; padding: 7px 9px; border-radius: 10px; border: 1px solid var(--mg-bd); background: var(--mg-s2); color: var(--mg-ts); font-weight: 800; cursor: pointer; transition: background .15s var(--mg-ease), border-color .15s var(--mg-ease); }
+.ps-size-btn:hover { border-color: var(--mg-accent); }
+.ps-size-btn.is-active { background: var(--mg-cta); color: #fff; border-color: transparent; }
+.ps-a11y-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ps-a11y-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--mg-ts); }
+.ps-switch { width: 46px; height: 26px; flex: none; border-radius: 999px; border: 1px solid var(--mg-bd); cursor: pointer; background: var(--mg-s2); position: relative; transition: background .15s ease; }
+.ps-switch.is-on { background: var(--mg-cta); }
+.ps-switch-knob { position: absolute; top: 2px; inset-inline-start: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: inset-inline-start .15s ease; }
+.ps-switch.is-on .ps-switch-knob { inset-inline-start: 22px; }
+
 .ps-mini-avatar { display: flex; align-items: center; gap: 12px; }
 .ps-mini-avatar .av-bubble { box-shadow: 0 0 0 2px var(--mg-accent); }
 .ps-mini-name { font-weight: 700; color: var(--mg-ts); font-size: 14px; }

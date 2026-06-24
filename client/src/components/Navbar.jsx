@@ -23,7 +23,8 @@ function Navbar() {
     // (/math-training/:id/play) also carries its own AppTopBar, so the legacy grey strip
     // must not show over its space background.
     const isAdminPage = location.pathname.startsWith('/admin');
-    const hasOwnTopBar = isAdminPage || isExerciseScreen || ['/home', '/leaderboard', '/daily-practice', '/dashboard', '/math-training', '/profile-settings'].includes(location.pathname);
+    const isGamesPage = location.pathname.startsWith('/games');
+    const hasOwnTopBar = isAdminPage || isGamesPage || isExerciseScreen || ['/home', '/leaderboard', '/daily-practice', '/dashboard', '/math-training', '/profile-settings'].includes(location.pathname);
 
     const handleLogout = () => {
         logout()

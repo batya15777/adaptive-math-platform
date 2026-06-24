@@ -416,6 +416,20 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         return Math.max(AI_MIN_DIFFICULTY, Math.min(difficulty, AI_MAX_DIFFICULTY));
     }
 
+    /**
+     * Generates a standalone question for the Games feature — same rule-based generator, at the
+     * given sub-subject + level, but it NEVER touches StudentProgress / level progression / archive.
+     * A game must not be a back door to level up. Saved only so the question carries a unique id.
+     */
+    public QuestionResponse generateGameQuestion(Long subSubjectId, int level, String language,
+                                                 boolean multipleChoice, String displayName) {
+        SubSubject subSubject = resolveSubSubject(subSubjectId);
+        int safeLevel = Math.max(1, Math.min(level, MAX_DIFFICULTY_LEVEL));
+        Question question = createCodeQuestion(subSubject, safeLevel, safeLevel, language, multipleChoice);
+        question = questionRepository.save(question);
+        return buildQuestionResponse(question, subSubjectId, null, displayName);
+    }
+
     @Transactional
     public QuestionResponse getInitialAssessmentQuestion(Long userId, InitialAssessmentRequest request) {
        //משתמשים בשאלון הגדרת רמה בהרשמה כדי לקחת תלמיד לרמה המתאימה לו
@@ -639,7 +653,8 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         if (text == null || text.isEmpty()) {
             return text;
         }
-        return text.replace("NAME", displayName);
+        // String.replace throws on a null replacement — fall back to a neutral default.
+        return text.replace("NAME", displayName != null ? displayName : "");
     }
 
     /** Student's display name for personalising questions; falls back to a neutral default. */

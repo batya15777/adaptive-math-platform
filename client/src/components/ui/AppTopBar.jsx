@@ -39,6 +39,7 @@ export function AppTopBar({ minimal = false, backTo = null, onBack = null }) {
         { to: "/dashboard",        label: nav.navStats,       icon: "📊" },
         { to: "/math-training",    label: nav.navTraining,    icon: "✏️" },
         { to: "/leaderboard",      label: nav.navLeaderboard, icon: "🏆" },
+        { to: "/games",            label: nav.navGames,       icon: "🎮" },
         { to: "/profile-settings", label: nav.navProfile,     icon: "👤" },
     ];
 
