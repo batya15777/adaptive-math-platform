@@ -24,6 +24,8 @@ export const HOME_STRINGS = {
         rankPlace: "Rank {rank}",
         rankUnranked: "Top 10+",
         rankPraise: { male: "Great job! Keep it up!", female: "Great job! Keep it up!", neutral: "Great job! Keep it up!" },
+        rankOutside: { male: "You're not in the top 10 yet — keep earning stars!", female: "You're not in the top 10 yet — keep earning stars!", neutral: "You're not in the top 10 yet — keep earning stars!" },
+        rankNeutral: { male: "Keep learning and earning stars!", female: "Keep learning and earning stars!", neutral: "Keep learning and earning stars!" },
 
         dailyTitle: "Daily practice",
         dailyMotivation: { male: "Spend a few minutes today and do even better tomorrow!", female: "Spend a few minutes today and do even better tomorrow!", neutral: "Spend a few minutes today and do even better tomorrow!" },
@@ -74,6 +76,8 @@ export const HOME_STRINGS = {
         rankPlace: "מקום {rank}",
         rankUnranked: "מחוץ ל-10",
         rankPraise: { male: "כל הכבוד! המשך כך!", female: "כל הכבוד! המשיכי כך!", neutral: "כל הכבוד! המשיכו כך!" },
+        rankOutside: { male: "אתה עדיין מחוץ לעשירייה — המשך לצבור כוכבים!", female: "את עדיין מחוץ לעשירייה — המשיכי לצבור כוכבים!", neutral: "אתם עדיין מחוץ לעשירייה — המשיכו לצבור כוכבים!" },
+        rankNeutral: { male: "המשך ללמוד ולצבור כוכבים!", female: "המשיכי ללמוד ולצבור כוכבים!", neutral: "המשיכו ללמוד ולצבור כוכבים!" },
 
         dailyTitle: "תרגול יומי",
         dailyMotivation: { male: "הקדש כמה דקות היום לעצמך ותצליח יותר מחר!", female: "הקדישי כמה דקות היום לעצמך ותצליחי יותר מחר!", neutral: "הקדישו כמה דקות היום לעצמכם ותצליחו יותר מחר!" },
@@ -124,6 +128,8 @@ export const HOME_STRINGS = {
         rankPlace: "Место {rank}",
         rankUnranked: "Топ 10+",
         rankPraise: { male: "Отлично! Так держать!", female: "Отлично! Так держать!", neutral: "Отлично! Так держать!" },
+        rankOutside: { male: "Вы пока не в десятке — продолжайте собирать звёзды!", female: "Вы пока не в десятке — продолжайте собирать звёзды!", neutral: "Вы пока не в десятке — продолжайте собирать звёзды!" },
+        rankNeutral: { male: "Продолжайте учиться и собирать звёзды!", female: "Продолжайте учиться и собирать звёзды!", neutral: "Продолжайте учиться и собирать звёзды!" },
 
         dailyTitle: "Ежедневная практика",
         dailyMotivation: { male: "Уделите несколько минут сегодня — и завтра получится ещё лучше!", female: "Уделите несколько минут сегодня — и завтра получится ещё лучше!", neutral: "Уделите несколько минут сегодня — и завтра получится ещё лучше!" },

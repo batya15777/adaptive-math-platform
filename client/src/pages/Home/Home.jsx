@@ -130,7 +130,9 @@ export const Home = () => {
                                     <div className="home-stat-v accent">
                                         {rank ? format(t.rankPlace, { rank }) : (rank === 0 ? t.rankUnranked : '—')}
                                     </div>
-                                    <div className="home-stat-sub">{g(t.rankPraise)}</div>
+                                    <div className="home-stat-sub">
+                                        {g(rank ? t.rankPraise : (rank === 0 ? t.rankOutside : t.rankNeutral))}
+                                    </div>
                                 </div>
                                 <span className="home-stat-ico">🏆</span>
                             </div>
