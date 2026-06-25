@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { getNextQuestion, submitAnswer, claimDailyBonus } from '../../service/progressApi.js';
+import { getNextQuestion, submitAnswer, revealSolution, claimDailyBonus } from '../../service/progressApi.js';
 import { PRACTICE_MODE, getUsedQuestionIds, recordUsedQuestionId } from '../../utils/practiceExclusions.js';
 import { format } from '../../i18n/languages.js';
 import {
@@ -102,6 +102,7 @@ export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOA
             questionType: (topic.name || '').toUpperCase(),
             currentDifficulty: question.difficultyLevel,
             attemptNumber: attempt,
+            dailyPractice: true, // suppress the per-question reward — daily grants only the +100 bonus
         })
             .then(res => {
                 const data = res.data;
@@ -140,6 +141,26 @@ export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOA
             .finally(() => setBusy(false));
     }, [busy, phase, question, topic, attempt, qt, userId, goal]);
 
+    // "Guided solution" — give up on the current question and reveal the worked steps.
+    // Reuses the existing reveal-solution endpoint (marks it FAILED server-side, same as
+    // regular practice); the question concludes WITHOUT counting toward the daily goal, so
+    // the student answers another to reach 5. The footer renders the steps on 'failed'.
+    const reveal = useCallback(() => {
+        if (busy || phase !== 'answering' || !question || !topic) return undefined;
+        setBusy(true); setError('');
+        return revealSolution({
+            subSubjectId: Number(topic.subSubjectId),
+            questionId: question.questionId,
+        })
+            .then(res => {
+                if (res?.data?.totalStars != null) setTotalStars(res.data.totalStars);
+                setFeedback({ type: 'failed', text: qt.solutionShown });
+                setPhase('concluded');
+            })
+            .catch(() => setError(qt.errRevealSolution))
+            .finally(() => setBusy(false));
+    }, [busy, phase, question, topic, qt]);
+
     // Advance to the next question (user-initiated, so synchronous setState is fine here).
     const next = useCallback(() => {
         const i = index + 1;
@@ -148,5 +169,5 @@ export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOA
         loadQuestion(i);
     }, [index, loadQuestion]);
 
-    return { question, topic, phase, feedback, busy, error, correct, totalStars, bonusAwarded, goal, answer, next };
+    return { question, topic, phase, feedback, busy, error, correct, totalStars, bonusAwarded, goal, answer, reveal, next };
 }

@@ -21,10 +21,10 @@ import { AuthContext } from '../../context/AuthContextSetup.js';
 import { PRACTICE_MODE, getUsedQuestionIds, recordUsedQuestionId } from '../../utils/practiceExclusions.js';
 import { format } from '../../i18n/languages.js';
 import { getQuestionGameStrings } from './questionGameStrings.js';
-import { parseSolution } from '../../utils/questionFormat.js';
 import { Stars } from '../../components/ui/Stars.jsx';
 import { AppTopBar } from '../../components/ui/AppTopBar.jsx';
 import { QuestionCard } from '../../components/practice/QuestionCard.jsx';
+import { QuestionHints } from '../../components/practice/QuestionHints.jsx';
 import { LevelRocketProgress } from '../../components/practice/LevelRocketProgress.jsx';
 import { playLevelUpSound } from '../../utils/sound.js';
 
@@ -53,7 +53,6 @@ export const QuestionGame = () => {
 
     const [answer,        setAnswer]        = useState('');
     const [attemptNumber, setAttemptNumber] = useState(1);
-    const [revealedHints, setRevealedHints] = useState(0);
     const [showSolution,  setShowSolution]  = useState(false);
     const [concluded,     setConcluded]     = useState(false);
     const [pendingBonus,  setPendingBonus]  = useState(false);
@@ -95,7 +94,7 @@ export const QuestionGame = () => {
     }, []);
 
     const resetPerQuestion = () => {
-        setAnswer(''); setAttemptNumber(1); setRevealedHints(0);
+        setAnswer(''); setAttemptNumber(1);
         setShowSolution(false); setConcluded(false); setFeedback(null);
         setShaking(false); setShowTrophy(false);
         clearTimeout(trophyTimerRef.current);
@@ -158,9 +157,6 @@ export const QuestionGame = () => {
             .catch(() => {});
         return () => { active = false; };
     }, []);
-
-    // Hint/solution steps still parsed here — QuestionCard parses the options itself.
-    const steps = question ? parseSolution(question.solution) : [];
 
     // ── answering ─────────────────────────────────────────────────────────────
     const handleAnswer = async (value) => {
@@ -291,32 +287,23 @@ export const QuestionGame = () => {
         else loadRegularQuestion();
     };
 
-    // hint button is disabled with ≤1 step, or once only the final step is left unrevealed
-    const hintDisabled = steps.length <= 1 || revealedHints >= steps.length - 1 || concluded;
-
     // ── render ──────────────────────────────────────────────────────────────
     // Extra controls under the shared QuestionCard (staged hints, solution, next) —
-    // passed through the card's `footer` slot so the card itself stays generic.
+    // passed through the card's `footer` slot so the card itself stays generic. The
+    // hint/solution block is the shared QuestionHints component (reused by the daily
+    // practice too); buttons are hidden for bonus questions but the solution still shows.
     const cardFooter = question && (
         <>
-            {!isBonus && (
-                <div className="qg-actions">
-                    <button type="button" className="sc-btn sc-btn--ghost" onClick={() => setRevealedHints(n => n + 1)} disabled={hintDisabled}>
-                        {t.hint}
-                    </button>
-                    <button type="button" className="sc-btn sc-btn--ghost" onClick={handleRevealSolution} disabled={concluded || loading}>
-                        {t.showSolution}
-                    </button>
-                </div>
-            )}
-
-            {(revealedHints > 0 || showSolution) && steps.length > 0 && (
-                <ol className="qc-solution qc-math">
-                    {(showSolution ? steps : steps.slice(0, revealedHints)).map((step, i) => (
-                        <li key={i}>{step}</li>
-                    ))}
-                </ol>
-            )}
+            <QuestionHints
+                key={question.questionId}
+                question={question}
+                t={t}
+                concluded={concluded}
+                loading={loading}
+                showFullSolution={showSolution}
+                onRevealSolution={handleRevealSolution}
+                hideActions={isBonus}
+            />
 
             {concluded && (
                 <button type="button" className="sc-btn qg-next" onClick={handleNext} disabled={loading}>

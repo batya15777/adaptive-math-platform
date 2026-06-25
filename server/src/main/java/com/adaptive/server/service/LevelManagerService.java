@@ -128,6 +128,10 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
         boolean levelUp = false;
         String concluded = null;
+        // Daily Practice grants ONLY the +100 completion bonus (claimed separately), never the
+        // per-question reward — so we suppress the per-answer stars here. Regular Practice sends
+        // no flag (defaults false) and keeps its normal +10 / +5 reward untouched.
+        boolean awardStars = !request.isDailyPractice();
 
         if (isCorrect) {
             question.setStatus(QuestionStatus.SOLVED);
@@ -135,7 +139,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
             progress.setCurrentStreak(progress.getCurrentStreak() + 1);
             if (progress.getInSubLevel()) {
                 // Sub-level: easier practice. Stars but NO level-progress change (bar frozen).
-                user.setTotalStars(user.getTotalStars() + STARS_SUBLEVEL);
+                if (awardStars) user.setTotalStars(user.getTotalStars() + STARS_SUBLEVEL);
                 progress.setSubLevelProgress(progress.getSubLevelProgress() + 1);
                 if (progress.getSubLevelProgress() >= SUB_LEVEL_EXIT_SOLVES) {
                     // recovered — return to the normal level; level progress is preserved (not reset)
@@ -145,7 +149,7 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
                 }
             } else {
                 // Normal level: advance the level-progress counter; level up when it hits the target.
-                user.setTotalStars(user.getTotalStars() + STARS_NORMAL);
+                if (awardStars) user.setTotalStars(user.getTotalStars() + STARS_NORMAL);
                 progress.setConsecutiveFails(0);
                 int newProgress = currentProgressOf(progress) + 1;
                 if (newProgress >= LEVEL_UP_THRESHOLD) {

@@ -36,8 +36,7 @@
 
 .qg-card { padding: 24px; min-height: 200px; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
 
-/* footer controls inside the card */
-.qg-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+/* footer controls inside the card (the hint/solution row now lives in QuestionHints.css) */
 .qg-next { width: 100%; }
 
 /* progress toward the next level */
