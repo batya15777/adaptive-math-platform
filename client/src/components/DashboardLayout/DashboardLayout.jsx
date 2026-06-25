@@ -10,7 +10,8 @@ const DashboardLayout = () => {
     const [broadcasts, setBroadcasts] = useState([]);
 
     useEffect(() => {
-        const es = new EventSource("http://localhost:8080/sse/user", { withCredentials: true });
+        const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+        const es = new EventSource(`${base}/sse/user`, { withCredentials: true });
         es.addEventListener("broadcast", (e) => setBroadcasts(prev => [...prev, e.data]));
         return () => es.close();
     }, []);

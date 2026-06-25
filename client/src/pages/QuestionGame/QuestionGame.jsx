@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react';
 import Confetti from 'react-confetti';
 import _LottieImport from 'lottie-react';
 // lottie-react ships CJS only; Vite may hand us the module namespace object instead of
@@ -17,6 +17,8 @@ import {
 import { getMyCluster } from '../../service/dashboardApi.js';
 import { useLanguage } from '../../i18n/useLanguage.js';
 import { useProfile } from '../../contexts/useProfile.js';
+import { AuthContext } from '../../context/AuthContextSetup.js';
+import { PRACTICE_MODE, getUsedQuestionIds, recordUsedQuestionId } from '../../utils/practiceExclusions.js';
 import { format } from '../../i18n/languages.js';
 import { getQuestionGameStrings } from './questionGameStrings.js';
 import { Stars } from '../../components/ui/Stars.jsx';
@@ -38,9 +40,12 @@ export const QuestionGame = () => {
     // Memoized so it stays stable across renders (only changes with language),
     // which keeps the useCallback/effect dependency chains below from re-firing.
     const t = useMemo(() => getQuestionGameStrings(language), [language]);
+    const { user } = useContext(AuthContext);
     const subSubjectName = location.state?.subSubjectName || t.practiceFallback;
     const backTopic   = location.state?.topic;    // carried through so "back" returns to
     const backSubject = location.state?.subject;  // the subject's sub-subjects tab
+    // Launched from the Home "Recommended for you" card → must not reuse today's Daily questions.
+    const isRecommended = location.state?.mode === 'recommended';
 
     const [question, setQuestion] = useState(null);
     const [isBonus,  setIsBonus]  = useState(false);
@@ -100,14 +105,20 @@ export const QuestionGame = () => {
         try {
             resetPerQuestion();
             setIsBonus(false);
-            const res = await getNextQuestion(subSubjectId, language);
+            // Recommended Practice excludes today's Daily questions; then claims its own id so
+            // Daily will exclude it in turn (full two-way separation). Regular training: no excludes.
+            const excludeIds = isRecommended ? getUsedQuestionIds(PRACTICE_MODE.DAILY, user?.id) : undefined;
+            const res = await getNextQuestion(subSubjectId, language, excludeIds);
             setQuestion(res.data);
+            if (isRecommended && res.data?.questionId != null) {
+                recordUsedQuestionId(PRACTICE_MODE.RECOMMENDED, user?.id, res.data.questionId);
+            }
         } catch {
             setError(t.errLoadQuestion);
         } finally {
             setLoading(false);
         }
-    }, [subSubjectId, language, t]);
+    }, [subSubjectId, language, t, isRecommended, user?.id]);
 
     const loadBonusQuestion = useCallback(async () => {
         setLoading(true); setError('');

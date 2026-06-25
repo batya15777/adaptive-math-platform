@@ -200,7 +200,9 @@
 
 /* Keep math expressions left-to-right even inside RTL Hebrew text. */
 .tutor-chat__expr {
+    direction: ltr;
     unicode-bidi: isolate;
+    display: inline-block;
 }
 
 .tutor-chat__conv-expr {

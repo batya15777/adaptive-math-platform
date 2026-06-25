@@ -22,6 +22,11 @@ export function QuestionCard({
     const [value, setValue] = useState('');
     const options = parseOptions(question?.options);
     const isMultipleChoice = options.length > 0;
+    // A bare arithmetic expression ("8 / 4") has almost no letters and stays big + LTR;
+    // a word problem ("בחנות חולצות עשו הנחה של 10%…") has real prose, so it must wrap at a
+    // readable size and follow the page's own direction (RTL/LTR) instead of forced-LTR math.
+    const expr = question?.expression ?? '';
+    const isWordProblem = (expr.match(/\p{L}/gu) || []).length >= 12;
     // When the student runs out of tries (feedback 'failed'), reveal the worked solution —
     // unless the parent opted out (showSolution=false) to drive its own staged reveal.
     const solutionSteps = showSolution && feedback?.type === 'failed' ? parseSolution(question?.solution) : [];
@@ -38,7 +43,7 @@ export function QuestionCard({
                 {format(t.difficulty, { level: question?.difficultyLevel ?? 1 })}
                 {meta != null && meta !== '' && <span className="qc-diff-meta"> · {meta}</span>}
             </div>
-            <div className="qc-expr qc-math">{question?.expression}</div>
+            <div className={isWordProblem ? 'qc-expr qc-expr--long' : 'qc-expr qc-math'}>{question?.expression}</div>
 
             {isMultipleChoice ? (
                 <div className="qc-options">

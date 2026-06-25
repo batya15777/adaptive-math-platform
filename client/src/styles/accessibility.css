@@ -1,0 +1,49 @@
+/* ── Accessibility preferences — STUDENT .mg-space UI ONLY ───────────────────────────────────
+   Driven by data-attributes on <html> (set from localStorage by AccessibilityProvider). Every
+   rule is scoped to .mg-space so Admin / Auth screens stay exactly as they are. */
+
+/* 1. Text size — a mild, controlled scale on the student page root. Component font sizes are
+   px-based, so a root font-size alone wouldn't reach most text; a gentle zoom (≤10%) keeps the
+   responsive layout intact while making everything genuinely larger/smaller. */
+[data-a11y-text="sm"] .mg-space { zoom: 0.94; }
+[data-a11y-text="lg"] .mg-space { zoom: 1.10; }
+
+/* 2. Readable font — system stack only (no web fonts, no font files). .mg-space already uses
+   font-family: var(--mg-font), so overriding the token swaps the font across the student UI. */
+[data-a11y-font] .mg-space {
+  --mg-font: "Atkinson Hyperlegible", "Verdana", "Tahoma", "Trebuchet MS", system-ui, sans-serif;
+  letter-spacing: 0.012em;
+  word-spacing: 0.05em;
+}
+
+/* 3. High contrast — stronger text + borders, per theme (respects light/dark, doesn't break it). */
+[data-a11y-contrast] .mg-space[data-theme="light"] {
+  --mg-ts: #000000; --mg-tm: #1c2230;
+  --mg-bd: rgba(11, 16, 32, .55); --mg-bd-strong: rgba(11, 16, 32, .75);
+}
+[data-a11y-contrast] .mg-space[data-theme="dark"] {
+  --mg-ts: #ffffff; --mg-tm: #e7eaf2;
+  --mg-bd: rgba(255, 255, 255, .6); --mg-bd-strong: rgba(255, 255, 255, .82);
+}
+
+/* 4. Reduced motion — the in-app toggle OR the OS preference. Functionality is untouched; only
+   animation/transition durations are collapsed. */
+[data-a11y-motion] .mg-space *,
+[data-a11y-motion] .mg-space *::before,
+[data-a11y-motion] .mg-space *::after {
+  animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important; scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mg-space *, .mg-space *::before, .mg-space *::after {
+    animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; scroll-behavior: auto !important;
+  }
+}
+
+/* 5. Keyboard focus — a clear, always-visible focus ring for student-UI controls. */
+.mg-space :is(button, a, [role="button"], [role="switch"], input, select, [tabindex]):focus-visible {
+  outline: 3px solid var(--mg-accent, #7C4DFF);
+  outline-offset: 2px;
+  border-radius: 10px;
+}

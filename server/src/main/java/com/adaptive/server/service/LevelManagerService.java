@@ -287,6 +287,14 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
     @Transactional
     public QuestionResponse getNextQuestion(Long userId, Long subSubjectId, String language, boolean multipleChoice) {
+        return getNextQuestion(userId, subSubjectId, language, multipleChoice, java.util.Collections.emptyList());
+    }
+
+    // excludeQuestionIds: ids the caller must NOT receive — used to keep the Daily Practice set
+    // and the Recommended Practice set disjoint on the same day (each flow excludes the other's
+    // questions). An active (resume) question that is in this set is dropped and regenerated.
+    public QuestionResponse getNextQuestion(Long userId, Long subSubjectId, String language, boolean multipleChoice,
+                                            java.util.List<Long> excludeQuestionIds) {
         // Difficulty comes from the student's level (sub-level forces the easiest). The
         // multipleChoice flag is derived from difficulty here, so the client renders MC
         // for easy questions and a typed box for the hardest.
@@ -312,11 +320,18 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         // Resume the same question on page reload — only generate a new one once resolved.
         Long activeId = progress.getActiveQuestionId();
         if (activeId != null) {
-            Optional<Question> active = questionRepository.findById(activeId);
-            if (active.isPresent() && active.get().getStatus() == QuestionStatus.CURRENT) {
-                return buildQuestionResponse(active.get(), subSubjectId, null, displayNameOf(user));
+            boolean excluded = excludeQuestionIds != null && excludeQuestionIds.contains(activeId);
+            if (!excluded) {
+                Optional<Question> active = questionRepository.findById(activeId);
+                if (active.isPresent()
+                        && active.get().getStatus() == QuestionStatus.CURRENT
+                        && language.equals(active.get().getLanguage())) {
+                    return buildQuestionResponse(active.get(), subSubjectId, null, displayNameOf(user));
+                }
             }
-            // Stale pointer (question was resolved without clearing the field) — clear it.
+            // Stale pointer (resolved without clearing), wrong language (user switched locale),
+            // or the active question belongs to the other practice flow today (excluded) —
+            // drop it and generate a fresh question in the correct language.
             progress.setActiveQuestionId(null);
         }
 
@@ -406,6 +421,20 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
     private int clampAiDifficulty(int difficulty) {
         return Math.max(AI_MIN_DIFFICULTY, Math.min(difficulty, AI_MAX_DIFFICULTY));
+    }
+
+    /**
+     * Generates a standalone question for the Games feature — same rule-based generator, at the
+     * given sub-subject + level, but it NEVER touches StudentProgress / level progression / archive.
+     * A game must not be a back door to level up. Saved only so the question carries a unique id.
+     */
+    public QuestionResponse generateGameQuestion(Long subSubjectId, int level, String language,
+                                                 boolean multipleChoice, String displayName) {
+        SubSubject subSubject = resolveSubSubject(subSubjectId);
+        int safeLevel = Math.max(1, Math.min(level, MAX_DIFFICULTY_LEVEL));
+        Question question = createCodeQuestion(subSubject, safeLevel, safeLevel, language, multipleChoice);
+        question = questionRepository.save(question);
+        return buildQuestionResponse(question, subSubjectId, null, displayName);
     }
 
     @Transactional
@@ -631,7 +660,8 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         if (text == null || text.isEmpty()) {
             return text;
         }
-        return text.replace("NAME", displayName);
+        // String.replace throws on a null replacement — fall back to a neutral default.
+        return text.replace("NAME", displayName != null ? displayName : "");
     }
 
     /** Student's display name for personalising questions; falls back to a neutral default. */

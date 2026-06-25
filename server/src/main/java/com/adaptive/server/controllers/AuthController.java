@@ -16,6 +16,7 @@ import com.adaptive.server.utils.CookieUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 @RestController
@@ -31,12 +32,14 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest loginRequest
-            , HttpServletResponse response){
+            , HttpServletRequest request, HttpServletResponse response){
 
         LoginResponse responseData = authService.login(loginRequest);
         if (responseData.isSuccess() && responseData.getLoginData() != null) {
             // "Remember me" controls whether the cookie persists across browser restarts.
-            CookieUtils.setSessionCookie(response , responseData.getLoginData().getToken(), loginRequest.isRemember());
+            // secure flag follows the request scheme: http (dev) → false so the cookie is kept;
+            // https (production) → true.
+            CookieUtils.setSessionCookie(response , responseData.getLoginData().getToken(), loginRequest.isRemember(), request.isSecure());
             //אם התחברתי בהצלחה מגידירם את HTTP ONLY וסידור עוגייה
             stripTokensFormatBody(responseData.getLoginData());
         }
@@ -60,10 +63,10 @@ public class AuthController {
 
     @PostMapping("/logout")
     public BasicResponse logout(@CookieValue(value = "session_token" , required = false)
-             String token , HttpServletResponse response){
+             String token , HttpServletRequest request, HttpServletResponse response){
 
         authService.logout(token);//מחיקת טוקן מDB
-        CookieUtils.clearSessionCookie(response);
+        CookieUtils.clearSessionCookie(response, request.isSecure());
         return new BasicResponse(true , "Logged out successfully");
     }
 

@@ -7,6 +7,7 @@ import { format } from '../../i18n/languages.js';
 import { getHomeStrings } from './homeStrings.js';
 import { getDashboardData } from '../../service/dashboardApi.js';
 import { getTop10 } from '../../service/leaderboardApi.js';
+import api from '../../service/api.js';
 import { Stars } from '../../components/ui/Stars.jsx';
 import { AppTopBar } from '../../components/ui/AppTopBar.jsx';
 import { HomeHero } from './HomeHero.jsx';
@@ -50,6 +51,24 @@ export const Home = () => {
 
     useEffect(() => {
         let active = true;
+        // Latency probe: isolates Render backend time (ping, no DB) from the Render→Railway
+        // DB round-trip (db: SELECT 1, server splits connect vs query). Read in the console
+        // and compare TTFB of /api/diag/ping vs /api/diag/db in the Network tab.
+        (async () => {
+            try {
+                const t0 = performance.now();
+                await api.get('/api/diag/ping');
+                const t1 = performance.now();
+                const db = await api.get('/api/diag/db');
+                const t2 = performance.now();
+                console.log(
+                    '[DIAG] ping wall=%dms | db wall=%dms | server connectMs=%o queryMs=%o',
+                    Math.round(t1 - t0), Math.round(t2 - t1), db.data.connectMs, db.data.queryMs,
+                );
+            } catch (e) {
+                console.log('[DIAG] probe failed:', e?.message || e);
+            }
+        })();
         getDashboardData()
             .then(res => { if (active) setData(res.data); })
             .catch(() => { if (active) setErr(t.loadError); })
@@ -85,7 +104,7 @@ export const Home = () => {
     const daily = user?.id != null ? getDailyProgress(user.id, DAILY_GOAL) : { done: 0, goal: DAILY_GOAL };
     const dailyPct = Math.round((daily.done / daily.goal) * 100);
 
-    const play = (id) => navigate(id ? `/math-training/${id}/play` : '/math-training');
+    const play = (id, state) => navigate(id ? `/math-training/${id}/play` : '/math-training', state ? { state } : undefined);
 
     return (
         <div className="mg-space home-root" data-theme={theme} dir={dir}>
@@ -163,7 +182,7 @@ export const Home = () => {
                                             <span aria-hidden="true">🎯</span>
                                         </div>
                                     )}
-                                    <button type="button" className="sc-btn sc-btn--green" onClick={() => play(recoId)}>{g(t.practiceNowBtn)}</button>
+                                    <button type="button" className="sc-btn sc-btn--green" onClick={() => play(recoId, { mode: 'recommended', subSubjectName: recoName })}>{g(t.practiceNowBtn)}</button>
                                 </div>
                             </div>
 

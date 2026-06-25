@@ -19,9 +19,12 @@ function Navbar() {
     const isExerciseScreen = /\/math-training\/[^/]+\/play$/.test(location.pathname);
 
     // Pages that render their own themed top bar (AppTopBar) — hide this grey navbar there.
-    // Admin pages have a full sidebar layout with their own controls.
+    // Admin pages have a full sidebar layout with their own controls. The exercise screen
+    // (/math-training/:id/play) also carries its own AppTopBar, so the legacy grey strip
+    // must not show over its space background.
     const isAdminPage = location.pathname.startsWith('/admin');
-    const hasOwnTopBar = isAdminPage || ['/home', '/leaderboard', '/daily-practice', '/dashboard', '/math-training', '/profile-settings'].includes(location.pathname);
+    const isGamesPage = location.pathname.startsWith('/games');
+    const hasOwnTopBar = isAdminPage || isGamesPage || isExerciseScreen || ['/home', '/leaderboard', '/daily-practice', '/dashboard', '/math-training', '/profile-settings'].includes(location.pathname);
 
     const handleLogout = () => {
         logout()

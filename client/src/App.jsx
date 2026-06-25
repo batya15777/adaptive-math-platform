@@ -10,10 +10,13 @@ import {Home} from "./pages/Home/Home.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { AuthContext } from "./context/AuthContextSetup.js";
 import { ProfileProvider } from "./contexts/ProfileContext.jsx";
+import { AccessibilityProvider } from "./context/AccessibilityContext.jsx";
 import { useContext, lazy, Suspense } from "react";
 import {ProfileSettings} from "./components/ProfileSettings/ProfileSettings.jsx";
 import { MathTraining } from "./pages/MathTraining/MathTraining.jsx";
 import { QuestionGame } from "./pages/QuestionGame/QuestionGame.jsx";
+import { GamesPage } from "./pages/Games/GamesPage.jsx";
+import { GalaxyBattleGame } from "./pages/Games/GalaxyBattle/GalaxyBattleGame.jsx";
 import { LevelManagerPage } from "./pages/LevelManager/LevelManagerPage.jsx";
 import { LeaderboardPage } from "./pages/Leaderboard/LeaderboardPage.jsx";
 import { DailyPractice } from "./pages/Practice/DailyPractice.jsx";
@@ -127,6 +130,8 @@ function AppRoutes() {
           <Route path="math-training/:subSubjectId/play" element={<QuestionGame />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="profile-settings" element={<ProfileSettings />} />
+          <Route path="games" element={<GamesPage />} />
+          <Route path="games/galaxy-battle" element={<GalaxyBattleGame />} />
         </Route>
 
         {/* Default redirect */}
@@ -138,11 +143,13 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <ProfileProvider>
-        <AppRoutes />
-      </ProfileProvider>
-    </AuthProvider>
+    <AccessibilityProvider>
+      <AuthProvider>
+        <ProfileProvider>
+          <AppRoutes />
+        </ProfileProvider>
+      </AuthProvider>
+    </AccessibilityProvider>
   );
 }
 

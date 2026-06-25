@@ -32,6 +32,17 @@ const nameKey = (raw) => {
     return null;
 };
 const trName = (raw, t) => { const k = nameKey(raw); return (k && t.names?.[k]) || cap(raw); };
+
+// Collapse topics that resolve to the same card (e.g. duplicate "Mathematics" DB rows, or a
+// "Math"/"Mathematics" pair) so the list never shows two identical cards. Dedupe by the resolved
+// name key — not the raw string — and keep the first (working) one.
+const dedupeTopics = (data = []) => {
+    const seen = new Set();
+    return data.filter((tp) => {
+        const key = nameKey(tp?.name) || String(tp?.name || '').trim().toLowerCase();
+        return seen.has(key) ? false : seen.add(key);
+    });
+};
 const GLYPH = {
     add: '+', sub: '−', mult: '×', div: '÷', fractions: '½', decimals: '.5',
     calculation: '🧮', polynomial: 'x²', verbal: '💬', math: '➗',
@@ -112,16 +123,12 @@ export const MathTraining = () => {
         const topic = location.state?.topic;
         const subject = location.state?.subject;
         if (topic && subject) {
-            getTopics().then(r => setTopics(r.data)).catch(() => {});
+            getTopics().then(r => setTopics(dedupeTopics(r.data))).catch(() => {});
             getSubjects(topic.id).then(r => setSubjects(r.data)).catch(() => {});
             // eslint-disable-next-line react-hooks/set-state-in-effect
             load(() => getSubSubjects(subject.id), setSubSubjects);
         } else {
-            load(getTopics, (data) => {
-                // Remove duplicate topic names (e.g. two "Mathematics" rows in the DB).
-                const seen = new Set();
-                setTopics(data.filter(tp => seen.has(tp.name) ? false : seen.add(tp.name)));
-            });
+            load(getTopics, (data) => setTopics(dedupeTopics(data)));
         }
     }, [load, location.state]);
 

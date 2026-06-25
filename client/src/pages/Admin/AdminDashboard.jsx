@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell, Legend,
+    PieChart, Pie, Cell,
     RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { AuthContext } from "../../context/AuthContextSetup.js";
@@ -70,7 +70,8 @@ export const AdminDashboard = () => {
     }, [t.analyticsLoadError]);
 
     useEffect(() => {
-        const es = new EventSource("http://localhost:8080/sse/admin", { withCredentials: true });
+        const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+        const es = new EventSource(`${base}/sse/admin`, { withCredentials: true });
         es.addEventListener("analytics", (e) => setData(JSON.parse(e.data)));
         return () => es.close();
     }, []);
