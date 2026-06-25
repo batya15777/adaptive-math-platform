@@ -9,6 +9,7 @@ import { getDashboardData } from '../../service/dashboardApi.js';
 import { Stars } from '../../components/ui/Stars.jsx';
 import { AppTopBar } from '../../components/ui/AppTopBar.jsx';
 import { QuestionCard } from '../../components/practice/QuestionCard.jsx';
+import { QuestionHints } from '../../components/practice/QuestionHints.jsx';
 import { TutorChatLauncher } from '../../components/TutorChat/TutorChatLauncher.jsx';
 import { getQuestionGameStrings } from '../QuestionGame/questionGameStrings.js';
 import { isDailyComplete } from '../Home/homeLocal.js';
@@ -138,6 +139,18 @@ export const DailyPractice = () => {
                             feedback={fb}
                             locked={view !== 'answering' || session.busy}
                             onAnswer={session.answer}
+                            showSolution={false}
+                            footer={
+                                <QuestionHints
+                                    key={q.questionId}
+                                    question={q}
+                                    t={qt}
+                                    concluded={view === 'concluded'}
+                                    loading={session.busy}
+                                    showFullSolution={fb?.type === 'failed'}
+                                    onRevealSolution={session.reveal}
+                                />
+                            }
                         />
                         {session.error && <p className="dp-msg dp-msg--err">{session.error}</p>}
                         {view === 'concluded' && (
