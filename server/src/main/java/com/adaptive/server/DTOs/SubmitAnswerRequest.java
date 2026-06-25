@@ -8,6 +8,7 @@ public class SubmitAnswerRequest {
     private String questionType;
     private int currentDifficulty;
     private int attemptNumber; // 1-based: which try this is for the current question
+    private boolean dailyPractice; // true → Daily Practice flow: skip the per-question star reward (only the +100 completion bonus is granted)
 
 
     public SubmitAnswerRequest() {
@@ -45,4 +46,7 @@ public class SubmitAnswerRequest {
 
     public int getAttemptNumber() { return attemptNumber; }
     public void setAttemptNumber(int attemptNumber) { this.attemptNumber = attemptNumber; }
+
+    public boolean isDailyPractice() { return dailyPractice; }
+    public void setDailyPractice(boolean dailyPractice) { this.dailyPractice = dailyPractice; }
 }
