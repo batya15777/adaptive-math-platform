@@ -11,19 +11,22 @@ import com.adaptive.server.repository.QuestionArchiveRepository;
 import com.adaptive.server.service.QuestionsGenerators.ClusterContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -50,9 +53,28 @@ public class AiQuestionService {
     private static final Logger log = LoggerFactory.getLogger(AiQuestionService.class);
     private static final String ENDPOINT = "/generate-question";
 
+    /** Target number of unseen cached questions to keep per slice: one to serve + one spare. */
+    private static final int DESIRED_SPARE = 2;
+
     private final RestTemplate restTemplate;
     private final GeneratedQuestionRepository generatedQuestionRepository;
     private final QuestionArchiveRepository questionArchiveRepository;
+
+    /**
+     * Self-reference (lazy to break the construction-time cycle) so {@link #topUpPoolAsync}
+     * is invoked through the Spring proxy — a plain {@code this.} call would bypass the
+     * {@code @Async} advice and run on the request thread.
+     */
+    @Autowired
+    @Lazy
+    private AiQuestionService self;
+
+    /**
+     * Slices ({@code subSubjectId|language|difficulty|mc}) that currently have a background
+     * top-up running, so concurrent requests for the same slice don't each fire a duplicate
+     * generation and flood the microservice.
+     */
+    private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
     @Value("${ai.microservice.url:http://localhost:8000}")
     private String microserviceUrl;
@@ -94,22 +116,58 @@ public class AiQuestionService {
                 .filter(gq -> !seenExpressions.contains(gq.getExpression()))
                 .collect(Collectors.toList());
 
-        // 3. Keep one spare ready: top up until at least 2 suitable unseen questions
-        //    exist (one to serve now, one spare) so the next request is instant.
-        //    0 unseen → generate 2; 1 unseen → generate 1.
-        int stopper = 3;
-        while (available.size() < 2 && stopper > 0) {
-            stopper--;
+        // 3. Nothing cached for this student — we have to block for one generation, since
+        //    there is nothing else to serve right now.
+        if (available.isEmpty()) {
             GeneratedQuestion generated = callMicroserviceAndSave(
                     subSubject, aiTopic, theme, difficulty, language, multipleChoice, cluster);
             available.add(generated);
         }
 
-        // 4. Serve one of the available unseen questions
+        // 4. Serve immediately from what we have — the student never waits on the spare.
         GeneratedQuestion chosen = available.get(new Random().nextInt(available.size()));
         log.debug("Serving generated_question id={} for user={} ({} unseen available, subSubject={}, lang={}, diff={}, mc={})",
                 chosen.getId(), userId, available.size(), subSubject.getId(), language, difficulty, multipleChoice);
+
+        // 5. Running low for this slice? Refill in the background so the NEXT request is
+        //    instant. Non-blocking: the student already has their question above. Serving
+        //    `chosen` will archive it for this student, so an unseen count of N here means
+        //    N-1 remain after this request — top up to keep at least one spare.
+        if (available.size() < DESIRED_SPARE) {
+            self.topUpPoolAsync(subSubject, aiTopic, theme, difficulty, language, multipleChoice,
+                    cluster, DESIRED_SPARE - available.size());
+        }
+
         return toQuestion(chosen, subSubject, language);
+    }
+
+    /**
+     * Generates {@code count} extra questions for a slice off the request thread and saves them
+     * to the pool, so a later request for the same (sub-subject, language, difficulty, mc) is
+     * served instantly instead of waiting on the LLM.
+     *
+     * <p>De-duplicated per slice via {@link #inFlight}: if a top-up for this slice is already
+     * running, this call returns immediately. Runs on the bounded {@code aiPrewarmExecutor} so
+     * background work stays small. Must be invoked through {@link #self} (the Spring proxy) for
+     * the {@code @Async} to take effect.
+     */
+    @Async("aiPrewarmExecutor")
+    public void topUpPoolAsync(SubSubject subSubject, String aiTopic, String theme, int difficulty,
+                               String language, boolean multipleChoice, ClusterContext cluster, int count) {
+        String key = subSubject.getId() + "|" + language + "|" + difficulty + "|" + multipleChoice;
+        if (!inFlight.add(key)) {
+            return; // a top-up for this slice is already running
+        }
+        try {
+            for (int i = 0; i < count; i++) {
+                callMicroserviceAndSave(subSubject, aiTopic, theme, difficulty, language, multipleChoice, cluster);
+            }
+            log.debug("Background top-up added {} question(s) for slice {}", count, key);
+        } catch (RuntimeException e) {
+            log.warn("Background AI top-up failed for slice {} ({})", key, e.getMessage());
+        } finally {
+            inFlight.remove(key);
+        }
     }
 
     /** Calls the Python microservice for a fresh question and persists it to the cache pool. */

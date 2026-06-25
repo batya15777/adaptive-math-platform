@@ -9,6 +9,7 @@ from openai import OpenAI
 from .agents import QuestionAgent
 from .guardrails import ModerationGuardrail, check_output_guardrails
 from .i18n import EMPTY_RESPONSE_MESSAGES
+from .language_check import language_mismatch
 from .models import GenerationRequest, MathProblem
 from .settings import Settings
 
@@ -93,6 +94,20 @@ class QuestionGenerationOrchestrator:
                 raise ValueError(
                     f"Question generation failed after 2 attempts. Last error: {last_error}"
                 ) from exc
+
+            # The model sometimes ignores the requested language and answers in English.
+            # Treat that like a failed verification: retry once, then fail loudly rather
+            # than caching a wrong-language question.
+            mismatch = language_mismatch(problem.question_text, req.language)
+            if mismatch:
+                last_error = mismatch
+                log.warning("  generate(): attempt %d wrong language: %s", attempt + 1, last_error)
+                if attempt == 0:
+                    continue
+                raise ValueError(
+                    f"Question generation produced the wrong language after 2 attempts. "
+                    f"Last error: {last_error}"
+                )
 
             log.info("  evaluate(): verifying answer with OpenAI…")
             evaluation = self._agent.evaluate(problem)

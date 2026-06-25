@@ -231,14 +231,23 @@ class QuestionAgent:
                 f"Difficulty band: {req.difficulty_band} "
                 "(supplementary hint — Difficulty above is authoritative)"
             )
+        language_name = LANGUAGE_NAMES.get(req.language, req.language)
         lines += [
-            f"Output language: {LANGUAGE_NAMES.get(req.language, req.language)}",
+            f"Output language: {language_name}",
             f"Mode: {mode}",
         ]
 
         adaptive_block = QuestionAgent._build_adaptive_block(req)
         if adaptive_block:
             lines.append(adaptive_block)
+
+        # Emphatic, final language directive — the single line above is easy for the model to
+        # overlook in a long prompt, which leads to English answers slipping through.
+        lines.append(
+            f"CRITICAL: Write question_text and EVERY step in step_by_step_solution entirely "
+            f"in {language_name}. The ONLY exception is the literal placeholder word NAME, which "
+            f"stays in English. Do NOT answer in English unless English is the requested language."
+        )
 
         return "\n".join(lines)
 
