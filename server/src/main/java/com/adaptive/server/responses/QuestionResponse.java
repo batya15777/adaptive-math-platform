@@ -13,9 +13,26 @@ public class QuestionResponse extends BasicResponse{
     private boolean bonus;
     /** Stars awarded on correct answer. 0 for normal questions; 50 for bonus. */
     private int starsReward;
+    /**
+     * Daily Practice only: true means "this sub-subject isn't eligible for this student's
+     * daily mix (e.g. polynomial/algebra for an early grade) — skip it and try the next topic".
+     * Always false for Regular Practice, so that flow is unaffected.
+     */
+    private boolean skipped;
 
     public QuestionResponse() {
         super();
+    }
+
+    /**
+     * Sentinel response telling the Daily Practice client to skip this topic without
+     * generating a question (no level/progress/archive side-effects on the server).
+     */
+    public static QuestionResponse skipped() {
+        QuestionResponse response = new QuestionResponse();
+        response.setSuccess(true);
+        response.setSkipped(true);
+        return response;
     }
 
     public Long getQuestionId() {
@@ -96,5 +113,13 @@ public class QuestionResponse extends BasicResponse{
 
     public void setStarsReward(int starsReward) {
         this.starsReward = starsReward;
+    }
+
+    public boolean isSkipped() {
+        return skipped;
+    }
+
+    public void setSkipped(boolean skipped) {
+        this.skipped = skipped;
     }
 }

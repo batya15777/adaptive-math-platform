@@ -47,6 +47,11 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     static final int STARS_NORMAL = 10;              // correct at normal level
     static final int STARS_SUBLEVEL = 5;             // correct inside the sub-level
 
+    // Daily Practice only: grades 1–3 are too young for algebra/polynomial work. Grade isn't
+    // persisted (it's only used once, at the initial assessment, to seed the level), so we use
+    // the student's age as the proxy — grade 1–3 ≈ ages 6–9. Mirrors mapGradeToLevel's "grade ≤ 3".
+    static final int EARLY_GRADE_MAX_AGE = 9;
+
     static final int MAX_BONUS_GEN_ATTEMPTS = 5;//המערכת תנסה להגריל שאלה חדשה מקסימום 5 פעמים זה מונע לולאה אינסופית
 
     private static final Logger log = LoggerFactory.getLogger(LevelManagerService.class);
@@ -290,16 +295,32 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         return getNextQuestion(userId, subSubjectId, language, multipleChoice, java.util.Collections.emptyList());
     }
 
+    public QuestionResponse getNextQuestion(Long userId, Long subSubjectId, String language, boolean multipleChoice,
+                                            java.util.List<Long> excludeQuestionIds) {
+        return getNextQuestion(userId, subSubjectId, language, multipleChoice, excludeQuestionIds, false);
+    }
+
     // excludeQuestionIds: ids the caller must NOT receive — used to keep the Daily Practice set
     // and the Recommended Practice set disjoint on the same day (each flow excludes the other's
     // questions). An active (resume) question that is in this set is dropped and regenerated.
+    // daily: true only for the Daily Practice flow. It gates the early-grade subject filter below
+    // (Regular Practice passes false → behaviour is completely unchanged).
     public QuestionResponse getNextQuestion(Long userId, Long subSubjectId, String language, boolean multipleChoice,
-                                            java.util.List<Long> excludeQuestionIds) {
+                                            java.util.List<Long> excludeQuestionIds, boolean daily) {
         // Difficulty comes from the student's level (sub-level forces the easiest). The
         // multipleChoice flag is derived from difficulty here, so the client renders MC
         // for easy questions and a typed box for the hardest.
         User user = resolveUser(userId);
         SubSubject subSubject = resolveSubSubject(subSubjectId);
+
+        // Daily Practice only: never serve advanced material (polynomial / "solve for x" /
+        // x² equations) to early-grade students. Tell the client to skip this topic and move
+        // on to the next one in the daily mix — no question is generated and no progress/archive
+        // side-effects occur. Regular Practice (daily=false) is unaffected.
+        if (daily && isEarlyGrade(user) && isPolynomial(subSubject)) {
+            return QuestionResponse.skipped();
+        }
+
         StudentProgress progress = loadOrCreateProgress(user, subSubject);
 
         int difficultyLevel;
@@ -417,6 +438,12 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private boolean isPolynomial(SubSubject subSubject) {
         return subSubject.getSubject() != null
                 && "Polynomial".equalsIgnoreCase(subSubject.getSubject().getName());
+    }
+
+    /** Grade 1–3 proxy for the Daily Practice subject filter (grade itself isn't stored; age is). */
+    private boolean isEarlyGrade(User user) {
+        Integer age = user.getAge();
+        return age != null && age <= EARLY_GRADE_MAX_AGE;
     }
 
     private int clampAiDifficulty(int difficulty) {

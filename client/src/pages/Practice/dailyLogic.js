@@ -4,6 +4,10 @@
 export const DAILY_GOAL = 5;    // correct answers needed to complete the daily practice
 export const DAILY_BONUS = 100; // celebratory completion bonus (shown to the student)
 
+// How far a topic may drift from its weakness rank when the daily mix is shuffled. Must be
+// > 1 so neighbouring ranks can swap; kept small so weaker topics still tend to come first.
+export const VARIETY_JITTER = 3;
+
 // Order the student's topics for a *mixed* daily session: weakest first (lowest success
 // rate gets practised soonest), ties broken by fewer attempts. Invalid entries dropped.
 // Returns a stable array of { subSubjectId, name }.
@@ -15,6 +19,18 @@ export function orderDailyTopics(topics = []) {
             (a.successRate ?? 0) - (b.successRate ?? 0) ||
             (a.attempts ?? 0) - (b.attempts ?? 0))
         .map(t => ({ subSubjectId: t.subSubjectId, name: t.name }));
+}
+
+// Daily variety: take the weakness-ordered topics and shuffle them with a small,
+// weakness-biased jitter. This keeps weaker topics tending to come first (pedagogy) while
+// making the mix — and especially WHICH topic gets the "extra" slots when the student has
+// fewer than DAILY_GOAL topics — vary day to day, instead of always hammering the single
+// weakest topic in the same fixed order. Pure logic (rng is injectable) so it stays testable.
+export function shuffleDailyTopics(topics = [], rng = Math.random) {
+    return orderDailyTopics(topics)
+        .map((topic, rank) => ({ topic, key: rank + rng() * VARIETY_JITTER }))
+        .sort((a, b) => a.key - b.key)
+        .map(entry => entry.topic);
 }
 
 // The topic for the N-th question (0-based), cycling through the ordered list so the

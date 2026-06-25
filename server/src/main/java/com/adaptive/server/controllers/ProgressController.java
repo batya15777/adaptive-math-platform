@@ -83,11 +83,13 @@ public class ProgressController {
             @RequestParam(defaultValue = "he") String language,
             @RequestParam(defaultValue = "false") boolean mc,
             // ids to skip so Daily and Recommended practice never serve the same question today
-            @RequestParam(required = false) java.util.List<Long> excludeQuestionIds) {
+            @RequestParam(required = false) java.util.List<Long> excludeQuestionIds,
+            // true only for Daily Practice — gates the early-grade "no polynomial/algebra" filter
+            @RequestParam(defaultValue = "false") boolean daily) {
         SessionToken token = sessionValidationService.validateAndGetUser(sessionToken);
         Long userId = token.getUser().getId();
         java.util.List<Long> exclude = excludeQuestionIds != null ? excludeQuestionIds : java.util.Collections.emptyList();
-        QuestionResponse result = levelManagerService.getNextQuestion(userId, subSubjectId, language, mc, exclude);
+        QuestionResponse result = levelManagerService.getNextQuestion(userId, subSubjectId, language, mc, exclude, daily);
         return ResponseEntity.ok(result);
     }
 

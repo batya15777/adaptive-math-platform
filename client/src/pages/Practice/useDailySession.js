@@ -5,7 +5,7 @@ import { format } from '../../i18n/languages.js';
 import {
     bumpDailyProgress, readDailySession, writeDailySession, clearDailySession,
 } from '../Home/homeLocal.js';
-import { orderDailyTopics, pickFreshQuestion, DAILY_GOAL } from './dailyLogic.js';
+import { shuffleDailyTopics, pickFreshQuestion, DAILY_GOAL } from './dailyLogic.js';
 
 const MAX_ATTEMPTS = 3;
 
@@ -23,7 +23,8 @@ const MAX_ATTEMPTS = 3;
 // phase: 'loading' | 'answering' | 'concluded' | 'done' | 'error'
 //   (an empty topic list is reported by the caller, not by this hook)
 export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOAL }) {
-    const ordered = useMemo(() => orderDailyTopics(topics), [topics]);
+    // Shuffle (weakness-biased) once per topics load so the daily mix varies day to day.
+    const ordered = useMemo(() => shuffleDailyTopics(topics), [topics]);
 
     // Restore today's in-progress question (if any) so a refresh doesn't lose it.
     const saved = useMemo(() => (userId != null ? readDailySession(userId) : null), [userId]);
@@ -64,7 +65,11 @@ export function useDailySession({ topics, language, qt, userId, goal = DAILY_GOA
             orderedTopics: ordered,
             startIndex: startIdx,
             seen: seenRef.current,
-            fetch: (id) => getNextQuestion(id, language, excludeIds).then(res => res.data),
+            // daily=true → the server filters out polynomial/algebra topics for early grades and
+            // returns a "skipped" marker; treat that as "no question" so pickFreshQuestion moves
+            // on to the next topic in the mix.
+            fetch: (id) => getNextQuestion(id, language, excludeIds, true)
+                .then(res => (res.data && !res.data.skipped ? res.data : null)),
         })
             .then(picked => {
                 if (picked) showQuestion(picked.topic, picked.question);

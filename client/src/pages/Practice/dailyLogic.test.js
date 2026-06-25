@@ -2,8 +2,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    orderDailyTopics, topicForIndex, isComplete, progressPct, pickFreshQuestion, DAILY_GOAL,
+    orderDailyTopics, shuffleDailyTopics, topicForIndex, isComplete, progressPct,
+    pickFreshQuestion, DAILY_GOAL,
 } from './dailyLogic.js';
+
+// A deterministic stand-in for Math.random: returns the queued values in order, then 0.
+const fakeRng = (...values) => { let i = 0; return () => (i < values.length ? values[i++] : 0); };
 
 test('orderDailyTopics: weakest first, ties broken by fewer attempts', () => {
     const topics = [
@@ -23,6 +27,37 @@ test('orderDailyTopics: does not mutate the input', () => {
     const topics = [{ subSubjectId: 1, successRate: 50 }, { subSubjectId: 2, successRate: 10 }];
     const snapshot = JSON.stringify(topics);
     orderDailyTopics(topics);
+    assert.equal(JSON.stringify(topics), snapshot);
+});
+
+test('shuffleDailyTopics: zero jitter keeps the weakest-first order', () => {
+    const topics = [
+        { subSubjectId: 1, name: 'add', successRate: 90, attempts: 10 },
+        { subSubjectId: 2, name: 'sub', successRate: 40, attempts: 5 },
+        { subSubjectId: 3, name: 'mul', successRate: 40, attempts: 2 },
+    ];
+    // rng always 0 → key === rank → identical to orderDailyTopics.
+    assert.deepEqual(shuffleDailyTopics(topics, () => 0).map(t => t.subSubjectId), [3, 2, 1]);
+});
+
+test('shuffleDailyTopics: jitter reorders topics but keeps the same set', () => {
+    const topics = [
+        { subSubjectId: 1, name: 'add', successRate: 90, attempts: 10 },
+        { subSubjectId: 2, name: 'sub', successRate: 40, attempts: 5 },
+        { subSubjectId: 3, name: 'mul', successRate: 40, attempts: 2 },
+    ];
+    // ranks weakest-first are [3,2,1]; keys: 3→0+1*3=3, 2→1+0=1, 1→2+0=2 → sorted [2,1,3].
+    const result = shuffleDailyTopics(topics, fakeRng(1, 0, 0)).map(t => t.subSubjectId);
+    assert.deepEqual(result, [2, 1, 3]);
+    assert.deepEqual([...result].sort(), [1, 2, 3]); // still a permutation of all topics
+});
+
+test('shuffleDailyTopics: drops invalid entries, handles empty, does not mutate', () => {
+    assert.deepEqual(shuffleDailyTopics(), []);
+    assert.deepEqual(shuffleDailyTopics([null, { name: 'x' }, undefined]), []);
+    const topics = [{ subSubjectId: 1, successRate: 50 }, { subSubjectId: 2, successRate: 10 }];
+    const snapshot = JSON.stringify(topics);
+    shuffleDailyTopics(topics);
     assert.equal(JSON.stringify(topics), snapshot);
 });
 

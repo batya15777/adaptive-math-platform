@@ -8,6 +8,7 @@ import com.adaptive.server.entity.Question;
 import com.adaptive.server.entity.QuestionArchive;
 import com.adaptive.server.entity.StudentProgress;
 import com.adaptive.server.entity.SubSubject;
+import com.adaptive.server.entity.Subject;
 import com.adaptive.server.entity.User;
 import com.adaptive.server.entity.enums.QuestionStatus;
 import com.adaptive.server.entity.enums.SpaceshipStatus;
@@ -621,6 +622,93 @@ class LevelManagerServiceTest {
             // difficulty 2 ≤ MC band, so the generator is asked for multiple-choice.
             service.getNextQuestion(USER_ID, SUB_SUBJECT_ID, "en", true);
             verify(calculationGenerator).createQuestion(any(), anyInt(), anyInt(), eq("en"), eq(true), any(ClusterContext.class));
+        }
+    }
+
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Daily Practice ONLY: grades 1–3 (age ≤ 9 proxy) must never get polynomial/algebra
+    // ("solve for x", x²). The server returns a "skipped" marker so the client moves to the
+    // next topic. Regular Practice (daily=false) is unaffected by this filter.
+    @Nested
+    @DisplayName("getNextQuestion() — Daily Practice early-grade subject filter")
+    class DailyEarlyGradeFilter {
+
+        private void makeSubSubjectPolynomial() {
+            Subject polynomial = mock(Subject.class);
+            when(polynomial.getName()).thenReturn("Polynomial");
+            when(testSubSubject.getSubject()).thenReturn(polynomial);
+        }
+
+        @Test @DisplayName("Daily + early grade (age ≤ 9) + polynomial → skipped, nothing generated")
+        void daily_earlyGrade_polynomial_isSkipped() {
+            when(testUser.getAge()).thenReturn(8);
+            makeSubSubjectPolynomial();
+
+            QuestionResponse r = service.getNextQuestion(
+                    USER_ID, SUB_SUBJECT_ID, "he", false, Collections.emptyList(), true);
+
+            assertTrue(r.isSkipped());
+            assertNull(r.getQuestionId());
+            verify(polynomialGenerator, never())
+                    .createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class));
+            verify(progressRepository, never()).save(any());
+            verify(archiveRepository, never()).save(any(QuestionArchive.class));
+        }
+
+        @Test @DisplayName("Daily + early grade + arithmetic (non-polynomial) → generated normally")
+        void daily_earlyGrade_arithmetic_isGenerated() {
+            when(testUser.getAge()).thenReturn(8); // testSubSubject.getSubject() is null → arithmetic
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
+                    .thenReturn(Optional.of(progressAt(1)));
+            when(calculationGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
+                    .thenReturn(stubQuestion(1));
+            when(questionRepository.save(any())).thenReturn(stubSavedQuestion(1));
+
+            QuestionResponse r = service.getNextQuestion(
+                    USER_ID, SUB_SUBJECT_ID, "he", false, Collections.emptyList(), true);
+
+            assertFalse(r.isSkipped());
+            assertEquals(99L, r.getQuestionId());
+            verify(calculationGenerator)
+                    .createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class));
+        }
+
+        @Test @DisplayName("Daily + older student (age > 9) + polynomial → NOT skipped (generated)")
+        void daily_olderStudent_polynomial_isGenerated() {
+            when(testUser.getAge()).thenReturn(14);
+            makeSubSubjectPolynomial();
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
+                    .thenReturn(Optional.of(progressAt(3)));
+            when(polynomialGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
+                    .thenReturn(stubQuestion(3));
+            when(questionRepository.save(any())).thenReturn(stubSavedQuestion(3));
+
+            QuestionResponse r = service.getNextQuestion(
+                    USER_ID, SUB_SUBJECT_ID, "he", false, Collections.emptyList(), true);
+
+            assertFalse(r.isSkipped());
+            verify(polynomialGenerator)
+                    .createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class));
+        }
+
+        @Test @DisplayName("Regular Practice (daily=false) + early grade + polynomial → NOT filtered (isolation)")
+        void regularPractice_earlyGrade_polynomial_isNotFiltered() {
+            when(testUser.getAge()).thenReturn(8);
+            makeSubSubjectPolynomial();
+            when(progressRepository.findByUserIdAndSubSubjectId(USER_ID, SUB_SUBJECT_ID))
+                    .thenReturn(Optional.of(progressAt(2)));
+            when(polynomialGenerator.createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class)))
+                    .thenReturn(stubQuestion(2));
+            when(questionRepository.save(any())).thenReturn(stubSavedQuestion(2));
+
+            // 5-arg overload → daily defaults false → the filter never runs.
+            QuestionResponse r = service.getNextQuestion(
+                    USER_ID, SUB_SUBJECT_ID, "he", false, Collections.emptyList());
+
+            assertFalse(r.isSkipped());
+            verify(polynomialGenerator)
+                    .createQuestion(any(), anyInt(), anyInt(), anyString(), anyBoolean(), any(ClusterContext.class));
         }
     }
 
