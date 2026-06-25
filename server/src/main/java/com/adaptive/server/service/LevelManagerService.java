@@ -345,9 +345,13 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
 
     /**
      * Picks the generation pipeline and feeds it the cluster context.
-     * When AI questions are enabled it tries the AI generator first (passing the full
-     * {@link ClusterContext}); on ANY failure (service down, no API key, bad output) it
-     * falls back to the code-based generator so the student always gets a question.
+     * Subjects that have a server-side code generator (Calculation, Polynomial) ALWAYS use it
+     * and never touch the AI — the global {@code questions.ai.enabled} flag and any per-sub-subject
+     * AI config are ignored for them. The AI generator is reserved for subjects with no code
+     * generator (e.g. Verbal Problems / בעיות מילוליות).
+     * For those AI subjects it tries the AI generator first (passing the full {@link ClusterContext});
+     * on ANY failure (service down, no API key, bad output) it falls back to the code-based
+     * generator so the student always gets a question.
      */
     private Question generateAdaptiveQuestion(User user, SubSubject subSubject, int subSubjectLevel,
                                               int difficultyLevel, String language, boolean mc,
@@ -355,8 +359,11 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
         Optional<SubSubjectAiConfig> aiConfig = subSubjectAiConfigRepository
                 .findBySubSubjectId(subSubject.getId());
 
-        boolean forceAi     = aiConfig.isPresent();
-        boolean useAi       = forceAi || aiQuestionsEnabled;
+        // Code-backed subjects (Calculation, Polynomial) must never use the AI generator,
+        // regardless of the global flag or any AI config.
+        boolean hasCode     = hasCodeGenerator(subSubject);
+        boolean forceAi     = !hasCode && aiConfig.isPresent();
+        boolean useAi       = !hasCode && (forceAi || aiQuestionsEnabled);
         boolean effectiveMc = mc || aiConfig.map(SubSubjectAiConfig::isForceMultipleChoice).orElse(false);
         String  aiTopic     = aiConfig.map(SubSubjectAiConfig::getAiTopic).orElse(null);
 
@@ -413,6 +420,19 @@ public class LevelManagerService {//מוח שמנהל התקדמות תלמיד 
     private boolean isPolynomial(SubSubject subSubject) {
         return subSubject.getSubject() != null
                 && "Polynomial".equalsIgnoreCase(subSubject.getSubject().getName());
+    }
+
+    /**
+     * True when the sub-subject's subject has a server-side code generator (Calculation or
+     * Polynomial). Those subjects always generate code-side and never use the AI generator.
+     */
+    private boolean hasCodeGenerator(SubSubject subSubject) {
+        if (subSubject.getSubject() == null) {
+            return false;
+        }
+        String subjectName = subSubject.getSubject().getName();
+        return "Calculation".equalsIgnoreCase(subjectName)
+                || "Polynomial".equalsIgnoreCase(subjectName);
     }
 
     private int clampAiDifficulty(int difficulty) {
