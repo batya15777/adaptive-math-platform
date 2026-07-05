@@ -138,6 +138,7 @@
 }
 .mg-inp:focus-within { border-color: var(--mg-accent); box-shadow: 0 0 0 3px var(--mg-ring); }
 .mg-inp--err { border-color: var(--mg-danger); }
+.mg-fielderr { display: block; margin-top: 6px; color: var(--mg-danger); font-size: 12px; line-height: 1.35; text-align: start; }
 .mg-ic { opacity: .8; font-size: 15px; flex: none; }
 .mg-field-input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: var(--mg-ts); font: inherit; font-size: 14px; }
 .mg-field-input::placeholder { color: var(--mg-tm); }

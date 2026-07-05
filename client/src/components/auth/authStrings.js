@@ -25,6 +25,13 @@ export const AUTH_STRINGS = {
         invalidCode: "Invalid code",
         male: "Male",
         female: "Female",
+        // --- Per-field validation errors ---
+        errFullName: "Full name: at least two words, letters only (English / Hebrew / Russian), up to 30 characters",
+        errEmail: "Please enter a valid email address",
+        errPassword: "Password: 2–10 characters and at least one English letter (allowed: letters, digits, ! @ # *)",
+        errConfirm: "Passwords do not match",
+        errAge: "Please select your age",
+        errGender: "Please select your gender",
         // --- Space Academy auth redesign ---
         loginTitle: "Welcome back!",
         loginSubtitle: "Sign in to continue",
@@ -96,6 +103,13 @@ export const AUTH_STRINGS = {
         invalidCode: "קוד שגוי",
         male: "זכר",
         female: "נקבה",
+        // --- Per-field validation errors ---
+        errFullName: "שם מלא: שתי מילים לפחות, אותיות בלבד (אנגלית / עברית / רוסית), עד 30 תווים",
+        errEmail: "יש להזין כתובת אימייל תקינה",
+        errPassword: "סיסמה: 2–10 תווים ולפחות אות אחת באנגלית (מותר: אותיות, ספרות, ! @ # *)",
+        errConfirm: "הסיסמאות אינן תואמות",
+        errAge: "יש לבחור גיל",
+        errGender: "יש לבחור מין",
         // --- Space Academy auth redesign ---
         loginTitle: "ברוך שובך!",
         loginSubtitle: "התחבר כדי להמשיך",
@@ -167,6 +181,13 @@ export const AUTH_STRINGS = {
         invalidCode: "Неверный код",
         male: "Мужской",
         female: "Женский",
+        // --- Per-field validation errors ---
+        errFullName: "Полное имя: минимум два слова, только буквы (английские / иврит / русские), до 30 символов",
+        errEmail: "Введите корректный адрес эл. почты",
+        errPassword: "Пароль: 2–10 символов и минимум одна английская буква (разрешено: буквы, цифры, ! @ # *)",
+        errConfirm: "Пароли не совпадают",
+        errAge: "Выберите возраст",
+        errGender: "Выберите пол",
         // --- Space Academy auth redesign ---
         loginTitle: "С возвращением!",
         loginSubtitle: "Войдите, чтобы продолжить",

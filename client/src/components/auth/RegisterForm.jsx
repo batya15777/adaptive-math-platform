@@ -25,35 +25,34 @@ function RegisterForm() {
     const [errors, setErrors] = useState("");
     const [resendCooldown, setResendCooldown] = useState(0);
     const [loading, setLoading] = useState(false);
+    // Which fields the user has interacted with, and whether a submit was attempted.
+    // A field's error is only surfaced once it's been touched or the form was submitted.
+    const [touched, setTouched] = useState({});
+    const [submitted, setSubmitted] = useState(false);
 
     const navigate = useNavigate();
 
-    const validation = () => {
-        let hasErrors = false;
-        if (!fullNameRegex(fullName)) {
-            hasErrors = true;
-        }
-        if (!passwordRegex(password)) {
-            hasErrors = true;
-        }
-        if (password !== confirmPassword) {
-            hasErrors = true;
-        }
-        if (!emailRegex(email)) {
-            hasErrors = true;
-        }
-        if (age === "" || Number(age) < 1 || Number(age) > 120) {
-            hasErrors = true;
-        }
-        if (gender.trim().length === 0) {
-            hasErrors = true;
-        }
-        return hasErrors;
+    // One error message per field (empty string = valid). Drives both the CTA state
+    // and the inline messages so the user knows exactly what to fix in each field.
+    const fieldErrors = {
+        fullName: fullNameRegex(fullName) ? "" : t.errFullName,
+        email: emailRegex(email) ? "" : t.errEmail,
+        password: passwordRegex(password) ? "" : t.errPassword,
+        confirmPassword: password === confirmPassword ? "" : t.errConfirm,
+        age: age !== "" && Number(age) >= 1 && Number(age) <= 120 ? "" : t.errAge,
+        gender: gender.trim().length > 0 ? "" : t.errGender,
     };
+
+    const markTouched = (field) => setTouched((prev) => ({ ...prev, [field]: true }));
+    // Show a field's error only after it was touched or the form was submitted.
+    const errFor = (field) => ((submitted || touched[field]) ? fieldErrors[field] : "");
+
+    const validation = () => Object.values(fieldErrors).some(Boolean);
 
     const handleRegister = (e) => {
         e.preventDefault();
         setErrors("");
+        setSubmitted(true);
         if (validation()) return;
 
         const data = registrationData();
@@ -175,38 +174,46 @@ function RegisterForm() {
                     <p className="mg-sub">{t.registerSubtitle}</p>
                 </div>
 
-                <Field label={t.fullNameLabel} icon="👤">
+                <Field label={t.fullNameLabel} icon="👤" errorText={errFor("fullName")}>
                     <input className="mg-field-input" type="text" value={fullName}
                         placeholder={t.fullNamePh} autoComplete="name"
-                        onChange={(e) => setFullName(e.target.value)} />
+                        onChange={(e) => setFullName(e.target.value)}
+                        onBlur={() => markTouched("fullName")} />
                 </Field>
 
-                <Field label={t.emailLabel} icon="✉">
+                <Field label={t.emailLabel} icon="✉" errorText={errFor("email")}>
                     <input className="mg-field-input" type="email" value={email}
                         placeholder={t.emailPh} autoComplete="email"
-                        onChange={(e) => setEmail(e.target.value)} />
+                        onChange={(e) => setEmail(e.target.value)}
+                        onBlur={() => markTouched("email")} />
                 </Field>
 
                 <PasswordField label={t.passwordLabel} value={password} placeholder={t.passwordPh}
                     show={showPassword} onToggle={() => setShowPassword((v) => !v)}
                     labels={{ show: t.show, hide: t.hide }} autoComplete="new-password"
-                    onChange={(e) => setPassword(e.target.value)} />
+                    errorText={errFor("password")}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onBlur={() => markTouched("password")} />
 
                 <PasswordField label={t.confirmLabel} value={confirmPassword} placeholder={t.confirmPh}
                     show={showConfirmPassword} onToggle={() => setShowConfirmPassword((v) => !v)}
                     labels={{ show: t.show, hide: t.hide }} autoComplete="new-password"
-                    onChange={(e) => setConfirmPassword(e.target.value)} />
+                    errorText={errFor("confirmPassword")}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onBlur={() => markTouched("confirmPassword")} />
 
                 <div className="mg-grid2">
                     <AgeSelect label={t.ageLabel} value={age} placeholder={t.agePlaceholder}
-                        groups={ageGroups} onChange={setAge} />
+                        groups={ageGroups} errorText={errFor("age")}
+                        onChange={(v) => { markTouched("age"); setAge(v); }} />
 
                     <div className="mg-fld">
                         <span className="mg-lbl">{t.genderLabel}</span>
-                        <div className="mg-seg" role="group" aria-label={t.genderLabel}>
-                            <button type="button" aria-pressed={gender === "female"} onClick={() => setGender("female")}>♀ {t.female}</button>
-                            <button type="button" aria-pressed={gender === "male"} onClick={() => setGender("male")}>{t.male} ♂</button>
+                        <div className={"mg-seg" + (errFor("gender") ? " mg-inp--err" : "")} role="group" aria-label={t.genderLabel}>
+                            <button type="button" aria-pressed={gender === "female"} onClick={() => { markTouched("gender"); setGender("female"); }}>♀ {t.female}</button>
+                            <button type="button" aria-pressed={gender === "male"} onClick={() => { markTouched("gender"); setGender("male"); }}>{t.male} ♂</button>
                         </div>
+                        {errFor("gender") && <span className="mg-fielderr" role="alert">{errFor("gender")}</span>}
                     </div>
                 </div>
 

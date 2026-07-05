@@ -4,15 +4,18 @@ import { useRef, useState, useEffect } from "react";
 // business logic, so Login/Register keep their existing state, validation and API calls.
 
 // A labelled input shell with optional leading icon + trailing slot.
-export function Field({ label, icon, children, trailing, error }) {
+// `errorText` (when set) renders a message below the field and flags the border.
+export function Field({ label, icon, children, trailing, error, errorText }) {
+    const invalid = error || !!errorText;
     return (
         <label className="mg-fld">
             <span className="mg-lbl">{label}</span>
-            <span className={"mg-inp" + (error ? " mg-inp--err" : "")}>
+            <span className={"mg-inp" + (invalid ? " mg-inp--err" : "")}>
                 {icon && <span className="mg-ic" aria-hidden="true">{icon}</span>}
                 {children}
                 {trailing}
             </span>
+            {errorText && <span className="mg-fielderr" role="alert">{errorText}</span>}
         </label>
     );
 }
@@ -31,11 +34,12 @@ function EyeIcon({ off }) {
 
 // Password field with a show/hide toggle. `labels` = { show, hide } for a11y/i18n.
 // Visible password → open eye; hidden password → eye with a slash.
-export function PasswordField({ label, value, onChange, placeholder, show, onToggle, labels, autoComplete }) {
+export function PasswordField({ label, value, onChange, onBlur, placeholder, show, onToggle, labels, autoComplete, errorText }) {
     return (
         <Field
             label={label}
             icon="🔒"
+            errorText={errorText}
             trailing={
                 <button
                     type="button"
@@ -54,6 +58,7 @@ export function PasswordField({ label, value, onChange, placeholder, show, onTog
                 value={value}
                 placeholder={placeholder}
                 onChange={onChange}
+                onBlur={onBlur}
                 autoComplete={autoComplete}
             />
         </Field>
@@ -63,7 +68,7 @@ export function PasswordField({ label, value, onChange, placeholder, show, onTog
 // Themed age picker (replaces the native <select> so the dropdown matches dark/light).
 // `groups` = [{ label, from, to }]. Emits the chosen age as a string via onChange.
 // Auto-flips upward when there isn't room below (it sits low in the Register card).
-export function AgeSelect({ label, value, placeholder, groups, onChange }) {
+export function AgeSelect({ label, value, placeholder, groups, onChange, errorText }) {
     const [open, setOpen] = useState(false);
     const [dropUp, setDropUp] = useState(false);
     const wrapRef = useRef(null);
@@ -96,7 +101,7 @@ export function AgeSelect({ label, value, placeholder, groups, onChange }) {
             <span className="mg-lbl">{label}</span>
             <button
                 type="button"
-                className={"mg-inp mg-agebtn" + (selected == null ? " is-placeholder" : "")}
+                className={"mg-inp mg-agebtn" + (selected == null ? " is-placeholder" : "") + (errorText ? " mg-inp--err" : "")}
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 onClick={toggle}
@@ -128,6 +133,7 @@ export function AgeSelect({ label, value, placeholder, groups, onChange }) {
                     ))}
                 </div>
             )}
+            {errorText && <span className="mg-fielderr" role="alert">{errorText}</span>}
         </div>
     );
 }
