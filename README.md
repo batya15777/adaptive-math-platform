@@ -39,61 +39,15 @@ The experience is wrapped in a space-themed, gamified interface designed to enco
 - **Multilingual interface** — Hebrew, English, and Russian with RTL/LTR support.
 - **Secure account flow** — registration, login, email verification with OTP, and HttpOnly cookie-based sessions.
 
-## Product Tour
+## Product Preview
 
-<img src="docs/screenshots/welcome.jpg" alt="MathGalaxy animated welcome screen" />
+<img src="docs/screenshots/welcome.jpg" alt="MathGalaxy animated welcome experience" />
 
-<p align="center"><strong>Space-themed welcome experience</strong></p>
+<p align="center"><strong>Space-themed, multilingual learning experience</strong></p>
 
-### Live Authentication Experience
+The product includes a personalized student home, adaptive practice, progress analytics, an AI tutor, educational games, profile and accessibility settings, leaderboards, and an administration workspace.
 
-The following screenshots were captured from the deployed application.
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/login-light.jpg" alt="MathGalaxy live login screen in light mode" />
-    </td>
-    <td width="50%">
-      <img src="docs/screenshots/register-light.jpg" alt="MathGalaxy live registration screen in light mode" />
-    </td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Login · Light mode</strong></td>
-    <td align="center"><strong>Registration · Light mode</strong></td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="docs/design/mockups/he-login-dark.png" alt="MathGalaxy login screen in dark mode" />
-    </td>
-    <td width="50%">
-      <img src="docs/screenshots/register-dark.jpg" alt="MathGalaxy live registration screen in dark mode" />
-    </td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Login · Dark mode</strong></td>
-    <td align="center"><strong>Registration · Dark mode</strong></td>
-  </tr>
-</table>
-
-### Gamified Learning Experience
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/design/mockups/board-dark-en.png" alt="MathGalaxy game board in English and dark mode" />
-    </td>
-    <td width="50%">
-      <img src="docs/design/mockups/board-light-he.png" alt="MathGalaxy game board in Hebrew and light mode" />
-    </td>
-  </tr>
-  <tr>
-    <td align="center"><strong>English · Dark mode</strong></td>
-    <td align="center"><strong>Hebrew · Light mode</strong></td>
-  </tr>
-</table>
-
-The interface supports multilingual layouts, light and dark themes, and a consistent visual system across authentication, learning, and administration flows.
+> A complete walkthrough featuring the student, game, settings, and admin experiences will be added when the temporarily paused live services are restored. This README intentionally avoids presenting authentication mockups as product screens.
 
 ## Architecture
 
