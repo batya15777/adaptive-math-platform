@@ -39,15 +39,46 @@ The experience is wrapped in a space-themed, gamified interface designed to enco
 - **Multilingual interface** — Hebrew, English, and Russian with RTL/LTR support.
 - **Secure account flow** — registration, login, email verification with OTP, and HttpOnly cookie-based sessions.
 
-## Product Preview
+## Product Tour
 
-<img src="docs/screenshots/welcome.jpg" alt="MathGalaxy animated welcome experience" />
+### Watch the walkthrough
 
-<p align="center"><strong>Space-themed, multilingual learning experience</strong></p>
+<a href="docs/demo/mathgalaxy-product-tour.mp4">
+  <img src="docs/demo/mathgalaxy-preview.gif" alt="MathGalaxy product walkthrough featuring the dashboard, adaptive practice, AI tutor, games, and profile personalization" />
+</a>
 
-The product includes a personalized student home, adaptive practice, progress analytics, an AI tutor, educational games, profile and accessibility settings, leaderboards, and an administration workspace.
+<p align="center"><strong>Click the preview to watch the full 1080p product tour.</strong></p>
 
-> A complete walkthrough featuring the student, game, settings, and admin experiences will be added when the temporarily paused live services are restored. This README intentionally avoids presenting authentication mockups as product screens.
+### Inside MathGalaxy
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/student-dashboard.jpg" alt="MathGalaxy personalized student dashboard" />
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/adaptive-practice-ai-tutor.jpg" alt="MathGalaxy adaptive practice with the AI tutor" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Personalized Student Dashboard</strong></td>
+    <td align="center"><strong>Adaptive Practice & AI Tutor</strong></td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/galaxy-battle.jpg" alt="MathGalaxy educational Galaxy Battle game" />
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/avatar-personalization.jpg" alt="MathGalaxy avatar selection and profile personalization" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Gamified Mathematics</strong></td>
+    <td align="center"><strong>Profile & Avatar Personalization</strong></td>
+  </tr>
+</table>
+
+The walkthrough and screenshots were captured from the original application running locally with its real React frontend, Spring Boot backend, and MySQL database.
 
 ## Architecture
 
